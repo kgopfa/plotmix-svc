@@ -13,10 +13,79 @@ datasource db {
 
 model User {
   id        String   @id @default(cuid())
+  name      String
   email     String   @unique
   password  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Relations
+  ownedProjects     Project[]     @relation("ProjectOwner")
+  projectChanges    ProjectChange[] @relation("ChangeAuthor")
+  projectRoles      ProjectRole[]
+
   @@map("users")
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  name      String
+  mainState Json     // Current canonical project structure
+  version   String   // Current version number or hash
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  userId        String        @map("user_id") // FK: owner
+  owner         User          @relation("ProjectOwner", fields: [userId], references: [id], onDelete: Cascade)
+  changes       ProjectChange[]
+  snapshots     Snapshot[]
+  collaborators ProjectRole[]
+
+  @@map("projects")
+}
+
+model ProjectChange {
+  id              String   @id @default(cuid())
+  version         String   // Incremental version that matches or leads to Project.version
+  diff            Json     // JSON Patch or chosen diff format, including previous values for reverse
+  actionDescription String? // Optional description of the change
+  clientHash      String?  // Optional client-side hash for conflict resolution
+  createdAt       DateTime @default(now())
+
+  // Relations
+  projectId       String   @map("project_id")
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  authorUserId    String   @map("author_user_id")
+  author          User     @relation("ChangeAuthor", fields: [authorUserId], references: [id], onDelete: Cascade)
+
+  @@map("project_changes")
+}
+
+model Snapshot {
+  id        String   @id @default(cuid())
+  version   String   // Version at which this snapshot was taken
+  state     Json     // Full copy of the project at this point in time
+  createdAt DateTime @default(now())
+
+  // Relations
+  projectId String   @map("project_id")
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("snapshots")
+}
+
+model ProjectRole {
+  id     String @id @default(cuid())
+  role   String // editor, viewer, etc.
+  status String // pending, accepted, declined, etc.
+  
+  // Relations
+  projectId String  @map("project_id")
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String  @map("user_id")
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@map("project_roles")
 }
