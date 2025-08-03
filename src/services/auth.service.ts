@@ -3,10 +3,7 @@ import jwt from 'jsonwebtoken';
 import { config } from '../config';
 import { logger } from '../utils/logger';
 import { User, JWTPayload, LoginRequest, RegisterRequest } from '../types';
-
-// In-memory user storage for demo purposes
-// In production, this would be replaced with a database
-const users: Map<string, User> = new Map();
+import { prisma } from './prisma.service';
 
 export class AuthService {
   private static readonly SALT_ROUNDS = 12;
@@ -34,7 +31,10 @@ export class AuthService {
     const { email, password } = userData;
 
     // Check if user already exists
-    const existingUser = Array.from(users.values()).find(user => user.email === email);
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+    
     if (existingUser) {
       throw new Error('User with this email already exists');
     }
@@ -43,16 +43,12 @@ export class AuthService {
     const hashedPassword = await this.hashPassword(password);
 
     // Create user
-    const user: User = {
-      id: this.generateUserId(),
-      email,
-      password: hashedPassword,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    // Store user
-    users.set(user.id, user);
+    const user = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+      },
+    });
 
     // Generate token
     const token = this.generateToken(user);
@@ -70,7 +66,10 @@ export class AuthService {
     const { email, password } = credentials;
 
     // Find user
-    const user = Array.from(users.values()).find(u => u.email === email);
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+    
     if (!user) {
       throw new Error('Invalid credentials');
     }
@@ -94,16 +93,15 @@ export class AuthService {
   }
 
   static async getUserById(userId: string): Promise<Omit<User, 'password'> | null> {
-    const user = users.get(userId);
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+    
     if (!user) {
       return null;
     }
 
     const { password: _, ...userWithoutPassword } = user;
     return userWithoutPassword;
-  }
-
-  private static generateUserId(): string {
-    return `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 } 

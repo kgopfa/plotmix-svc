@@ -30,7 +30,21 @@ A production-grade Node.js backend server built with TypeScript, Express, and JW
    cp env.example .env
    ```
 
-4. Update the `.env` file with your configuration (especially the JWT_SECRET)
+4. Update the `.env` file with your configuration:
+   - Replace `[YOUR-PASSWORD]` in `DATABASE_URL` and `DIRECT_URL` with your actual Supabase password
+   - Update `JWT_SECRET` with a secure secret key
+
+5. Set up the database:
+   ```bash
+   # Generate Prisma client
+   pnpm db:generate
+   
+   # Push schema to database (creates tables)
+   pnpm db:push
+   
+   # Optional: Seed the database with test data
+   pnpm db:seed
+   ```
 
 ## Development
 
@@ -201,6 +215,35 @@ Run tests in watch mode:
 pnpm test:watch
 ```
 
+## Database
+
+### Commands
+
+Generate Prisma client:
+```bash
+pnpm db:generate
+```
+
+Push schema changes to database:
+```bash
+pnpm db:push
+```
+
+Create and run migrations:
+```bash
+pnpm db:migrate
+```
+
+Open Prisma Studio (database GUI):
+```bash
+pnpm db:studio
+```
+
+Seed database with test data:
+```bash
+pnpm db:seed
+```
+
 ## Linting
 
 Run linter:
@@ -257,6 +300,8 @@ src/
 | RATE_LIMIT_MAX_REQUESTS | Max requests per window | 100 |
 | CORS_ORIGIN | Allowed CORS origin | http://localhost:3000 |
 | LOG_LEVEL | Logging level | info |
+| DATABASE_URL | Supabase connection pooling URL | postgresql://... |
+| DIRECT_URL | Direct Supabase connection URL | postgresql://... |
 
 ## License
 

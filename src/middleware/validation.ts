@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { body, validationResult } from 'express-validator';
-import { logger } from '../utils/logger';
+import { errorLogger } from '../utils/logger';
 
 export const handleValidationErrors = (
   req: Request,
@@ -9,10 +9,14 @@ export const handleValidationErrors = (
 ): void => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    logger.warn('Validation failed', {
+    errorLogger.warn('Validation failed', {
       errors: errors.array(),
       body: req.body,
       ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      url: req.url,
+      method: req.method,
+      timestamp: new Date().toISOString(),
     });
     res.status(400).json({
       success: false,

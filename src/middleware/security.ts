@@ -3,9 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import compression from 'compression';
-import morgan from 'morgan';
 import { config } from '../config';
-import { logger } from '../utils/logger';
+import { morganMiddleware, requestLogger } from './logging';
 
 import { RequestHandler } from 'express';
 
@@ -54,12 +53,7 @@ export const securityMiddleware: RequestHandler[] = [
   express.json({ limit: '10mb' }),
   express.urlencoded({ extended: true, limit: '10mb' }),
 
-  // Logging
-  morgan('combined', {
-    stream: {
-      write: (message: string) => {
-        logger.info(message.trim());
-      },
-    },
-  }),
+  // HTTP request logging
+  morganMiddleware,
+  requestLogger,
 ]; 

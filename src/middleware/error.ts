@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { logger } from '../utils/logger';
+import { errorLogger } from '../utils/logger';
 import { config } from '../config';
 
 export interface AppError extends Error {
@@ -16,14 +16,16 @@ export const errorHandler = (
   const statusCode = error.statusCode || 500;
   const message = error.message || 'Internal Server Error';
 
-  // Log error
-  logger.error('Unhandled error', {
+  // Log error with structured logging
+  errorLogger.error('Unhandled error', {
     error: error.message,
     stack: error.stack,
     url: req.url,
     method: req.method,
     ip: req.ip,
     userAgent: req.get('User-Agent'),
+    statusCode,
+    timestamp: new Date().toISOString(),
   });
 
   // Don't leak error details in production
@@ -37,10 +39,12 @@ export const errorHandler = (
 };
 
 export const notFoundHandler = (req: Request, res: Response): void => {
-  logger.warn('Route not found', {
+  errorLogger.warn('Route not found', {
     url: req.url,
     method: req.method,
     ip: req.ip,
+    userAgent: req.get('User-Agent'),
+    timestamp: new Date().toISOString(),
   });
 
   res.status(404).json({

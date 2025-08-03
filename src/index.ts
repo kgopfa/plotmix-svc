@@ -1,6 +1,7 @@
 import app from './app';
 import { config } from './config';
 import { logger } from './utils/logger';
+import PrismaService from './services/prisma.service';
 
 const server = app.listen(config.port, () => {
   logger.info(`Server is running on port ${config.port}`, {
@@ -11,11 +12,16 @@ const server = app.listen(config.port, () => {
 });
 
 // Graceful shutdown
-const gracefulShutdown = (signal: string) => {
+const gracefulShutdown = async (signal: string) => {
   logger.info(`Received ${signal}. Starting graceful shutdown...`);
   
-  server.close(() => {
+  server.close(async () => {
     logger.info('HTTP server closed');
+    
+    // Disconnect Prisma
+    await PrismaService.disconnect();
+    logger.info('Database connection closed');
+    
     process.exit(0);
   });
 

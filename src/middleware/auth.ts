@@ -1,7 +1,7 @@
 import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config';
-import { logger } from '../utils/logger';
+import { logger, errorLogger } from '../utils/logger';
 import { JWTPayload, AuthenticatedRequest } from '../types';
 
 export const authenticateToken = (
@@ -13,9 +13,12 @@ export const authenticateToken = (
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
   if (!token) {
-    logger.warn('Authentication failed: No token provided', {
+    errorLogger.warn('Authentication failed: No token provided', {
       ip: req.ip,
       userAgent: req.get('User-Agent'),
+      url: req.url,
+      method: req.method,
+      timestamp: new Date().toISOString(),
     });
     res.status(401).json({
       success: false,
@@ -33,9 +36,13 @@ export const authenticateToken = (
     });
     next();
   } catch (error) {
-    logger.warn('Authentication failed: Invalid token', {
+    errorLogger.warn('Authentication failed: Invalid token', {
       error: error instanceof Error ? error.message : 'Unknown error',
       ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      url: req.url,
+      method: req.method,
+      timestamp: new Date().toISOString(),
     });
     res.status(403).json({
       success: false,

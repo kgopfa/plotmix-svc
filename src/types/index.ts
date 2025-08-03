@@ -1,10 +1,7 @@
-export interface User {
-  id: string;
-  email: string;
-  password: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { Request } from 'express';
+import { User as PrismaUser } from '@prisma/client';
+
+export type User = PrismaUser;
 
 export interface JWTPayload {
   userId: string;
@@ -12,8 +9,6 @@ export interface JWTPayload {
   iat: number;
   exp: number;
 }
-
-import { Request } from 'express';
 
 export interface AuthenticatedRequest extends Request {
   user?: JWTPayload;
