@@ -1,0 +1,34 @@
+import express, { Application } from 'express';
+import { config } from './config';
+import { securityMiddleware } from './middleware/security';
+import { errorHandler, notFoundHandler } from './middleware/error';
+import authRoutes from './routes/auth.routes';
+import healthRoutes from './routes/health.routes';
+
+const app: Application = express();
+
+// Apply security middleware
+app.use(securityMiddleware);
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api', healthRoutes);
+
+// Root endpoint
+app.get('/', (_req, res) => {
+  res.json({
+    success: true,
+    message: 'PlotMix API Server',
+    version: '1.0.0',
+    environment: config.nodeEnv,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// 404 handler
+app.use(notFoundHandler);
+
+// Error handler (must be last)
+app.use(errorHandler);
+
+export default app; 
