@@ -87,9 +87,9 @@ export const testUtils = {
   generateTestToken(userId: string, email: string) {
     const jwt = require('jsonwebtoken');
     return jwt.sign(
-      { userId, email },
-      config.jwt.secret,
-      { expiresIn: config.jwt.expiresIn }
+      { sub: userId, userId, email, name: `Test User ${userId}` },
+      config.nextAuth.secret,
+      { expiresIn: '1h' }
     );
   },
 };

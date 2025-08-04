@@ -181,7 +181,7 @@ export class CollaborationService {
     // Check if user has access to the project
     const hasAccess = await this.userHasProjectAccess(projectId, userId);
     if (!hasAccess) {
-      return [];
+      throw new Error('Project not found or access denied');
     }
 
     return prisma.projectRole.findMany({

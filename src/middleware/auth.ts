@@ -12,7 +12,10 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
   if (!token) {
-    res.status(401).json({ error: 'Access token required' });
+    res.status(401).json({ 
+      success: false,
+      message: 'Access token required' 
+    });
     return;
   }
 
@@ -35,7 +38,10 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     next();
   } catch (error) {
     console.error('Token validation error:', error);
-    res.status(403).json({ error: 'Invalid or expired token' });
+    res.status(403).json({ 
+      success: false,
+      message: 'Invalid or expired token' 
+    });
     return;
   }
 };

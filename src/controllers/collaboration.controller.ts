@@ -242,6 +242,15 @@ export class CollaborationController {
         projectId: req.params['projectId'],
       });
 
+      // Handle access denied error specifically
+      if (error instanceof Error && error.message === 'Project not found or access denied') {
+        res.status(404).json({
+          success: false,
+          message: 'Project not found or access denied',
+        });
+        return;
+      }
+
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve project collaborators',
