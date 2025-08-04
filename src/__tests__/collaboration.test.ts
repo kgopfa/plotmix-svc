@@ -11,14 +11,21 @@ describe('Collaboration Endpoints', () => {
 
   beforeEach(async () => {
     testRequest = createTestRequest(app);
+    
+    // Create test accounts for each test with unique emails
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(7);
+    
     owner = await testUtils.createTestUser({
       name: 'Project Owner',
-      email: 'owner@example.com',
+      email: `collab-test-owner-${timestamp}-${randomId}@example.com`,
     });
     collaborator = await testUtils.createTestUser({
       name: 'Project Collaborator',
-      email: 'collaborator@example.com',
+      email: `collab-test-collaborator-${timestamp}-${randomId}@example.com`,
     });
+    
+    // Create a fresh project for each test
     project = await testUtils.createTestProject(owner.id, {
       name: 'Test Project',
     });

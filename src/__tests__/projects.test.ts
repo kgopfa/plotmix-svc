@@ -59,7 +59,7 @@ describe('Project Endpoints', () => {
         .expect(401);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.message).toBe('User not authenticated');
+      expect(response.body.message).toBe('Access token required');
     });
   });
 
