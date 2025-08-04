@@ -1,75 +1,89 @@
-import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { Request, Response, NextFunction } from 'express';
 import { config } from '../config';
-import { logger, errorLogger } from '../utils/logger';
 import { JWTPayload, AuthenticatedRequest } from '../types';
 
-export const authenticateToken = (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-): void => {
-  const authHeader = req.headers.authorization;
+/**
+ * Middleware to validate NextAuth JWT tokens
+ * This replaces the previous JWT validation to work with NextAuth.js tokens
+ */
+export const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
   if (!token) {
-    errorLogger.warn('Authentication failed: No token provided', {
-      ip: req.ip,
-      userAgent: req.get('User-Agent'),
-      url: req.url,
-      method: req.method,
-      timestamp: new Date().toISOString(),
-    });
-    res.status(401).json({
-      success: false,
-      message: 'Access token required',
-    });
-    return;
+    return res.status(401).json({ error: 'Access token required' });
+  }
+
+  try {
+    // Validate NextAuth JWT token using the same secret
+    const decoded = jwt.verify(token, config.jwt.secret) as JWTPayload;
+    
+    // NextAuth tokens have a different structure, so we need to adapt
+    const authenticatedReq = req as AuthenticatedRequest;
+    authenticatedReq.user = {
+      id: decoded.sub || decoded.id, // NextAuth uses 'sub' for user ID
+      email: decoded.email,
+      name: decoded.name,
+      iat: decoded.iat,
+      exp: decoded.exp,
+    };
+
+    next();
+  } catch (error) {
+    console.error('Token validation error:', error);
+    return res.status(403).json({ error: 'Invalid or expired token' });
+  }
+};
+
+/**
+ * Optional authentication middleware
+ * Allows requests to proceed even without a valid token
+ */
+export const optionalAuth = (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return next(); // Continue without authentication
   }
 
   try {
     const decoded = jwt.verify(token, config.jwt.secret) as JWTPayload;
-    req.user = decoded;
-    logger.info('Authentication successful', {
-      userId: decoded.userId,
+    const authenticatedReq = req as AuthenticatedRequest;
+    authenticatedReq.user = {
+      id: decoded.sub || decoded.id,
       email: decoded.email,
-    });
+      name: decoded.name,
+      iat: decoded.iat,
+      exp: decoded.exp,
+    };
     next();
   } catch (error) {
-    errorLogger.warn('Authentication failed: Invalid token', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      ip: req.ip,
-      userAgent: req.get('User-Agent'),
-      url: req.url,
-      method: req.method,
-      timestamp: new Date().toISOString(),
-    });
-    res.status(403).json({
-      success: false,
-      message: 'Invalid or expired token',
-    });
+    // Token is invalid, but we continue without authentication
+    console.warn('Invalid token in optional auth:', error);
+    next();
   }
 };
 
-export const optionalAuth = (
-  req: AuthenticatedRequest,
-  _res: Response,
-  next: NextFunction
-): void => {
-  const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (token) {
-    try {
-      const decoded = jwt.verify(token, config.jwt.secret) as JWTPayload;
-      req.user = decoded;
-    } catch (error) {
-      // Silently ignore invalid tokens for optional auth
-      logger.debug('Optional auth: Invalid token ignored', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+/**
+ * Role-based access control middleware
+ * Requires authentication and specific user role
+ */
+export const requireRole = (requiredRole: string) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const authenticatedReq = req as AuthenticatedRequest;
+    
+    if (!authenticatedReq.user) {
+      return res.status(401).json({ error: 'Authentication required' });
     }
-  }
 
-  next();
+    // For now, we'll implement basic role checking
+    // In a real app, you'd check user roles from the database
+    if (authenticatedReq.user.email === 'admin@example.com') {
+      return next();
+    }
+
+    return res.status(403).json({ error: 'Insufficient permissions' });
+  };
 }; 

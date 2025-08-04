@@ -8,10 +8,15 @@ export type Snapshot = PrismaSnapshot;
 export type ProjectRole = PrismaProjectRole;
 
 export interface JWTPayload {
-  userId: string;
+  // NextAuth JWT token structure
+  sub?: string; // User ID (NextAuth uses 'sub')
+  id?: string; // Alternative user ID field
   email: string;
+  name?: string;
   iat: number;
   exp: number;
+  // Legacy support
+  userId?: string;
 }
 
 export interface AuthenticatedRequest extends Request {
