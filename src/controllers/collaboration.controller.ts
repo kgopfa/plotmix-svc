@@ -6,7 +6,7 @@ import { AuthenticatedRequest } from '../types';
 export class CollaborationController {
   static async inviteUser(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      if (!req.user) {
+      if (!req.user || !req.user.userId) {
         res.status(401).json({
           success: false,
           message: 'User not authenticated',
@@ -54,7 +54,7 @@ export class CollaborationController {
 
   static async updateInvitation(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      if (!req.user) {
+      if (!req.user || !req.user.userId) {
         res.status(401).json({
           success: false,
           message: 'User not authenticated',
@@ -103,7 +103,7 @@ export class CollaborationController {
 
   static async respondToInvitation(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      if (!req.user) {
+      if (!req.user || !req.user.userId) {
         res.status(401).json({
           success: false,
           message: 'User not authenticated',
@@ -165,7 +165,7 @@ export class CollaborationController {
 
   static async removeCollaborator(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      if (!req.user) {
+      if (!req.user || !req.user.userId) {
         res.status(401).json({
           success: false,
           message: 'User not authenticated',
@@ -212,7 +212,7 @@ export class CollaborationController {
 
   static async getProjectCollaborators(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      if (!req.user) {
+      if (!req.user || !req.user.userId) {
         res.status(401).json({
           success: false,
           message: 'User not authenticated',
@@ -251,7 +251,7 @@ export class CollaborationController {
 
   static async getUserInvitations(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      if (!req.user) {
+      if (!req.user || !req.user.userId) {
         res.status(401).json({
           success: false,
           message: 'User not authenticated',
@@ -281,7 +281,7 @@ export class CollaborationController {
 
   static async getUserCollaborations(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      if (!req.user) {
+      if (!req.user || !req.user.userId) {
         res.status(401).json({
           success: false,
           message: 'User not authenticated',

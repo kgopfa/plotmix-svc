@@ -6,7 +6,7 @@ import { AuthenticatedRequest } from '../types';
 export class ProjectController {
   static async createProject(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      if (!req.user) {
+      if (!req.user || !req.user.userId) {
         res.status(401).json({
           success: false,
           message: 'User not authenticated',
@@ -37,7 +37,7 @@ export class ProjectController {
 
   static async getProject(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      if (!req.user) {
+      if (!req.user || !req.user.userId) {
         res.status(401).json({
           success: false,
           message: 'User not authenticated',
@@ -84,7 +84,7 @@ export class ProjectController {
 
   static async getUserProjects(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      if (!req.user) {
+      if (!req.user || !req.user.userId) {
         res.status(401).json({
           success: false,
           message: 'User not authenticated',
@@ -114,7 +114,7 @@ export class ProjectController {
 
   static async updateProject(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      if (!req.user) {
+      if (!req.user || !req.user.userId) {
         res.status(401).json({
           success: false,
           message: 'User not authenticated',
@@ -162,7 +162,7 @@ export class ProjectController {
 
   static async deleteProject(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      if (!req.user) {
+      if (!req.user || !req.user.userId) {
         res.status(401).json({
           success: false,
           message: 'User not authenticated',
@@ -209,7 +209,7 @@ export class ProjectController {
   // Version Control Endpoints
   static async applyChange(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      if (!req.user) {
+      if (!req.user || !req.user.userId) {
         res.status(401).json({
           success: false,
           message: 'User not authenticated',
@@ -257,7 +257,7 @@ export class ProjectController {
 
   static async createSnapshot(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      if (!req.user) {
+      if (!req.user || !req.user.userId) {
         res.status(401).json({
           success: false,
           message: 'User not authenticated',
@@ -305,7 +305,7 @@ export class ProjectController {
 
   static async getProjectHistory(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      if (!req.user) {
+      if (!req.user || !req.user.userId) {
         res.status(401).json({
           success: false,
           message: 'User not authenticated',
@@ -352,7 +352,7 @@ export class ProjectController {
 
   static async rollbackToVersion(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      if (!req.user) {
+      if (!req.user || !req.user.userId) {
         res.status(401).json({
           success: false,
           message: 'User not authenticated',

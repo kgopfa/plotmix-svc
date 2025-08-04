@@ -56,7 +56,7 @@ export class AuthController {
 
   static async getProfile(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      if (!req.user) {
+      if (!req.user || !req.user.userId) {
         res.status(401).json({
           success: false,
           message: 'User not authenticated',

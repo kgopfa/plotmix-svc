@@ -9,6 +9,80 @@ export class AuthService {
   private static readonly SALT_ROUNDS = 14; // Increased for production security
 
   /**
+   * Register a new user
+   * Creates user account and returns user data with token
+   */
+  static async register(userData: { email: string; password: string; name: string }): Promise<{ user: Omit<User, 'password'>; token: string }> {
+    const { email, password, name } = userData;
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+    
+    if (existingUser) {
+      throw new Error('User with this email already exists');
+    }
+
+    // Hash password
+    const hashedPassword = await this.hashPassword(password);
+
+    // Create user
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name,
+        password: hashedPassword,
+      },
+    });
+
+    logger.info('User registered successfully', {
+      userId: user.id,
+      email: user.email,
+    });
+
+    // Generate token
+    const token = this.generateNextAuthToken(user);
+
+    const { password: _, ...userWithoutPassword } = user;
+    return { user: userWithoutPassword, token };
+  }
+
+  /**
+   * Login user with email and password
+   * Validates credentials and returns user data with token
+   */
+  static async login(credentials: { email: string; password: string }): Promise<{ user: Omit<User, 'password'>; token: string }> {
+    const { email, password } = credentials;
+
+    // Find user by email
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+    
+    if (!user) {
+      throw new Error('Invalid credentials');
+    }
+
+    // Verify password
+    const isPasswordValid = await this.comparePassword(password, user.password);
+    if (!isPasswordValid) {
+      throw new Error('Invalid credentials');
+    }
+
+    logger.info('User logged in successfully', {
+      userId: user.id,
+      email: user.email,
+    });
+
+    // Generate token
+    const token = this.generateNextAuthToken(user);
+
+    const { password: _, ...userWithoutPassword } = user;
+    return { user: userWithoutPassword, token };
+  }
+
+  /**
    * Hash password for user registration
    * Used when creating new users in the database
    */
@@ -27,10 +101,40 @@ export class AuthService {
   /**
    * Generate NextAuth-compatible JWT token
    * This should match the structure expected by NextAuth.js
+   * Uses the NextAuth secret to ensure compatibility with frontend validation
    */
   static generateNextAuthToken(user: User): string {
     const payload: Omit<JWTPayload, 'iat' | 'exp'> = {
       sub: user.id, // NextAuth uses 'sub' for user ID
+      email: user.email,
+      name: user.name,
+    };
+
+    return jwt.sign(payload, config.nextAuth.secret, {
+      expiresIn: config.jwt.expiresIn,
+    } as jwt.SignOptions);
+  }
+
+  /**
+   * Verify NextAuth JWT token
+   * Used to validate tokens from the frontend
+   * Uses the NextAuth secret to validate frontend tokens
+   */
+  static verifyNextAuthToken(token: string): JWTPayload {
+    try {
+      return jwt.verify(token, config.nextAuth.secret) as JWTPayload;
+    } catch (error) {
+      throw new Error('Invalid or expired token');
+    }
+  }
+
+  /**
+   * Generate internal JWT token for backend operations
+   * Uses the internal JWT secret for backend-to-backend communication
+   */
+  static generateInternalToken(user: User): string {
+    const payload: Omit<JWTPayload, 'iat' | 'exp'> = {
+      sub: user.id,
       email: user.email,
       name: user.name,
     };
@@ -41,14 +145,14 @@ export class AuthService {
   }
 
   /**
-   * Verify NextAuth JWT token
-   * Used to validate tokens from the frontend
+   * Verify internal JWT token
+   * Used for backend-to-backend token validation
    */
-  static verifyNextAuthToken(token: string): JWTPayload {
+  static verifyInternalToken(token: string): JWTPayload {
     try {
       return jwt.verify(token, config.jwt.secret) as JWTPayload;
     } catch (error) {
-      throw new Error('Invalid or expired token');
+      throw new Error('Invalid or expired internal token');
     }
   }
 

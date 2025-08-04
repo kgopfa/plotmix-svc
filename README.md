@@ -32,7 +32,8 @@ A production-grade Node.js backend server built with TypeScript, Express, and JW
 
 4. Update the `.env` file with your configuration:
    - Replace `[YOUR-PASSWORD]` in `DATABASE_URL` and `DIRECT_URL` with your actual Supabase password
-   - Update `JWT_SECRET` with a secure secret key
+   - Set `JWT_SECRET` to a secure secret key for internal backend operations
+   - Set `NEXTAUTH_SECRET` to match your frontend NextAuth secret (for token validation)
 
 5. Set up the database:
    ```bash
@@ -278,10 +279,31 @@ src/
 └── index.ts         # Server entry point
 ```
 
+## Authentication Architecture
+
+This backend supports a hybrid authentication system that works seamlessly with NextAuth.js on the frontend:
+
+### Secret Management
+- **JWT_SECRET**: Used for internal backend operations and backend-to-backend communication
+- **NEXTAUTH_SECRET**: Used to validate tokens from the NextAuth.js frontend (should match frontend NEXTAUTH_SECRET)
+
+### Token Flow
+1. **Frontend Authentication**: NextAuth.js handles user authentication and creates JWT tokens
+2. **API Requests**: Frontend sends NextAuth tokens in Authorization header
+3. **Backend Validation**: Backend validates tokens using NEXTAUTH_SECRET
+4. **Internal Operations**: Backend uses JWT_SECRET for internal token generation when needed
+
+### Security Benefits
+- **Separation of Concerns**: Different secrets for different purposes
+- **Reduced Attack Surface**: Compromise of one secret doesn't affect the other
+- **NextAuth Compatibility**: Seamless integration with NextAuth.js frontend
+- **Backward Compatibility**: Falls back to JWT_SECRET if NEXTAUTH_SECRET is not provided
+
 ## Security Features
 
-- **JWT Authentication**: Secure token-based authentication
-- **Password Hashing**: Bcrypt with 12 salt rounds
+- **JWT Authentication**: Secure token-based authentication with separate secrets for frontend and backend
+- **NextAuth Integration**: Validates frontend NextAuth tokens using shared secret
+- **Password Hashing**: Bcrypt with 14 salt rounds for production security
 - **Rate Limiting**: Configurable request rate limiting
 - **CORS**: Cross-origin resource sharing protection
 - **Helmet**: Security headers
@@ -294,8 +316,9 @@ src/
 |----------|-------------|---------|
 | NODE_ENV | Environment mode | development |
 | PORT | Server port | 3000 |
-| JWT_SECRET | JWT signing secret | fallback-secret-key |
+| JWT_SECRET | Internal JWT secret for backend operations | fallback-secret-key |
 | JWT_EXPIRES_IN | JWT expiration time | 24h |
+| NEXTAUTH_SECRET | NextAuth secret for frontend token validation | JWT_SECRET (fallback) |
 | RATE_LIMIT_WINDOW_MS | Rate limit window | 900000 (15min) |
 | RATE_LIMIT_MAX_REQUESTS | Max requests per window | 100 |
 | CORS_ORIGIN | Allowed CORS origin | http://localhost:3000 |

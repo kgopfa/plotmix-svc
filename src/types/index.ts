@@ -11,12 +11,11 @@ export interface JWTPayload {
   // NextAuth JWT token structure
   sub?: string; // User ID (NextAuth uses 'sub')
   id?: string; // Alternative user ID field
+  userId?: string; // Legacy user ID field
   email: string;
   name?: string;
   iat: number;
   exp: number;
-  // Legacy support
-  userId?: string;
 }
 
 export interface AuthenticatedRequest extends Request {
