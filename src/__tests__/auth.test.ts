@@ -74,56 +74,71 @@ describe('Authentication Endpoints', () => {
   });
 
   describe('POST /api/auth/login', () => {
-    it('should login user successfully with correct credentials', async () => {
-      const userData = {
+    let loginTestUser: {
+      name: string;
+      email: string;
+      password: string;
+    };
+    let currentToken: string | null = null;
+
+    beforeAll(async () => {
+      // Create a shared test user for all login tests
+      loginTestUser = {
         name: 'Login Test User',
         email: 'login@example.com',
         password: 'SecurePassword123',
       };
 
-      // Register user first
-      await request(app)
+      // Register the user once for all tests
+      const registerResponse = await request(app)
         .post('/api/auth/register')
-        .send(userData)
+        .send(loginTestUser)
         .expect(201);
 
+      currentToken = registerResponse.body.data.token;
+    });
+
+    beforeEach(async () => {
+      // Ensure user is logged out before each test
+      if (currentToken) {
+        try {
+          await request(app)
+            .post('/api/auth/logout')
+            .set('Authorization', `Bearer ${currentToken}`)
+            .expect(200);
+        } catch (error) {
+          // Token might already be invalid/blacklisted, which is fine
+        }
+        currentToken = null;
+      }
+    });
+
+    it('should login user successfully with correct credentials', async () => {
       // Login
       const response = await request(app)
         .post('/api/auth/login')
         .send({
-          email: userData.email,
-          password: userData.password,
+          email: loginTestUser.email,
+          password: loginTestUser.password,
         })
         .expect(200);
 
       expect(response.body.success).toBe(true);
       expect(response.body.message).toBe('Login successful');
       expect(response.body.data.user).toMatchObject({
-        name: userData.name,
-        email: userData.email,
+        name: loginTestUser.name,
+        email: loginTestUser.email,
       });
       expect(response.body.data.user.password).toBeUndefined();
       expect(response.body.data.token).toBeDefined();
     });
 
     it('should return error for incorrect password', async () => {
-      const userData = {
-        name: 'Login Test User',
-        email: 'wrongpass@example.com',
-        password: 'SecurePassword123',
-      };
-
-      // Register user first
-      await request(app)
-        .post('/api/auth/register')
-        .send(userData)
-        .expect(201);
-
       // Try to login with wrong password
       const response = await request(app)
         .post('/api/auth/login')
         .send({
-          email: userData.email,
+          email: loginTestUser.email,
           password: 'WrongPassword',
         })
         .expect(401);

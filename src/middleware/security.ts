@@ -17,6 +17,16 @@ export const securityMiddleware: RequestHandler[] = [
         styleSrc: ["'self'", "'unsafe-inline'"],
         scriptSrc: ["'self'"],
         imgSrc: ["'self'", "data:", "https:"],
+        connectSrc: [
+          "'self'",
+          ...(config.nodeEnv === 'development' 
+            ? ["http://localhost:8000", "https://localhost:8000"] 
+            : [
+                "https://your-frontend-domain.com",
+                "https://your-api-domain.com"
+              ]
+          )
+        ],
       },
     },
     hsts: {
