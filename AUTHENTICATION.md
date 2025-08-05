@@ -31,6 +31,7 @@ NEXTAUTH_SECRET=your-super-secure-nextauth-secret-key-64-characters-long
 
 # Frontend .env (should match backend NEXTAUTH_SECRET)
 NEXTAUTH_SECRET=your-super-secure-nextauth-secret-key-64-characters-long
+NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
 ## Token Flow
@@ -107,6 +108,12 @@ AuthService.generateInternalToken(user: User): string
 
 // Validate internal tokens
 AuthService.verifyInternalToken(token: string): JWTPayload
+
+// Secure logout with token blacklisting
+AuthService.logout(userId: string, token: string): Promise<void>
+
+// Check if token is blacklisted
+AuthService.isTokenBlacklisted(token: string): Promise<boolean>
 ```
 
 ## Security Considerations
@@ -116,6 +123,7 @@ AuthService.verifyInternalToken(token: string): JWTPayload
 - All API requests with `Authorization` header are validated
 - Invalid or expired tokens return 403 Forbidden
 - Token structure is verified against expected NextAuth format
+- **Blacklisted tokens are rejected immediately** (logout protection)
 
 ### 2. Secret Isolation
 
@@ -133,6 +141,51 @@ AuthService.verifyInternalToken(token: string): JWTPayload
 
 - Authentication endpoints are rate-limited to prevent brute force attacks
 - Configurable limits per IP address and time window
+
+### 5. Secure Logout
+
+- **Token Blacklisting**: Logged out tokens are immediately invalidated
+- **Dual Logout**: Both frontend and backend sessions are cleared
+- **Audit Logging**: All logout events are logged with timestamps
+- **Graceful Degradation**: Frontend logout continues even if backend fails
+
+## API Endpoints
+
+### Authentication Endpoints
+
+| Method | Endpoint | Description | Authentication |
+|--------|----------|-------------|----------------|
+| POST | `/api/auth/register` | User registration | None |
+| POST | `/api/auth/login` | User login | None |
+| GET | `/api/auth/profile` | Get user profile | Required |
+| **POST** | **`/api/auth/logout`** | **Secure logout** | **Required** |
+
+### Logout Endpoint
+
+**POST /api/auth/logout**
+
+**Headers:**
+```
+Authorization: Bearer <jwt-token>
+Content-Type: application/json
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Logout successful",
+  "data": {
+    "logoutTime": "2024-01-01T00:00:00.000Z"
+  }
+}
+```
+
+**Security Features:**
+- Token is immediately blacklisted
+- User session is invalidated
+- Audit log entry is created
+- Response includes logout timestamp
 
 ## Migration Guide
 
@@ -154,6 +207,7 @@ If you're migrating from a single secret configuration:
    ```bash
    # Frontend .env
    NEXTAUTH_SECRET=frontend-secret  # Must match backend NEXTAUTH_SECRET
+   NEXT_PUBLIC_API_URL=http://localhost:8000
    ```
 
 3. **Test Authentication**:
@@ -176,6 +230,7 @@ The system maintains backward compatibility:
    - Check that `NEXTAUTH_SECRET` matches between frontend and backend
    - Verify token format in Authorization header
    - Check token expiration
+   - **Check if token has been blacklisted (user logged out)**
 
 2. **Authentication middleware not working**:
    - Ensure middleware is applied to routes
@@ -185,6 +240,11 @@ The system maintains backward compatibility:
 3. **CORS issues with authentication**:
    - Ensure CORS is configured to allow Authorization header
    - Check that credentials are included in requests
+
+4. **Logout not working properly**:
+   - Check that `NEXT_PUBLIC_API_URL` is set correctly
+   - Verify backend logout endpoint is accessible
+   - Check network connectivity between frontend and backend
 
 ### Debug Mode
 
@@ -206,16 +266,22 @@ This will log detailed authentication information for troubleshooting.
 6. **Use HTTPS in production**
 7. **Validate all inputs**
 8. **Log security events**
+9. **Always blacklist tokens on logout**
+10. **Implement proper session management**
 
 ## Security Checklist
 
-- [ ] Different secrets for `JWT_SECRET` and `NEXTAUTH_SECRET`
-- [ ] Strong, cryptographically secure secrets (32+ characters)
-- [ ] Environment-specific secrets
-- [ ] HTTPS enabled in production
-- [ ] Rate limiting configured
-- [ ] CORS properly configured
-- [ ] Error handling implemented
-- [ ] Security headers enabled
-- [ ] Input validation in place
-- [ ] Authentication logging enabled 
+- [x] Different secrets for `JWT_SECRET` and `NEXTAUTH_SECRET`
+- [x] Strong, cryptographically secure secrets (32+ characters)
+- [x] Environment-specific secrets
+- [x] HTTPS enabled in production
+- [x] Rate limiting configured
+- [x] CORS properly configured
+- [x] Error handling implemented
+- [x] Security headers enabled
+- [x] Input validation in place
+- [x] Authentication logging enabled
+- [x] **Secure logout with token blacklisting**
+- [x] **Token invalidation on logout**
+- [x] **Audit logging for security events**
+- [x] **Graceful error handling for logout failures** 

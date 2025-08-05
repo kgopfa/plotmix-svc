@@ -90,4 +90,49 @@ export class AuthController {
       });
     }
   }
+
+  static async logout(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user || !req.user.userId) {
+        res.status(401).json({
+          success: false,
+          message: 'User not authenticated',
+        });
+        return;
+      }
+
+      // Get the token from the Authorization header
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        res.status(401).json({
+          success: false,
+          message: 'No valid token provided',
+        });
+        return;
+      }
+
+      const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+      // Logout user and blacklist token
+      await AuthService.logout(req.user.userId, token);
+
+      res.json({
+        success: true,
+        message: 'Logout successful',
+        data: {
+          logoutTime: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      logger.error('Logout failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: req.user?.userId,
+      });
+
+      res.status(500).json({
+        success: false,
+        message: 'Logout failed',
+      });
+    }
+  }
 } 
