@@ -89,8 +89,18 @@ export class ProjectController {
   }
 
   static async getProject(req: AuthenticatedRequest, res: Response): Promise<void> {
+    logger.info('🔍 getProject called', {
+      projectId: req.params.projectId,
+      userId: req.user?.userId,
+      method: req.method,
+      url: req.url,
+    });
+    
     try {
       if (!req.user || !req.user.userId) {
+        logger.warn('❌ User not authenticated for getProject', {
+          projectId: req.params.projectId,
+        });
         res.status(401).json({
           success: false,
           message: 'User not authenticated',

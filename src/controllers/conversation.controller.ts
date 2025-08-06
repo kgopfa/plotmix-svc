@@ -67,9 +67,17 @@ export class ConversationController {
   }
 
   static async getUserConversations(req: AuthenticatedRequest, res: Response) {
+    logger.info('🔍 getUserConversations called', {
+      userId: req.user?.userId,
+      projectId: req.query.projectId,
+      method: req.method,
+      url: req.url,
+    });
+    
     try {
       const userId = req.user?.sub || req.user?.id || req.user?.userId;
       if (!userId) {
+        logger.warn('❌ User not authenticated for getUserConversations');
         return res.status(401).json({
           success: false,
           message: 'User not authenticated',
@@ -82,8 +90,16 @@ export class ConversationController {
         limit: limit ? parseInt(limit as string) : undefined,
         projectId: projectId as string | undefined,
       };
+      
+      logger.info('📡 Fetching conversations with filters:', filters);
 
       const conversations = await ConversationService.getUserConversations(userId, filters);
+      
+      logger.info('✅ Conversations retrieved successfully', {
+        userId,
+        projectId: req.query.projectId,
+        conversationCount: conversations.length,
+      });
 
       res.json({
         success: true,
