@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { config } from '../config';
 import { logger } from '../utils/logger';
 import { User, JWTPayload } from '../types';
-import { prisma } from './prisma.service';
+import { prisma } from '../clients/database.client';
 
 export class AuthService {
   private static readonly SALT_ROUNDS = 14; // Increased for production security

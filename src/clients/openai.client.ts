@@ -28,8 +28,8 @@ export interface CanvasGenerationResponse {
   error?: string;
 }
 
-export class OpenAIService {
-  private static instance: OpenAIService;
+export class OpenAIClient {
+  private static instance: OpenAIClient;
   private client: OpenAI | null = null;
   private config: OpenAIConfig;
 
@@ -42,11 +42,11 @@ export class OpenAIService {
     });
   }
 
-  public static getInstance(): OpenAIService {
-    if (!OpenAIService.instance) {
-      OpenAIService.instance = new OpenAIService();
+  public static getInstance(): OpenAIClient {
+    if (!OpenAIClient.instance) {
+      OpenAIClient.instance = new OpenAIClient();
     }
-    return OpenAIService.instance;
+    return OpenAIClient.instance;
   }
 
   private loadConfig(): OpenAIConfig {

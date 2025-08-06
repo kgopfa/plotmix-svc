@@ -13,15 +13,22 @@ The user navigates to the chat page and submits a prompt, along with any optiona
 
 ### 2. Backend Processing
 Upon prompt submission:
-- The backend creates a new project
+- The backend sends the prompt to OpenAI for processing
+- If OpenAI processing fails, an error is returned without creating any resources
+- If OpenAI processing succeeds, the backend creates a new project with the generated canvas structure
 - It then creates a conversation linked to that project
-- The submitted prompt is added as a user message within the conversation
-- The backend sends the prompt (and any optional data) to OpenAI
+- The submitted prompt is added as the first user message within the conversation
+- The complete response (project, conversation, and all messages) is returned to the frontend
 
 ### 3. AI Response Handling
-When the backend receives a suggested canvas structure from OpenAI:
-- It updates the project with this structure
-- It sends the updated project back to the frontend as the response to the original prompt submission
+When the backend receives a successful response from OpenAI:
+- It creates a project with the generated canvas structure
+- It creates a conversation linked to the project
+- It creates a system message indicating conversation start
+- It creates a user message with the original prompt
+- It creates an LLM response message with the AI's explanation
+- It creates a canvas generation message with the structured data
+- It returns the complete project, conversation, and message history to the frontend
 
 ## Database Schema
 
@@ -82,6 +89,9 @@ enum MessageType {
 
 ## API Endpoints
 
+### Primary Entry Point
+- `POST /conversations/create-from-prompt` - Create project with conversation from user prompt (primary entry point)
+
 ### Project Management
 - `POST /projects` - Create new project with AI generation
 - `GET /projects/:id` - Get project details
@@ -89,7 +99,7 @@ enum MessageType {
 - `DELETE /projects/:id` - Delete project
 
 ### Conversation Management
-- `POST /conversations` - Create conversation (linked to project)
+- `POST /conversations` - Create conversation (linked to existing project)
 - `GET /conversations/:id` - Get conversation details
 - `PUT /conversations/:id` - Update conversation
 - `DELETE /conversations/:id` - Delete conversation

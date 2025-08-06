@@ -1,4 +1,4 @@
-import { prisma } from './prisma.service';
+import { prisma } from '../clients/database.client';
 import { logger } from '../utils/logger';
 import {
   ProjectRole,

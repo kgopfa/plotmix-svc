@@ -105,6 +105,24 @@ export interface CreateConversationRequest {
   features?: ProjectFeatures;
 }
 
+export interface CreateProjectWithConversationRequest {
+  prompt: string;
+  title?: string;
+  features?: ProjectFeatures;
+  attachments?: Array<{
+    id: string;
+    name: string;
+    type: string;
+    size: string;
+    url?: string;
+  }>;
+  options?: {
+    webSearch?: boolean;
+    audio?: boolean;
+    music?: boolean;
+  };
+}
+
 export interface UpdateConversationRequest {
   title?: string;
 }

@@ -20,4 +20,7 @@ router.post('/:projectId/snapshots', ProjectController.createSnapshot);
 router.get('/:projectId/history', ProjectController.getProjectHistory);
 router.post('/:projectId/rollback/:version', ProjectController.rollbackToVersion);
 
+// Project Generation
+router.post('/generate', ProjectController.generateProjectConfiguration);
+
 export { router as projectRoutes }; 

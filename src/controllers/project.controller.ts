@@ -1,7 +1,8 @@
 import { Response } from 'express';
 import { ProjectService } from '../services/project.service';
+import { ContentGenService } from '../services/content-gen.service';
 import { logger } from '../utils/logger';
-import { AuthenticatedRequest } from '../types';
+import { AuthenticatedRequest, CreateProjectWithConversationRequest } from '../types';
 
 export class ProjectController {
   static async createProject(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -14,7 +15,16 @@ export class ProjectController {
         return;
       }
 
-      const project = await ProjectService.createProject(req.user.userId, req.body);
+      const project = await ProjectService.createProject(req.user.userId, {
+        name: 'New Project',
+        mainState: {},
+        features: {
+          attachments: { enabled: false },
+          audio: { enabled: false },
+          music: { enabled: false },
+          webSearch: { enabled: false },
+        },
+      });
 
       res.status(201).json({
         success: true,
@@ -25,12 +35,55 @@ export class ProjectController {
       logger.error('Project creation failed', {
         error: error instanceof Error ? error.message : 'Unknown error',
         userId: req.user?.userId,
+      });
+
+      res.status(400).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to create project',
+      });
+    }
+  }
+
+  static async generateProjectConfiguration(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user || !req.user.userId) {
+        res.status(401).json({
+          success: false,
+          message: 'User not authenticated',
+        });
+        return;
+      }
+
+      const data: CreateProjectWithConversationRequest = req.body;
+      if (!data.prompt) {
+        res.status(400).json({
+          success: false,
+          message: 'Prompt is required',
+        });
+        return;
+      }
+
+      const result = await ContentGenService.generateProjectConfiguration(req.user.userId, data);
+
+      res.status(201).json({
+        success: true,
+        message: 'Project and conversation created successfully',
+        data: {
+          project: result.project,
+          conversation: result.conversation,
+          messages: result.messages,
+        },
+      });
+    } catch (error) {
+      logger.error('Project generation failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: req.user?.userId,
         body: req.body,
       });
 
       res.status(400).json({
         success: false,
-        message: error instanceof Error ? error.message : 'Project creation failed',
+        message: error instanceof Error ? error.message : 'Failed to generate project',
       });
     }
   }

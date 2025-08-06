@@ -235,127 +235,26 @@ PUT /projects/:projectId
 DELETE /projects/:projectId
 ```
 
-### Conversation System
+## Conversation Endpoints
 
-#### Create Conversation
+### Create Project with Conversation from Prompt
 ```
-POST /conversations
-```
-
-**Request Body:**
-```json
-{
-  "title": "My conversation",
-  "projectId": "project_id",
-  "initialMessage": "Create a system architecture diagram"
-}
+POST /conversations/create-from-prompt
 ```
 
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Conversation created successfully",
-  "data": {
-    "conversation": {
-      "id": "conversation_id",
-      "title": "My conversation",
-      "projectId": "project_id",
-      "userId": "user_id",
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z"
-    }
-  }
-}
-```
-
-#### Get User Conversations
-```
-GET /conversations
-```
-
-**Query Parameters:**
-- `page` (optional): Page number for pagination
-- `limit` (optional): Number of conversations per page
-- `projectId` (optional): Filter by project ID
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Conversations retrieved successfully",
-  "data": {
-    "conversations": [
-      {
-        "id": "conversation_id",
-        "title": "My conversation",
-        "projectId": "project_id",
-        "messageCount": 5,
-        "lastMessage": "Latest message content",
-        "createdAt": "2024-01-01T00:00:00.000Z",
-        "updatedAt": "2024-01-01T00:00:00.000Z"
-      }
-    ],
-    "pagination": {
-      "page": 1,
-      "limit": 20,
-      "total": 50,
-      "totalPages": 3
-    }
-  }
-}
-```
-
-#### Get Conversation
-```
-GET /conversations/:conversationId
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Conversation retrieved successfully",
-  "data": {
-    "conversation": {
-      "id": "conversation_id",
-      "title": "My conversation",
-      "projectId": "project_id",
-      "userId": "user_id",
-      "messageCount": 5,
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z"
-    }
-  }
-}
-```
-
-#### Update Conversation
-```
-PUT /conversations/:conversationId
-```
+**Description:** Primary entry point for users. Sends the prompt to OpenAI first. If OpenAI processing succeeds, creates a project and conversation with the generated canvas structure. The project title and description are extracted from the LLM response metadata. If OpenAI fails, returns an error without creating any resources.
 
 **Request Body:**
 ```json
 {
-  "title": "Updated conversation title"
-}
-```
-
-#### Delete Conversation
-```
-DELETE /conversations/:conversationId
-```
-
-#### Send Message
-```
-POST /conversations/:conversationId/messages
-```
-
-**Request Body:**
-```json
-{
-  "content": "User message content",
+  "prompt": "Create a system architecture diagram for a microservices application",
+  "title": "System Architecture Discussion",
+  "features": {
+    "attachments": { "enabled": true },
+    "webSearch": { "enabled": false },
+    "audio": { "enabled": false },
+    "music": { "enabled": false }
+  },
   "attachments": [
     {
       "id": "attachment_id",
@@ -363,120 +262,85 @@ POST /conversations/:conversationId/messages
       "type": "image/png",
       "size": "1024"
     }
-  ]
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Message sent successfully",
-  "data": {
-    "message": {
-      "id": "message_id",
-      "content": "User message content",
-      "type": "user",
-      "conversationId": "conversation_id",
-      "metadata": {
-        "attachments": [...]
-      },
-      "createdAt": "2024-01-01T00:00:00.000Z"
-    }
+  ],
+  "options": {
+    "webSearch": false,
+    "audio": false,
+    "music": false
   }
 }
 ```
 
-#### Get Messages
-```
-GET /conversations/:conversationId/messages
-```
-
-**Query Parameters:**
-- `page` (optional): Page number for pagination
-- `limit` (optional): Number of messages per page
-
-**Response:**
+**Success Response:**
 ```json
 {
   "success": true,
-  "message": "Messages retrieved successfully",
+  "message": "Project and conversation created successfully",
   "data": {
+    "project": {
+      "id": "project_id",
+      "name": "System Architecture Diagram for Microservices",
+      "mainState": {
+        "elements": [...],
+        "connections": [...],
+        "metadata": {
+          "title": "System Architecture Diagram for Microservices",
+          "description": "A comprehensive system architecture diagram showing microservices components, data flow, and infrastructure"
+        }
+      },
+      "features": {...},
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    },
+    "conversation": {
+      "id": "conversation_id",
+      "title": "System Architecture Diagram for Microservices",
+      "projectId": "project_id",
+      "userId": "user_id",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    },
     "messages": [
       {
-        "id": "message_id",
-        "content": "Message content",
-        "type": "user",
-        "conversationId": "conversation_id",
-        "metadata": {},
+        "id": "system_message_id",
+        "content": "Conversation started",
+        "messageType": "system",
+        "createdAt": "2024-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "user_message_id",
+        "content": "Create a system architecture diagram for a microservices application",
+        "messageType": "user",
+        "createdAt": "2024-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "llm_message_id",
+        "content": "I'll help you create a system architecture diagram...",
+        "messageType": "llm",
+        "createdAt": "2024-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "canvas_message_id",
+        "content": "{\"elements\":[...],\"connections\":[...]}",
+        "messageType": "canvas_generation",
+        "metadata": {
+          "success": true,
+          "elementCount": 5,
+          "connectionCount": 3
+        },
         "createdAt": "2024-01-01T00:00:00.000Z"
       }
-    ],
-    "pagination": {
-      "page": 1,
-      "limit": 20,
-      "total": 50,
-      "totalPages": 3
-    }
+    ]
   }
 }
 ```
 
-#### Generate Canvas
-```
-POST /conversations/:conversationId/generate-canvas
-```
-
-**Request Body:**
+**Error Response (OpenAI fails):**
 ```json
 {
-  "prompt": "Create a system architecture diagram",
-  "attachments": [],
-  "options": {
-    "style": "modern",
-    "dimensions": {
-      "width": 1920,
-      "height": 1080
-    }
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Canvas generated successfully",
-  "data": {
-    "canvas": {
-      "id": "canvas_id",
-      "projectId": "project_id",
-      "elements": [...],
-      "layout": {...},
-      "metadata": {...}
-    }
-  }
-}
-```
-
-#### Get Generation Stats
-```
-GET /conversations/:conversationId/generation-stats
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Generation stats retrieved successfully",
-  "data": {
-    "stats": {
-      "totalGenerations": 5,
-      "successRate": 0.8,
-      "averageResponseTime": 2.5,
-      "lastGeneration": "2024-01-01T00:00:00.000Z"
-    }
-  }
+  "success": false,
+  "message": "Failed to process prompt with AI",
+  "error": "OpenAI API error details"
 }
 ```
 

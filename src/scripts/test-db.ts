@@ -1,4 +1,4 @@
-import { prisma } from '../services/prisma.service';
+import { prisma } from '../clients/database.client';
 
 async function testConnection() {
   try {
