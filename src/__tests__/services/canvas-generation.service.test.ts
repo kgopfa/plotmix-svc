@@ -1,3 +1,4 @@
+
 import { CanvasGenerationService } from '../../services/canvas-generation.service';
 import { OpenAIService } from '../../services/openai.service';
 import { prisma } from '../../services/prisma.service';
@@ -22,6 +23,9 @@ describe('CanvasGenerationService', () => {
     };
 
     (OpenAIService.getInstance as jest.Mock).mockReturnValue(mockOpenAIService);
+
+    // Reset the static openaiService property in CanvasGenerationService
+    (CanvasGenerationService as any).openaiService = mockOpenAIService;
 
     // Mock Prisma
     mockPrisma = {
@@ -180,8 +184,8 @@ describe('CanvasGenerationService', () => {
       expect(mockOpenAIService.generateResponse).toHaveBeenCalledWith(
         'New message',
         [
-          { role: 'user', content: 'Previous message' },
           { role: 'assistant', content: 'Previous response' },
+          { role: 'user', content: 'Previous message' },
         ]
       );
     });
@@ -352,10 +356,10 @@ describe('CanvasGenerationService', () => {
     it('should return generation statistics', async () => {
       const mockMessages = [
         {
-          id: 'msg-1',
+          id: 'msg-3',
           messageType: MESSAGE_TYPES.CANVAS_GENERATION,
           metadata: { success: true },
-          createdAt: new Date('2023-01-01'),
+          createdAt: new Date('2023-01-03'),
         },
         {
           id: 'msg-2',
@@ -364,10 +368,10 @@ describe('CanvasGenerationService', () => {
           createdAt: new Date('2023-01-02'),
         },
         {
-          id: 'msg-3',
+          id: 'msg-1',
           messageType: MESSAGE_TYPES.CANVAS_GENERATION,
           metadata: { success: true },
-          createdAt: new Date('2023-01-03'),
+          createdAt: new Date('2023-01-01'),
         },
       ];
 
