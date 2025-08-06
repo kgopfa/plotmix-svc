@@ -248,4 +248,30 @@ export class CollaborationService {
 
     return !!project;
   }
+
+  // Test helper method - creates a project role directly (for testing purposes)
+  static async createProjectRole(
+    projectId: string,
+    userId: string,
+    role: 'editor' | 'viewer' | 'admin' = 'editor',
+    status: 'pending' | 'accepted' | 'declined' = 'accepted'
+  ): Promise<ProjectRole> {
+    const projectRole = await prisma.projectRole.create({
+      data: {
+        projectId,
+        userId,
+        role,
+        status,
+      },
+    });
+
+    logger.info('Project role created for testing', {
+      projectId,
+      userId,
+      role,
+      status,
+    });
+
+    return projectRole;
+  }
 } 

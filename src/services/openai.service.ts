@@ -5,8 +5,6 @@ import { logger } from '../utils/logger';
 export interface OpenAIConfig {
   apiKey: string;
   model: string;
-  maxTokens: number;
-  temperature: number;
   systemPrompt: string;
 }
 
@@ -71,8 +69,6 @@ export class OpenAIService {
       return {
         apiKey: 'test-api-key',
         model: 'gpt-4-turbo-preview',
-        maxTokens: 4000,
-        temperature: 0.7,
         systemPrompt: 'Test system prompt',
       };
     }
@@ -85,8 +81,6 @@ export class OpenAIService {
     return {
       apiKey,
       model: process.env['OPENAI_MODEL'] || 'gpt-4-turbo-preview',
-      maxTokens: parseInt(process.env['OPENAI_MAX_TOKENS'] || '4000'),
-      temperature: parseFloat(process.env['OPENAI_TEMPERATURE'] || '0.7'),
       systemPrompt: process.env['OPENAI_SYSTEM_PROMPT'] || 
         'You are an AI assistant that generates canvas designs for system architecture diagrams. You can create, modify, and enhance visual representations of software systems, infrastructure, and data flows.',
     };
@@ -110,8 +104,6 @@ export class OpenAIService {
       const response = await this.client.chat.completions.create({
         model: this.config.model,
         messages,
-        max_tokens: this.config.maxTokens,
-        temperature: this.config.temperature,
       });
 
       const content = response.choices[0]?.message?.content;
@@ -153,8 +145,6 @@ export class OpenAIService {
       const response = await this.client.chat.completions.create({
         model: this.config.model,
         messages,
-        max_tokens: this.config.maxTokens,
-        temperature: this.config.temperature,
         response_format: { type: 'json_object' },
       });
 

@@ -250,13 +250,55 @@ export class AuthService {
    * Used for account deletion
    */
   static async deleteUser(userId: string): Promise<void> {
-    await prisma.user.delete({
-      where: { id: userId },
-    });
+    try {
+      // Delete user and all related data in a transaction
+      await prisma.$transaction(async (tx) => {
+        // Delete messages
+        await tx.message.deleteMany({
+          where: { conversation: { userId } },
+        });
 
-    logger.info('User deleted successfully', {
-      userId,
-    });
+        // Delete conversations
+        await tx.conversation.deleteMany({
+          where: { userId },
+        });
+
+        // Delete project changes
+        await tx.projectChange.deleteMany({
+          where: { authorUserId: userId },
+        });
+
+        // Delete snapshots
+        await tx.snapshot.deleteMany({
+          where: { project: { userId } },
+        });
+
+        // Delete project roles
+        await tx.projectRole.deleteMany({
+          where: { userId },
+        });
+
+        // Delete projects
+        await tx.project.deleteMany({
+          where: { userId },
+        });
+
+        // Finally delete the user
+        await tx.user.delete({
+          where: { id: userId },
+        });
+      });
+
+      logger.info('User deleted successfully', {
+        userId,
+      });
+    } catch (error) {
+      logger.error('Failed to delete user', {
+        userId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error;
+    }
   }
 
   /**
