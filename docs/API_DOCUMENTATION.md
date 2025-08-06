@@ -1,7 +1,9 @@
 # PlotMix API Documentation
 
 ## Overview
-This API provides a complete versioned canvas projects system with collaboration features, version control, and user management.
+This API provides a complete versioned canvas projects system with collaboration features, version control, user management, and AI-powered conversation system for canvas generation.
+
+> **Note**: For detailed conversation system requirements and implementation details, see [Conversation System Requirements](./CONVERSATION_SYSTEM_REQUIREMENTS.md).
 
 ## Base URL
 ```
@@ -233,9 +235,252 @@ PUT /projects/:projectId
 DELETE /projects/:projectId
 ```
 
-### Version Control
+### Conversation System
 
-#### Apply Project Change
+#### Create Conversation
+```
+POST /conversations
+```
+
+**Request Body:**
+```json
+{
+  "title": "My conversation",
+  "projectId": "project_id",
+  "initialMessage": "Create a system architecture diagram"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Conversation created successfully",
+  "data": {
+    "conversation": {
+      "id": "conversation_id",
+      "title": "My conversation",
+      "projectId": "project_id",
+      "userId": "user_id",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  }
+}
+```
+
+#### Get User Conversations
+```
+GET /conversations
+```
+
+**Query Parameters:**
+- `page` (optional): Page number for pagination
+- `limit` (optional): Number of conversations per page
+- `projectId` (optional): Filter by project ID
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Conversations retrieved successfully",
+  "data": {
+    "conversations": [
+      {
+        "id": "conversation_id",
+        "title": "My conversation",
+        "projectId": "project_id",
+        "messageCount": 5,
+        "lastMessage": "Latest message content",
+        "createdAt": "2024-01-01T00:00:00.000Z",
+        "updatedAt": "2024-01-01T00:00:00.000Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 50,
+      "totalPages": 3
+    }
+  }
+}
+```
+
+#### Get Conversation
+```
+GET /conversations/:conversationId
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Conversation retrieved successfully",
+  "data": {
+    "conversation": {
+      "id": "conversation_id",
+      "title": "My conversation",
+      "projectId": "project_id",
+      "userId": "user_id",
+      "messageCount": 5,
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  }
+}
+```
+
+#### Update Conversation
+```
+PUT /conversations/:conversationId
+```
+
+**Request Body:**
+```json
+{
+  "title": "Updated conversation title"
+}
+```
+
+#### Delete Conversation
+```
+DELETE /conversations/:conversationId
+```
+
+#### Send Message
+```
+POST /conversations/:conversationId/messages
+```
+
+**Request Body:**
+```json
+{
+  "content": "User message content",
+  "attachments": [
+    {
+      "id": "attachment_id",
+      "name": "reference.png",
+      "type": "image/png",
+      "size": "1024"
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Message sent successfully",
+  "data": {
+    "message": {
+      "id": "message_id",
+      "content": "User message content",
+      "type": "user",
+      "conversationId": "conversation_id",
+      "metadata": {
+        "attachments": [...]
+      },
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  }
+}
+```
+
+#### Get Messages
+```
+GET /conversations/:conversationId/messages
+```
+
+**Query Parameters:**
+- `page` (optional): Page number for pagination
+- `limit` (optional): Number of messages per page
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Messages retrieved successfully",
+  "data": {
+    "messages": [
+      {
+        "id": "message_id",
+        "content": "Message content",
+        "type": "user",
+        "conversationId": "conversation_id",
+        "metadata": {},
+        "createdAt": "2024-01-01T00:00:00.000Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 50,
+      "totalPages": 3
+    }
+  }
+}
+```
+
+#### Generate Canvas
+```
+POST /conversations/:conversationId/generate-canvas
+```
+
+**Request Body:**
+```json
+{
+  "prompt": "Create a system architecture diagram",
+  "attachments": [],
+  "options": {
+    "style": "modern",
+    "dimensions": {
+      "width": 1920,
+      "height": 1080
+    }
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Canvas generated successfully",
+  "data": {
+    "canvas": {
+      "id": "canvas_id",
+      "projectId": "project_id",
+      "elements": [...],
+      "layout": {...},
+      "metadata": {...}
+    }
+  }
+}
+```
+
+#### Get Generation Stats
+```
+GET /conversations/:conversationId/generation-stats
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Generation stats retrieved successfully",
+  "data": {
+    "stats": {
+      "totalGenerations": 5,
+      "successRate": 0.8,
+      "averageResponseTime": 2.5,
+      "lastGeneration": "2024-01-01T00:00:00.000Z"
+    }
+  }
+}
+```
+
+### Version Control
 ```
 POST /projects/:projectId/changes
 ```

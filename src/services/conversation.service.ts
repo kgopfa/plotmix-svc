@@ -203,11 +203,12 @@ export class ConversationService {
       throw new Error('Conversation not found or access denied');
     }
 
-    // Check if this is the first message in the conversation
-    const isFirstMessage = conversation.messages.length === 0;
+    // Check if this is the first user message in the conversation
+    const userMessages = conversation.messages.filter(m => m.messageType === MESSAGE_TYPES.USER);
+    const isFirstUserMessage = userMessages.length === 0;
     
-    // If this is the first message and no project exists, create a project
-    if (isFirstMessage && !conversation.project) {
+    // If this is the first user message and no project exists, create a project
+    if (isFirstUserMessage && !conversation.project) {
       const project = await this.createProjectFromFirstMessage(userId, data.content);
       
       // Update conversation to link to the new project
@@ -300,6 +301,24 @@ export class ConversationService {
           success: validation.isValid,
           elementCount: result.canvasData.elements?.length || 0,
         });
+
+        // Step 6: Update project with generated canvas structure
+        if (conversation.project && validation.isValid) {
+          await prisma.project.update({
+            where: { id: conversation.project.id },
+            data: {
+              mainState: result.canvasData,
+              updatedAt: new Date(),
+            },
+          });
+
+          logger.info('Project updated with canvas structure', {
+            projectId: conversation.project.id,
+            conversationId,
+            elementCount: result.canvasData.elements?.length || 0,
+            connectionCount: result.canvasData.connections?.length || 0,
+          });
+        }
       }
 
       return { 
