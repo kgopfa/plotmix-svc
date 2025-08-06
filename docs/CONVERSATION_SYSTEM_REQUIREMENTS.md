@@ -33,6 +33,8 @@ model Message {
   content   String   // The actual message content
   role      String   // "user" | "assistant" | "system"
   metadata  Json?    // Additional data like canvas state, attachments, etc.
+  attachments Json?  // Array of attachment objects (only if project has attachments enabled)
+  options    Json?   // Message-specific options (only if project has corresponding features enabled)
   createdAt DateTime @default(now())
 
   // Relations
@@ -62,6 +64,55 @@ model Project {
   
   // Add new relations
   conversations Conversation[] @relation("ConversationProject")
+  
+  // Optional features configuration
+  features Json? // Configuration for optional features like attachments, audio, music, web search
+}
+```
+
+## Optional Features Configuration
+
+### Project-Level Feature Flags
+Projects can have optional features enabled/disabled through the `features` JSON field:
+
+```typescript
+interface ProjectFeatures {
+  attachments?: {
+    enabled: boolean;
+    maxFileSize?: number; // in bytes
+    allowedTypes?: string[]; // e.g., ['image/*', 'text/plain']
+  };
+  audio?: {
+    enabled: boolean;
+    speechToText?: boolean;
+    textToSpeech?: boolean;
+  };
+  music?: {
+    enabled: boolean;
+    generation?: boolean;
+    background?: boolean;
+  };
+  webSearch?: {
+    enabled: boolean;
+    sources?: string[]; // e.g., ['google', 'bing', 'wikipedia']
+  };
+}
+```
+
+### Feature Validation
+- Messages with attachments are only allowed if `project.features.attachments.enabled` is true
+- Audio options are only processed if `project.features.audio.enabled` is true
+- Music options are only processed if `project.features.music.enabled` is true
+- Web search is only performed if `project.features.webSearch.enabled` is true
+
+### Default Configuration
+If no features are specified, all optional features are disabled by default:
+```json
+{
+  "attachments": { "enabled": false },
+  "audio": { "enabled": false },
+  "music": { "enabled": false },
+  "webSearch": { "enabled": false }
 }
 ```
 
@@ -77,6 +128,8 @@ model Project {
   {
     title?: string; // Optional, auto-generated if not provided
     initialPrompt?: string; // Optional first message
+    projectId?: string; // Optional: link to existing project
+    features?: ProjectFeatures; // Optional: enable/disable features for new project
   }
   ```
 - **Response**: New conversation with ID and optional initial message
@@ -120,15 +173,17 @@ model Project {
       name: string;
       type: string;
       size: string;
-    }>;
+      url?: string; // File URL if uploaded
+    }>; // Only allowed if project.features.attachments.enabled
     options?: {
-      webSearch?: boolean;
-      audio?: boolean;
-      music?: boolean;
+      webSearch?: boolean; // Only processed if project.features.webSearch.enabled
+      audio?: boolean; // Only processed if project.features.audio.enabled
+      music?: boolean; // Only processed if project.features.music.enabled
     };
   }
   ```
 - **Response**: Both user message and LLM response with canvas data
+- **Validation**: Returns 400 error if features are used but not enabled in project
 
 #### Get Messages
 - **GET** `/api/conversations/:id/messages`
@@ -164,6 +219,40 @@ model Project {
   }
   ```
 
+### 4. Project Features Management
+
+#### Get Project Features
+- **GET** `/api/projects/:id/features`
+- **Purpose**: Get current feature configuration for a project
+- **Response**: Project features configuration
+
+#### Update Project Features
+- **PUT** `/api/projects/:id/features`
+- **Purpose**: Update feature configuration for a project
+- **Request Body**:
+  ```typescript
+  {
+    features: Partial<ProjectFeatures>;
+  }
+  ```
+- **Response**: Updated project features
+
+#### Validate Message Features
+- **POST** `/api/projects/:id/validate-message`
+- **Purpose**: Validate if a message's features are allowed for this project
+- **Request Body**:
+  ```typescript
+  {
+    attachments?: Array<any>;
+    options?: {
+      webSearch?: boolean;
+      audio?: boolean;
+      music?: boolean;
+    };
+  }
+  ```
+- **Response**: Validation result with any disallowed features
+
 ## Service Layer Implementation
 
 ### 1. ConversationService
@@ -177,16 +266,142 @@ model Project {
 - `sendMessage(conversationId: string, userId: string, data: SendMessageRequest)`
 - `getMessages(conversationId: string, userId: string, pagination: PaginationOptions)`
 - `processLLMResponse(prompt: string, conversationContext: Message[])`
+- `validateMessageFeatures(projectId: string, messageData: SendMessageRequest)`
+- `processAttachments(attachments: Attachment[], projectFeatures: ProjectFeatures)`
 
 ### 3. CanvasGenerationService
 - `generateCanvas(prompt: string, conversationContext: Message[])`
 - `updateCanvas(projectId: string, prompt: string, currentState: any)`
 - `createProjectFromCanvas(canvasData: any, userId: string, conversationId: string)`
 
-### 4. LLM Integration Service
-- `callLLM(messages: Message[], options: LLMOptions)`
+### 4. LLM Integration Service (OpenAI)
+- `callOpenAI(messages: Message[], options: OpenAIOptions)`
 - `parseCanvasResponse(llmResponse: string)`
 - `validateCanvasData(canvasData: any)`
+- `formatMessagesForOpenAI(messages: Message[]): OpenAI.ChatCompletionMessage[]`
+- `handleOpenAIError(error: any): ApiResponse`
+
+### 5. ProjectFeaturesService
+- `getProjectFeatures(projectId: string)`
+- `updateProjectFeatures(projectId: string, features: Partial<ProjectFeatures>)`
+- `validateFeatures(features: Partial<ProjectFeatures>)`
+- `getDefaultFeatures(): ProjectFeatures`
+
+## OpenAI Integration
+
+### Configuration
+```typescript
+interface OpenAIConfig {
+  apiKey: string;
+  model: string; // e.g., "gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"
+  maxTokens: number;
+  temperature: number;
+  systemPrompt: string;
+}
+
+interface OpenAIOptions {
+  model?: string;
+  maxTokens?: number;
+  temperature?: number;
+  features?: {
+    webSearch?: boolean;
+    audio?: boolean;
+    music?: boolean;
+  };
+}
+```
+
+### Environment Variables
+```bash
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_MODEL=gpt-4-turbo-preview
+OPENAI_MAX_TOKENS=4000
+OPENAI_TEMPERATURE=0.7
+```
+
+### System Prompt Template
+The system prompt should be designed to:
+1. Generate canvas designs based on user descriptions
+2. Return structured JSON responses for canvas data
+3. Handle follow-up modifications to existing canvases
+4. Respect project feature limitations
+5. Provide helpful responses when features are disabled
+
+Example system prompt:
+```
+You are an AI assistant that generates canvas designs for system architecture diagrams. 
+You should respond with valid JSON that describes the canvas layout, elements, and their properties.
+
+When generating canvases:
+- Use clear, descriptive names for elements
+- Position elements logically with appropriate spacing
+- Include relevant icons and styling
+- Consider the user's specific requirements
+
+If the user requests features that are not enabled (web search, audio, music), politely explain that these features are not available for this project.
+
+Response format:
+{
+  "canvas": {
+    "elements": [...],
+    "layout": {...},
+    "metadata": {...}
+  },
+  "message": "Your response message here"
+}
+```
+
+### Error Handling
+- Handle API rate limits gracefully
+- Retry failed requests with exponential backoff
+- Log OpenAI API errors for debugging
+- Provide user-friendly error messages
+- Fallback responses for critical failures
+
+### Expected Response Format
+The OpenAI response should be structured JSON that can be parsed into canvas data:
+
+```typescript
+interface CanvasResponse {
+  canvas: {
+    elements: Array<{
+      id: string;
+      type: 'rectangle' | 'circle' | 'text' | 'image' | 'line';
+      x: number;
+      y: number;
+      width?: number;
+      height?: number;
+      text?: string;
+      style?: {
+        fill?: string;
+        stroke?: string;
+        strokeWidth?: number;
+        fontSize?: number;
+        fontFamily?: string;
+      };
+      metadata?: Record<string, any>;
+    }>;
+    layout: {
+      width: number;
+      height: number;
+      background?: string;
+    };
+    metadata: {
+      title?: string;
+      description?: string;
+      version: string;
+    };
+  };
+  message: string; // Human-readable response
+  suggestions?: string[]; // Optional follow-up suggestions
+}
+```
+
+### Response Validation
+- Validate JSON structure before processing
+- Ensure required fields are present
+- Sanitize and validate element properties
+- Handle malformed responses gracefully
 
 ## Business Logic Requirements
 
@@ -204,7 +419,14 @@ model Project {
 5. Create or update project with canvas state
 6. Return canvas data to frontend
 
-### 3. Context Management
+### 3. Feature Validation Logic
+1. Check project features configuration before processing message
+2. Validate attachments against allowed types and sizes
+3. Skip processing for disabled features (web search, audio, music)
+4. Return clear error messages for unsupported features
+5. Log feature usage for analytics
+
+### 4. Context Management
 - Maintain conversation history for context
 - Include previous canvas states in LLM prompts
 - Handle conversation branching for different canvas versions
@@ -297,6 +519,30 @@ model Project {
 - Optimistic updates for better UX
 - Efficient state management
 
+## Dependencies & Setup
+
+### Required Packages
+```bash
+# OpenAI SDK
+pnpm add openai
+
+# Optional: For better error handling and retries
+pnpm add axios-retry
+```
+
+### Environment Setup
+Add the following to your `.env` file:
+```bash
+# OpenAI Configuration
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-4-turbo-preview
+OPENAI_MAX_TOKENS=4000
+OPENAI_TEMPERATURE=0.7
+
+# Optional: Custom system prompt (can be overridden)
+OPENAI_SYSTEM_PROMPT="You are an AI assistant that generates canvas designs..."
+```
+
 ## Implementation Checklist
 
 ### Phase 1: Database & Basic CRUD
@@ -304,15 +550,21 @@ model Project {
 - [ ] Run database migrations
 - [ ] Implement ConversationService
 - [ ] Implement MessageService
+- [ ] Implement ProjectFeaturesService
 - [ ] Create basic API endpoints
 - [ ] Add authentication middleware
+- [ ] Add feature validation middleware
 
-### Phase 2: LLM Integration
-- [ ] Implement LLM service
+### Phase 2: LLM Integration (OpenAI)
+- [ ] Install and configure OpenAI SDK
+- [ ] Implement OpenAI service with configuration
+- [ ] Create system prompt templates
 - [ ] Add canvas generation logic
 - [ ] Create CanvasGenerationService
 - [ ] Implement message processing
-- [ ] Add error handling
+- [ ] Add feature-aware LLM processing
+- [ ] Add OpenAI error handling and retry logic
+- [ ] Add response parsing and validation
 
 ### Phase 3: Project Integration
 - [ ] Link conversations to projects
