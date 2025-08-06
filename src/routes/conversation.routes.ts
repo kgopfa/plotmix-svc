@@ -18,6 +18,10 @@ router.delete('/:conversationId', ConversationController.deleteConversation);
 router.post('/:conversationId/messages', ConversationController.sendMessage);
 router.get('/:conversationId/messages', ConversationController.getMessages);
 
+// Canvas generation operations
+router.post('/:conversationId/generate-canvas', ConversationController.generateCanvas);
+router.get('/:conversationId/generation-stats', ConversationController.getGenerationStats);
+
 // Project features management
 router.get('/projects/:projectId/features', ConversationController.getProjectFeatures);
 router.put('/projects/:projectId/features', ConversationController.updateProjectFeatures);

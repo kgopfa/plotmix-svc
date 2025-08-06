@@ -1,5 +1,6 @@
 import { prisma } from './prisma.service';
 import { logger } from '../utils/logger';
+import { CanvasGenerationService } from './canvas-generation.service';
 import {
   Conversation,
   ConversationWithRelations,
@@ -183,7 +184,7 @@ export class ConversationService {
     conversationId: string,
     userId: string,
     data: SendMessageRequest
-  ): Promise<{ userMessage: Message; llmResponse?: Message }> {
+  ): Promise<{ userMessage: Message; llmResponse?: Message; canvasMessage?: Message }> {
     // Verify conversation ownership
     const conversation = await prisma.conversation.findFirst({
       where: {
@@ -227,9 +228,79 @@ export class ConversationService {
       userId,
     });
 
-    // For now, return only the user message
-    // LLM response will be handled in Phase 2
-    return { userMessage };
+    // Process message with LLM
+    try {
+      const result = await CanvasGenerationService.processUserMessage(
+        conversationId,
+        userId,
+        data.content,
+        {
+          includeHistory: true,
+          maxHistoryMessages: 10,
+        }
+      );
+
+      let llmResponse: Message | undefined;
+      let canvasMessage: Message | undefined;
+
+      // Create LLM response message
+      if (result.llmResponse) {
+        llmResponse = await prisma.message.create({
+          data: {
+            content: result.llmResponse,
+            messageType: MESSAGE_TYPES.LLM,
+            conversationId,
+          },
+        });
+      }
+
+      // Create canvas generation message if canvas data was generated
+      if (result.canvasData) {
+        const validation = CanvasGenerationService.validateCanvasData(result.canvasData);
+        
+        canvasMessage = await prisma.message.create({
+          data: {
+            content: JSON.stringify(result.canvasData),
+            messageType: MESSAGE_TYPES.CANVAS_GENERATION,
+            conversationId,
+            metadata: {
+              success: validation.isValid,
+              errors: validation.errors,
+              elementCount: result.canvasData.elements?.length || 0,
+              connectionCount: result.canvasData.connections?.length || 0,
+            },
+          },
+        });
+
+        logger.info('Canvas generation message created', {
+          messageId: canvasMessage.id,
+          conversationId,
+          success: validation.isValid,
+          elementCount: result.canvasData.elements?.length || 0,
+        });
+      }
+
+      return { 
+        userMessage, 
+        ...(llmResponse && { llmResponse }), 
+        ...(canvasMessage && { canvasMessage }) 
+      };
+    } catch (error) {
+      // Create error message if LLM processing fails
+      const errorMessage = await this.createErrorMessage(
+        conversationId,
+        error instanceof Error ? error.message : 'Failed to process message with AI',
+        'LLM_PROCESSING_ERROR'
+      );
+
+      logger.error('Error processing message with LLM', {
+        conversationId,
+        userId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+
+      return { userMessage, llmResponse: errorMessage };
+    }
   }
 
   static async getMessages(

@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { ConversationService } from '../services/conversation.service';
 import { ProjectFeaturesService } from '../services/project-features.service';
+import { CanvasGenerationService } from '../services/canvas-generation.service';
 import { logger } from '../utils/logger';
 import { AuthenticatedRequest, MessageType } from '../types';
 
@@ -256,7 +257,8 @@ export class ConversationController {
         message: 'Message sent successfully',
         data: {
           userMessage: result.userMessage,
-          llmResponse: result.llmResponse,
+          ...(result.llmResponse && { llmResponse: result.llmResponse }),
+          ...(result.canvasMessage && { canvasMessage: result.canvasMessage }),
         },
       });
     } catch (error) {
@@ -457,6 +459,122 @@ export class ConversationController {
       res.status(500).json({
         success: false,
         message: 'Failed to validate message',
+      });
+    }
+  }
+
+  static async generateCanvas(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user || !req.user.userId) {
+        res.status(401).json({
+          success: false,
+          message: 'User not authenticated',
+        });
+        return;
+      }
+
+      const { conversationId } = req.params;
+      if (!conversationId) {
+        res.status(400).json({
+          success: false,
+          message: 'Conversation ID is required',
+        });
+        return;
+      }
+
+      const { prompt, options } = req.body;
+      if (!prompt) {
+        res.status(400).json({
+          success: false,
+          message: 'Prompt is required',
+        });
+        return;
+      }
+
+      const result = await CanvasGenerationService.generateCanvasData(
+        conversationId,
+        req.user.userId,
+        prompt,
+        options || {}
+      );
+
+      if (result.success) {
+        res.json({
+          success: true,
+          message: 'Canvas generated successfully',
+          data: {
+            canvasData: result.canvasData,
+            message: result.message,
+          },
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          message: 'Canvas generation failed',
+          error: result.error,
+        });
+      }
+    } catch (error) {
+      logger.error('Canvas generation failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: req.user?.userId,
+        conversationId: req.params['conversationId'],
+        body: req.body,
+      });
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to generate canvas',
+      });
+    }
+  }
+
+  static async getGenerationStats(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user || !req.user.userId) {
+        res.status(401).json({
+          success: false,
+          message: 'User not authenticated',
+        });
+        return;
+      }
+
+      const { conversationId } = req.params;
+      if (!conversationId) {
+        res.status(400).json({
+          success: false,
+          message: 'Conversation ID is required',
+        });
+        return;
+      }
+
+      // Verify conversation ownership
+      const conversation = await ConversationService.getConversation(conversationId, req.user.userId);
+      if (!conversation) {
+        res.status(404).json({
+          success: false,
+          message: 'Conversation not found or access denied',
+        });
+        return;
+      }
+
+      const stats = await CanvasGenerationService.getGenerationStats(conversationId);
+
+      res.json({
+        success: true,
+        message: 'Generation statistics retrieved successfully',
+        data: { stats },
+      });
+    } catch (error) {
+      logger.error('Get generation stats failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: req.user?.userId,
+        conversationId: req.params['conversationId'],
+      });
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve generation statistics',
       });
     }
   }

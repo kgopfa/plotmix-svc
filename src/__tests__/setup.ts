@@ -73,6 +73,7 @@ export const testUtils = {
     name?: string;
     mainState?: any;
     version?: string;
+    features?: any;
   } = {}) {
     const randomId = Math.random().toString(36).substring(7);
     return testPrisma.project.create({
@@ -80,6 +81,23 @@ export const testUtils = {
         name: data.name || `Test Project ${randomId}`,
         mainState: data.mainState || { elements: [], canvas: { width: 1920, height: 1080 } },
         version: data.version || '1.0.0',
+        features: data.features || null,
+        userId,
+      },
+    });
+  },
+
+  // Create a test conversation
+  async createTestConversation(userId: string, data: {
+    title?: string;
+    projectId?: string;
+    initialPrompt?: string;
+  } = {}) {
+    const randomId = Math.random().toString(36).substring(7);
+    return testPrisma.conversation.create({
+      data: {
+        title: data.title || `Test Conversation ${randomId}`,
+        projectId: data.projectId || null,
         userId,
       },
     });

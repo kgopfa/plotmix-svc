@@ -90,11 +90,22 @@ export async function createTestUser(data: {
 }
 
 // Helper function to create a test project
-export async function createTestProject(userId: string, _authToken: string, data: {
+export async function createTestProject(userId: string, data: {
   name?: string;
   mainState?: any;
   version?: string;
+  features?: any;
 } = {}) {
   const project = await testUtils.createTestProject(userId, data);
   return project;
+}
+
+// Helper function to create a test conversation
+export async function createTestConversation(userId: string, data: {
+  title?: string;
+  projectId?: string;
+  initialPrompt?: string;
+} = {}) {
+  const conversation = await testUtils.createTestConversation(userId, data);
+  return conversation;
 } 
