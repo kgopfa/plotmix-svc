@@ -6,7 +6,7 @@ class DatabaseClient {
   static getInstance(): PrismaClient {
     if (!DatabaseClient.instance) {
       DatabaseClient.instance = new PrismaClient({
-        log: process.env['NODE_ENV'] === 'development' ? ['query', 'error', 'warn'] : ['error'],
+        log: ['error', 'warn'],
       });
     }
 
