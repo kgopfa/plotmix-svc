@@ -321,6 +321,12 @@ describe('Conversation System with LLM Integration', () => {
       // Create another user
       const otherUser = await createTestUser();
       
+      // Mock the service to return ownership validation failure
+      mockCanvasGenerationService.generateCanvasData.mockResolvedValueOnce({
+        success: false,
+        error: 'Conversation not found or access denied',
+      });
+      
       const response = await request(app)
         .post(`/api/conversations/${testConversation.id}/generate-canvas`)
         .set('Authorization', `Bearer ${otherUser.token}`)
