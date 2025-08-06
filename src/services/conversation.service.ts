@@ -200,9 +200,12 @@ export class ConversationService {
       throw new Error('Conversation not found or access denied');
     }
 
-    // Validate message features if project exists
+    // Validate message features (with or without project)
     if (conversation.project) {
       await this.validateMessageFeatures(conversation.project.id, data);
+    } else {
+      // Validate against default features when no project exists
+      await this.validateMessageFeatures(null, data);
     }
 
     // Create user message
@@ -398,9 +401,26 @@ export class ConversationService {
   }
 
   static async validateMessageFeatures(
-    projectId: string,
+    projectId: string | null,
     messageData: SendMessageRequest
   ): Promise<void> {
+    // If no project ID, use default features (all disabled)
+    if (!projectId) {
+      if (messageData.attachments?.length) {
+        throw new Error('Attachments are not enabled for this project');
+      }
+      if (messageData.options?.webSearch) {
+        throw new Error('Web search is not enabled for this project');
+      }
+      if (messageData.options?.audio) {
+        throw new Error('Audio features are not enabled for this project');
+      }
+      if (messageData.options?.music) {
+        throw new Error('Music features are not enabled for this project');
+      }
+      return;
+    }
+
     const project = await prisma.project.findUnique({
       where: { id: projectId },
     });

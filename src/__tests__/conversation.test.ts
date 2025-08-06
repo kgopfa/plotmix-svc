@@ -4,13 +4,44 @@ import { prisma } from '../services/prisma.service';
 import { createTestUser, createTestProject, createTestConversation } from './helpers/test-request';
 import { MESSAGE_TYPES } from '../types';
 
+// Mock the OpenAI service
+jest.mock('../services/openai.service');
+jest.mock('../services/canvas-generation.service');
+
 describe('Conversation System with LLM Integration', () => {
   let testUser: any;
   let testConversation: any;
   let testProject: any;
   let authToken: string;
 
+  // Mock OpenAI service
+  const mockOpenAIService = {
+    generateResponse: jest.fn(),
+    generateCanvasData: jest.fn(),
+    getConfig: jest.fn(),
+  };
+
+  const mockCanvasGenerationService = {
+    processUserMessage: jest.fn(),
+    generateCanvasData: jest.fn(),
+    validateCanvasData: jest.fn(),
+    getGenerationStats: jest.fn(),
+  };
+
   beforeAll(async () => {
+    // Set up mocks
+    const { OpenAIService } = require('../services/openai.service');
+    const { CanvasGenerationService } = require('../services/canvas-generation.service');
+    
+    OpenAIService.getInstance = jest.fn().mockReturnValue(mockOpenAIService);
+    (CanvasGenerationService as any).openaiService = mockOpenAIService;
+    
+    // Mock the static methods
+    CanvasGenerationService.processUserMessage = mockCanvasGenerationService.processUserMessage;
+    CanvasGenerationService.generateCanvasData = mockCanvasGenerationService.generateCanvasData;
+    CanvasGenerationService.validateCanvasData = mockCanvasGenerationService.validateCanvasData;
+    CanvasGenerationService.getGenerationStats = mockCanvasGenerationService.getGenerationStats;
+
     // Create test user and get auth token
     const userData = await createTestUser();
     testUser = userData.user;
@@ -35,6 +66,78 @@ describe('Conversation System with LLM Integration', () => {
     });
   });
 
+  beforeEach(() => {
+    jest.clearAllMocks();
+    
+    // Set up default mock responses
+    mockOpenAIService.generateResponse.mockResolvedValue('This is a mock response');
+    mockOpenAIService.generateCanvasData.mockResolvedValue({
+      success: true,
+      canvasData: {
+        elements: [
+          {
+            id: 'element-1',
+            type: 'rectangle',
+            x: 100,
+            y: 100,
+            width: 200,
+            height: 100,
+          },
+        ],
+        connections: [],
+        metadata: { title: 'Mock Diagram' },
+      },
+    });
+    
+    mockCanvasGenerationService.processUserMessage.mockResolvedValue({
+      llmResponse: 'This is a mock LLM response',
+      canvasData: {
+        elements: [
+          {
+            id: 'element-1',
+            type: 'rectangle',
+            x: 100,
+            y: 100,
+            width: 200,
+            height: 100,
+          },
+        ],
+        connections: [],
+        metadata: { title: 'Mock Canvas Data' },
+      },
+    });
+    
+    mockCanvasGenerationService.generateCanvasData.mockResolvedValue({
+      success: true,
+      canvasData: {
+        elements: [
+          {
+            id: 'element-1',
+            type: 'rectangle',
+            x: 100,
+            y: 100,
+            width: 200,
+            height: 100,
+          },
+        ],
+        connections: [],
+        metadata: { title: 'Mock Canvas Data' },
+      },
+    });
+    
+    mockCanvasGenerationService.validateCanvasData.mockReturnValue({
+      isValid: true,
+      errors: [],
+    });
+    
+    mockCanvasGenerationService.getGenerationStats.mockResolvedValue({
+      totalGenerations: 1,
+      successfulGenerations: 1,
+      failedGenerations: 0,
+      lastGeneration: new Date(),
+    });
+  });
+
   afterAll(async () => {
     // Clean up test data
     await prisma.message.deleteMany({
@@ -51,10 +154,10 @@ describe('Conversation System with LLM Integration', () => {
     });
   });
 
-  describe('POST /conversations/:conversationId/messages', () => {
+  describe('POST /api/conversations/:conversationId/messages', () => {
     it('should send a message and receive LLM response', async () => {
       const response = await request(app)
-        .post(`/conversations/${testConversation.id}/messages`)
+        .post(`/api/conversations/${testConversation.id}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
           content: 'Hello, can you help me create a simple system architecture diagram?',
@@ -74,7 +177,7 @@ describe('Conversation System with LLM Integration', () => {
 
     it('should generate canvas data when prompted for visual content', async () => {
       const response = await request(app)
-        .post(`/conversations/${testConversation.id}/messages`)
+        .post(`/api/conversations/${testConversation.id}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
           content: 'Create a diagram showing a web application with a database and API',
@@ -98,7 +201,7 @@ describe('Conversation System with LLM Integration', () => {
 
     it('should handle attachments when enabled', async () => {
       const response = await request(app)
-        .post(`/conversations/${testConversation.id}/messages`)
+        .post(`/api/conversations/${testConversation.id}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
           content: 'Analyze this diagram and suggest improvements',
@@ -126,7 +229,7 @@ describe('Conversation System with LLM Integration', () => {
       });
 
       const response = await request(app)
-        .post(`/conversations/${simpleConversation.id}/messages`)
+        .post(`/api/conversations/${simpleConversation.id}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
           content: 'Test message with attachment',
@@ -150,7 +253,7 @@ describe('Conversation System with LLM Integration', () => {
 
     it('should handle web search when enabled', async () => {
       const response = await request(app)
-        .post(`/conversations/${testConversation.id}/messages`)
+        .post(`/api/conversations/${testConversation.id}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
           content: 'What are the latest trends in microservices architecture?',
@@ -167,7 +270,7 @@ describe('Conversation System with LLM Integration', () => {
 
     it('should reject web search when disabled', async () => {
       const response = await request(app)
-        .post(`/conversations/${testConversation.id}/messages`)
+        .post(`/api/conversations/${testConversation.id}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
           content: 'Search for latest trends',
@@ -181,10 +284,10 @@ describe('Conversation System with LLM Integration', () => {
     });
   });
 
-  describe('POST /conversations/:conversationId/generate-canvas', () => {
+  describe('POST /api/conversations/:conversationId/generate-canvas', () => {
     it('should generate canvas data directly', async () => {
       const response = await request(app)
-        .post(`/conversations/${testConversation.id}/generate-canvas`)
+        .post(`/api/conversations/${testConversation.id}/generate-canvas`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
           prompt: 'Create a simple e-commerce system architecture',
@@ -203,7 +306,7 @@ describe('Conversation System with LLM Integration', () => {
 
     it('should handle invalid prompts gracefully', async () => {
       const response = await request(app)
-        .post(`/conversations/${testConversation.id}/generate-canvas`)
+        .post(`/api/conversations/${testConversation.id}/generate-canvas`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
           prompt: '', // Empty prompt
@@ -219,7 +322,7 @@ describe('Conversation System with LLM Integration', () => {
       const otherUser = await createTestUser();
       
       const response = await request(app)
-        .post(`/conversations/${testConversation.id}/generate-canvas`)
+        .post(`/api/conversations/${testConversation.id}/generate-canvas`)
         .set('Authorization', `Bearer ${otherUser.token}`)
         .send({
           prompt: 'Create a diagram',
@@ -234,10 +337,10 @@ describe('Conversation System with LLM Integration', () => {
     });
   });
 
-  describe('GET /conversations/:conversationId/generation-stats', () => {
+  describe('GET /api/conversations/:conversationId/generation-stats', () => {
     it('should return generation statistics', async () => {
       const response = await request(app)
-        .get(`/conversations/${testConversation.id}/generation-stats`)
+        .get(`/api/conversations/${testConversation.id}/generation-stats`)
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(response.status).toBe(200);
@@ -253,7 +356,7 @@ describe('Conversation System with LLM Integration', () => {
       const otherUser = await createTestUser();
       
       const response = await request(app)
-        .get(`/conversations/${testConversation.id}/generation-stats`)
+        .get(`/api/conversations/${testConversation.id}/generation-stats`)
         .set('Authorization', `Bearer ${otherUser.token}`);
 
       expect(response.status).toBe(404);
@@ -265,10 +368,10 @@ describe('Conversation System with LLM Integration', () => {
     });
   });
 
-  describe('GET /conversations/:conversationId/messages', () => {
+  describe('GET /api/conversations/:conversationId/messages', () => {
     it('should filter messages by type', async () => {
       const response = await request(app)
-        .get(`/conversations/${testConversation.id}/messages?messageTypes=user,llm`)
+        .get(`/api/conversations/${testConversation.id}/messages?messageTypes=user,llm`)
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(response.status).toBe(200);
@@ -283,7 +386,7 @@ describe('Conversation System with LLM Integration', () => {
 
     it('should include canvas generation messages', async () => {
       const response = await request(app)
-        .get(`/conversations/${testConversation.id}/messages?messageTypes=canvas_generation`)
+        .get(`/api/conversations/${testConversation.id}/messages?messageTypes=canvas_generation`)
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(response.status).toBe(200);
@@ -302,7 +405,7 @@ describe('Conversation System with LLM Integration', () => {
       // This test would require mocking the OpenAI service
       // For now, we'll test the error handling structure
       const response = await request(app)
-        .post(`/conversations/${testConversation.id}/messages`)
+        .post(`/api/conversations/${testConversation.id}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
           content: 'Test message that might cause an error',
@@ -318,7 +421,7 @@ describe('Conversation System with LLM Integration', () => {
 
     it('should handle invalid conversation ID', async () => {
       const response = await request(app)
-        .post('/conversations/invalid-id/messages')
+        .post('/api/conversations/invalid-id/messages')
         .set('Authorization', `Bearer ${authToken}`)
         .send({
           content: 'Test message',
@@ -330,14 +433,14 @@ describe('Conversation System with LLM Integration', () => {
 
     it('should require authentication', async () => {
       const response = await request(app)
-        .post(`/conversations/${testConversation.id}/messages`)
+        .post(`/api/conversations/${testConversation.id}/messages`)
         .send({
           content: 'Test message',
         });
 
       expect(response.status).toBe(401);
       expect(response.body.success).toBe(false);
-      expect(response.body.message).toContain('User not authenticated');
+      expect(response.body.message).toContain('Access token required');
     });
   });
 }); 
