@@ -25,7 +25,7 @@ export class ConversationService {
       data: {
         title: data.title || `Conversation ${new Date().toLocaleDateString()}`,
         userId,
-        projectId: data.projectId || null,
+        projectId: null, // Project will be created on first message
       },
       include: {
         user: true,
@@ -193,6 +193,9 @@ export class ConversationService {
       },
       include: {
         project: true,
+        messages: {
+          orderBy: { createdAt: 'asc' },
+        },
       },
     });
 
@@ -200,12 +203,28 @@ export class ConversationService {
       throw new Error('Conversation not found or access denied');
     }
 
-    // Validate message features (with or without project)
+    // Check if this is the first message in the conversation
+    const isFirstMessage = conversation.messages.length === 0;
+    
+    // If this is the first message and no project exists, create a project
+    if (isFirstMessage && !conversation.project) {
+      const project = await this.createProjectFromFirstMessage(userId, data.content);
+      
+      // Update conversation to link to the new project
+      await prisma.conversation.update({
+        where: { id: conversationId },
+        data: { projectId: project.id },
+      });
+      
+      // Update conversation object for further processing
+      conversation.project = project;
+    }
+
+    // Validate message features (project must exist now)
     if (conversation.project) {
       await this.validateMessageFeatures(conversation.project.id, data);
     } else {
-      // Validate against default features when no project exists
-      await this.validateMessageFeatures(null, data);
+      throw new Error('Project is required for conversation');
     }
 
     // Create user message
@@ -472,5 +491,64 @@ export class ConversationService {
       music: { enabled: false },
       webSearch: { enabled: false },
     };
+  }
+
+  /**
+   * Create a project from the first message in a conversation
+   * This implements the ChatGPT/Claude pattern where the first message creates a project
+   */
+  private static async createProjectFromFirstMessage(
+    userId: string,
+    firstMessageContent: string
+  ): Promise<any> {
+    // Import ProjectService to avoid circular dependencies
+    const { ProjectService } = await import('./project.service');
+    
+    // Generate project name from the first message
+    const projectName = this.generateProjectNameFromMessage(firstMessageContent);
+    
+    // Create project with default features
+    const project = await ProjectService.createProject(userId, {
+      name: projectName,
+      mainState: {
+        description: `Project created from conversation: ${firstMessageContent.substring(0, 100)}...`,
+        createdAt: new Date().toISOString(),
+        source: 'conversation',
+      },
+      features: this.getDefaultFeatures(),
+    });
+
+    logger.info('Project created from first message', {
+      projectId: project.id,
+      userId,
+      projectName,
+      firstMessageContent: firstMessageContent.substring(0, 100),
+    });
+
+    return project;
+  }
+
+  /**
+   * Generate a project name from the first message content
+   */
+  private static generateProjectNameFromMessage(messageContent: string): string {
+    // Extract meaningful words from the message
+    const words = messageContent
+      .toLowerCase()
+      .replace(/[^\w\s]/g, '')
+      .split(/\s+/)
+      .filter(word => word.length > 3)
+      .slice(0, 3);
+
+    if (words.length === 0) {
+      return `Project ${new Date().toLocaleDateString()}`;
+    }
+
+    // Capitalize first letter of each word
+    const projectName = words
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+
+    return projectName || `Project ${new Date().toLocaleDateString()}`;
   }
 } 
