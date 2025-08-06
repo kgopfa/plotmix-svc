@@ -1,5 +1,4 @@
 import OpenAI from 'openai';
-import axiosRetry from 'axios-retry';
 import { logger } from '../utils/logger';
 
 export interface OpenAIConfig {
@@ -41,19 +40,6 @@ export class OpenAIService {
     this.client = new OpenAI({
       apiKey: this.config.apiKey,
     });
-
-    // Configure retry logic for axios (used by OpenAI SDK) - only in non-test environment
-    if (process.env['NODE_ENV'] !== 'test') {
-      axiosRetry(this.client as any, {
-        retries: 3,
-        retryDelay: axiosRetry.exponentialDelay,
-        retryCondition: (error) => {
-          // Retry on network errors and 5xx status codes
-          return axiosRetry.isNetworkOrIdempotentRequestError(error) || 
-                 Boolean(error.response?.status && error.response.status >= 500 && error.response.status < 600);
-        },
-      });
-    }
   }
 
   public static getInstance(): OpenAIService {
@@ -64,15 +50,6 @@ export class OpenAIService {
   }
 
   private loadConfig(): OpenAIConfig {
-    // Skip OpenAI initialization in test environment
-    if (process.env['NODE_ENV'] === 'test') {
-      return {
-        apiKey: 'test-api-key',
-        model: 'gpt-4-turbo-preview',
-        systemPrompt: 'Test system prompt',
-      };
-    }
-
     const apiKey = process.env['OPENAI_API_KEY'];
     if (!apiKey) {
       throw new Error('OPENAI_API_KEY environment variable is required');
