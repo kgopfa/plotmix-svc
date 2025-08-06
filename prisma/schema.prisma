@@ -23,6 +23,7 @@ model User {
   ownedProjects     Project[]     @relation("ProjectOwner")
   projectChanges    ProjectChange[] @relation("ChangeAuthor")
   projectRoles      ProjectRole[]
+  conversations     Conversation[] @relation("UserConversations")
 
   @@map("users")
 }
@@ -32,6 +33,7 @@ model Project {
   name      String
   mainState Json     // Current canonical project structure
   version   String   // Current version number or hash
+  features  Json?    // Optional features configuration
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -41,8 +43,41 @@ model Project {
   changes       ProjectChange[]
   snapshots     Snapshot[]
   collaborators ProjectRole[]
+  conversations Conversation[] @relation("ConversationProject")
 
   @@map("projects")
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  title     String?  // Auto-generated or user-provided
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  userId        String @map("user_id")
+  user          User   @relation("UserConversations", fields: [userId], references: [id], onDelete: Cascade)
+  messages      Message[]
+  projectId     String? @map("project_id") // Optional: only for canvas-related conversations
+  project       Project? @relation("ConversationProject", fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@map("conversations")
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  content     String   // The actual message content
+  messageType String   @map("message_type") // "user" | "llm" | "system" | "canvas_generation" | "error"
+  metadata    Json?    // Additional data like canvas state, attachments, etc.
+  attachments Json?    // Array of attachment objects (only if project has attachments enabled)
+  options     Json?    // Message-specific options (only if project has corresponding features enabled)
+  createdAt   DateTime @default(now())
+
+  // Relations
+  conversationId String      @map("conversation_id")
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
 }
 
 model ProjectChange {

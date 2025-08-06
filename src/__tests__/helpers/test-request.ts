@@ -76,4 +76,25 @@ export class TestRequest {
 // Helper function to create a test request instance
 export function createTestRequest(app: Application): TestRequest {
   return new TestRequest(app);
+}
+
+// Helper function to create a test user and get auth token
+export async function createTestUser(data: {
+  name?: string;
+  email?: string;
+  password?: string;
+} = {}) {
+  const user = await testUtils.createTestUser(data);
+  const token = testUtils.generateTestToken(user.id, user.email);
+  return { user, token };
+}
+
+// Helper function to create a test project
+export async function createTestProject(userId: string, _authToken: string, data: {
+  name?: string;
+  mainState?: any;
+  version?: string;
+} = {}) {
+  const project = await testUtils.createTestProject(userId, data);
+  return project;
 } 

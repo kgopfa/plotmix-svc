@@ -14,11 +14,13 @@ import {
 
 export class ProjectService {
   static async createProject(userId: string, projectData: CreateProjectRequest): Promise<Project> {
+    const { features, ...restData } = projectData;
     const project = await prisma.project.create({
       data: {
-        ...projectData,
+        ...restData,
         userId,
         version: '1.0.0', // Initial version
+        features: features ? (features as any) : null,
       },
     });
 
@@ -54,6 +56,10 @@ export class ProjectService {
           include: {
             user: true,
           },
+        },
+        conversations: {
+          orderBy: { updatedAt: 'desc' },
+          take: 5, // Limit to recent conversations
         },
       },
     });
@@ -92,10 +98,12 @@ export class ProjectService {
       return null;
     }
 
+    const { features, ...restUpdateData } = updateData;
     const updatedProject = await prisma.project.update({
       where: { id: projectId },
       data: {
-        ...updateData,
+        ...restUpdateData,
+        features: features ? (features as any) : undefined,
         updatedAt: new Date(),
       },
     });

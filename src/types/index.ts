@@ -1,11 +1,47 @@
 import { Request } from 'express';
-import { User as PrismaUser, Project as PrismaProject, ProjectChange as PrismaProjectChange, Snapshot as PrismaSnapshot, ProjectRole as PrismaProjectRole } from '@prisma/client';
+import { User as PrismaUser, Project as PrismaProject, ProjectChange as PrismaProjectChange, Snapshot as PrismaSnapshot, ProjectRole as PrismaProjectRole, Conversation as PrismaConversation, Message as PrismaMessage } from '@prisma/client';
 
 export type User = PrismaUser;
 export type Project = PrismaProject;
 export type ProjectChange = PrismaProjectChange;
 export type Snapshot = PrismaSnapshot;
 export type ProjectRole = PrismaProjectRole;
+export type Conversation = PrismaConversation;
+export type Message = PrismaMessage;
+
+// Message Type Constants
+export const MESSAGE_TYPES = {
+  USER: 'user',
+  LLM: 'llm',
+  SYSTEM: 'system',
+  CANVAS_GENERATION: 'canvas_generation',
+  ERROR: 'error'
+} as const;
+
+export type MessageType = typeof MESSAGE_TYPES[keyof typeof MESSAGE_TYPES];
+
+// Project Features Interface
+export interface ProjectFeatures {
+  attachments?: {
+    enabled: boolean;
+    maxFileSize?: number; // in bytes
+    allowedTypes?: string[]; // e.g., ['image/*', 'text/plain']
+  };
+  audio?: {
+    enabled: boolean;
+    speechToText?: boolean;
+    textToSpeech?: boolean;
+  };
+  music?: {
+    enabled: boolean;
+    generation?: boolean;
+    background?: boolean;
+  };
+  webSearch?: {
+    enabled: boolean;
+    sources?: string[]; // e.g., ['google', 'bing', 'wikipedia']
+  };
+}
 
 export interface JWTPayload {
   // NextAuth JWT token structure
@@ -44,11 +80,13 @@ export interface RegisterRequest {
 export interface CreateProjectRequest {
   name: string;
   mainState: Record<string, any>;
+  features?: ProjectFeatures;
 }
 
 export interface UpdateProjectRequest {
   name?: string;
   mainState?: Record<string, any>;
+  features?: ProjectFeatures;
 }
 
 export interface ProjectWithRelations extends Project {
@@ -56,6 +94,58 @@ export interface ProjectWithRelations extends Project {
   changes: ProjectChange[];
   snapshots: Snapshot[];
   collaborators: ProjectRole[];
+  conversations: Conversation[];
+}
+
+// Conversation Types
+export interface CreateConversationRequest {
+  title?: string;
+  initialPrompt?: string;
+  projectId?: string;
+  features?: ProjectFeatures;
+}
+
+export interface UpdateConversationRequest {
+  title?: string;
+}
+
+export interface ConversationFilters {
+  page?: number | undefined;
+  limit?: number | undefined;
+  projectId?: string | undefined;
+}
+
+export interface ConversationWithRelations extends Conversation {
+  user: User;
+  messages: Message[];
+  project?: Project | null;
+}
+
+// Message Types
+export interface SendMessageRequest {
+  content: string;
+  attachments?: Array<{
+    id: string;
+    name: string;
+    type: string;
+    size: string;
+    url?: string;
+  }>;
+  options?: {
+    webSearch?: boolean;
+    audio?: boolean;
+    music?: boolean;
+  };
+}
+
+export interface MessageWithRelations extends Message {
+  conversation: Conversation;
+}
+
+export interface PaginationOptions {
+  page?: number | undefined;
+  limit?: number | undefined;
+  before?: Date | undefined;
 }
 
 // Project Change Types
