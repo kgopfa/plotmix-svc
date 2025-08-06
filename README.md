@@ -264,6 +264,15 @@ Run TypeScript type checking:
 pnpm type-check
 ```
 
+## Documentation
+
+For detailed documentation, see the [docs/](./docs/) directory:
+
+- **[API Documentation](./docs/API_DOCUMENTATION.md)** - Complete API reference
+- **[Authentication Guide](./docs/AUTHENTICATION.md)** - Authentication system details
+- **[Test Suite](./docs/TEST_SUITE.md)** - Testing documentation
+- **[Conversation System](./docs/CONVERSATION_SYSTEM_REQUIREMENTS.md)** - Conversation and message system requirements
+
 ## Project Structure
 
 ```
@@ -277,6 +286,12 @@ src/
 ├── utils/           # Utility functions
 ├── app.ts           # Express app configuration
 └── index.ts         # Server entry point
+docs/                # Documentation files
+├── README.md        # Documentation index
+├── API_DOCUMENTATION.md
+├── AUTHENTICATION.md
+├── TEST_SUITE.md
+└── CONVERSATION_SYSTEM_REQUIREMENTS.md
 ```
 
 ## Authentication Architecture
