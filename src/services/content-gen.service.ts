@@ -26,58 +26,22 @@ export class ContentGenService {
     });
 
     try {
-      // Step 1: Send prompt to OpenAI first
-      logger.info('Step 1: Processing prompt with OpenAI', { userId });
       const canvasResponse = await this.processPromptWithOpenAI(data);
-      logger.info('Step 1 completed: OpenAI processing successful', {
-        userId,
-        hasCanvasData: !!canvasResponse.canvasData,
-        hasMessage: !!canvasResponse.message,
-        success: canvasResponse.success,
-      });
-
-      // Step 2: Create project with the generated canvas data
-      logger.info('Step 2: Creating project from canvas response', { userId });
+      logger.info('Received response from OpenAI', { canvasResponse });
+      
       const project = await this.createProjectFromCanvasResponse(userId, data, canvasResponse);
-      logger.info('Step 2 completed: Project created successfully', {
-        userId,
-        projectId: project.id,
-        projectName: project.name,
-      });
+      logger.info('Project created successfully', { projectId: project.id, projectName: project.name });
 
-      // Step 3: Create conversation linked to the project
-      logger.info('Step 3: Creating conversation for project', { userId, projectId: project.id });
       const conversation = await this.createConversationForProject(userId, data, project.id, canvasResponse);
-      logger.info('Step 3 completed: Conversation created successfully', {
-        userId,
-        projectId: project.id,
-        conversationId: conversation.id,
-        conversationTitle: conversation.title,
-      });
+      logger.info('Conversation created successfully', { conversationId: conversation.id, conversationTitle: conversation.title });
 
-      // Step 4: Create all messages
-      logger.info('Step 4: Creating conversation messages', { userId, conversationId: conversation.id });
       const messages = await this.createConversationMessages(conversation.id, data, canvasResponse);
-      logger.info('Step 4 completed: Messages created successfully', {
-        userId,
-        conversationId: conversation.id,
-        messageCount: messages.length,
-        messageTypes: messages.map(m => m.messageType),
-      });
+      logger.info('Messages created successfully', { conversationId: conversation.id, messageCount: messages.length });
 
-      // Step 5: Update conversation timestamp
-      logger.info('Step 5: Updating conversation timestamp', { userId, conversationId: conversation.id });
       await this.updateConversationTimestamp(conversation.id);
-      logger.info('Step 5 completed: Conversation timestamp updated', { userId, conversationId: conversation.id });
+      logger.info('Conversation timestamp updated', { conversationId: conversation.id });
 
-      logger.info('Project and conversation creation completed successfully', {
-        projectId: project.id,
-        conversationId: conversation.id,
-        userId,
-        messageCount: messages.length,
-        canvasGenerated: !!canvasResponse.canvasData,
-        totalSteps: 5,
-      });
+      logger.info('Project and conversation creation completed successfully', { projectId: project.id, conversationId: conversation.id, userId, messageCount: messages.length, canvasGenerated: !!canvasResponse.canvasData });
 
       return {
         project,
