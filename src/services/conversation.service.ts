@@ -21,7 +21,6 @@ export class ConversationService {
   ): Promise<Conversation> {
     const conversation = await prisma.conversation.create({
       data: {
-        title: conversationData.title || 'New Conversation',
         userId,
         projectId: conversationData.projectId || null,
       },
@@ -30,7 +29,6 @@ export class ConversationService {
     logger.info('Conversation created successfully', {
       conversationId: conversation.id,
       userId,
-      title: conversation.title,
       projectId: conversation.projectId,
     });
 
@@ -122,7 +120,6 @@ export class ConversationService {
     logger.info('Conversation updated successfully', {
       conversationId,
       userId,
-      title: conversation.title,
     });
 
     return conversation;
@@ -178,14 +175,22 @@ export class ConversationService {
       throw new Error('Conversation not found or access denied');
     }
 
+    const messageDataToCreate: any = {
+      content: messageData.content,
+      messageType,
+      conversationId,
+    };
+
+    if (messageData.attachments) {
+      messageDataToCreate.metadata = { attachments: messageData.attachments };
+    }
+
+    if (messageData.options) {
+      messageDataToCreate.options = messageData.options as any;
+    }
+
     const message = await prisma.message.create({
-      data: {
-        content: messageData.content,
-        messageType,
-        metadata: messageData.attachments ? { attachments: messageData.attachments } : null,
-        options: messageData.options ? (messageData.options as any) : null,
-        conversationId,
-      },
+      data: messageDataToCreate,
     });
 
     // Update conversation's updatedAt timestamp

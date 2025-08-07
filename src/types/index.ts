@@ -79,6 +79,9 @@ export interface RegisterRequest {
 // Project Types
 export interface CreateProjectRequest {
   name: string;
+  title?: string;
+  description?: string;
+  source?: string;
   mainState: Record<string, any>;
   features?: ProjectFeatures;
 }
@@ -99,7 +102,6 @@ export interface ProjectWithRelations extends Project {
 
 // Conversation Types
 export interface CreateConversationRequest {
-  title?: string;
   initialPrompt?: string;
   projectId?: string;
   features?: ProjectFeatures;
@@ -107,6 +109,7 @@ export interface CreateConversationRequest {
 
 export interface CreateProjectWithConversationRequest {
   prompt: string;
+  name?: string;
   title?: string;
   features?: ProjectFeatures;
   attachments?: Array<{
@@ -124,7 +127,7 @@ export interface CreateProjectWithConversationRequest {
 }
 
 export interface UpdateConversationRequest {
-  title?: string;
+  // No fields to update since conversations no longer have titles
 }
 
 export interface ConversationFilters {

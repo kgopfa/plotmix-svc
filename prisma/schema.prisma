@@ -29,13 +29,16 @@ model User {
 }
 
 model Project {
-  id        String   @id @default(cuid())
-  name      String
-  mainState Json     // Current canonical project structure
-  version   String   // Current version number or hash
-  features  Json?    // Optional features configuration
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  name        String   // Project name (actual project name)
+  title       String?  // Project title/heading (summary/display name)
+  description String?  // Project description
+  source      String?  // Source of the project (e.g., "conversation", "import", etc.)
+  mainState   Json     // Current canonical project structure
+  version     String   // Current version number or hash
+  features    Json?    // Optional features configuration
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Relations
   userId        String        @map("user_id") // FK: owner
@@ -50,7 +53,6 @@ model Project {
 
 model Conversation {
   id        String   @id @default(cuid())
-  title     String?  // Auto-generated or user-provided
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

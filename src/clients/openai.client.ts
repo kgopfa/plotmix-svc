@@ -105,7 +105,7 @@ export class OpenAIClient {
     }
   }
 
-  public async generateCanvasData(request: CanvasGenerationRequest): Promise<CanvasGenerationResponse> {
+  public async generateProjectData(request: CanvasGenerationRequest): Promise<CanvasGenerationResponse> {
     if (!this.client) {
       throw new Error('OpenAI client not initialized');
     }

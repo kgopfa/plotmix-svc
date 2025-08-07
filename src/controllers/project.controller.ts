@@ -70,8 +70,7 @@ export class ProjectController {
         message: 'Project and conversation created successfully',
         data: {
           project: result.project,
-          conversation: result.conversation,
-          messages: result.messages,
+          conversationId: result.conversationId,
         },
       });
     } catch (error) {
@@ -89,8 +88,8 @@ export class ProjectController {
   }
 
   static async getProject(req: AuthenticatedRequest, res: Response): Promise<void> {
-    logger.info('🔍 getProject called', {
-      projectId: req.params.projectId,
+    logger.info('Attempting to fetch project', {
+      projectId: req.params['projectId'],
       userId: req.user?.userId,
       method: req.method,
       url: req.url,
@@ -99,7 +98,7 @@ export class ProjectController {
     try {
       if (!req.user || !req.user.userId) {
         logger.warn('❌ User not authenticated for getProject', {
-          projectId: req.params.projectId,
+          projectId: req.params['projectId'],
         });
         res.status(401).json({
           success: false,
