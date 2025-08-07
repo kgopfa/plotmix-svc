@@ -116,9 +116,9 @@ export class ProjectController {
         });
         return;
       }
-      const project = await ProjectService.getProjectById(projectId, req.user.userId);
+      const projectWithRelations = await ProjectService.getProjectById(projectId, req.user.userId);
 
-      if (!project) {
+      if (!projectWithRelations) {
         res.status(404).json({
           success: false,
           message: 'Project not found or access denied',
@@ -126,10 +126,26 @@ export class ProjectController {
         return;
       }
 
+      // Get the conversation ID (now there's only one conversation per project)
+      const conversationId = projectWithRelations.conversation?.id || null;
+
+      // Format user data to match ProjectConfigurationResponse
+      const user = {
+        id: projectWithRelations.owner.id,
+        name: projectWithRelations.owner.name,
+        email: projectWithRelations.owner.email,
+      };
+
+      console.log("Project: ", JSON.stringify(projectWithRelations));
+
       res.json({
         success: true,
         message: 'Project retrieved successfully',
-        data: { project },
+        data: {
+          project: projectWithRelations,
+          conversationId,
+          user,
+        },
       });
     } catch (error) {
       logger.error('Get project failed', {

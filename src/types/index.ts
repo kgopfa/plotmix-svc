@@ -97,7 +97,7 @@ export interface ProjectWithRelations extends Project {
   changes: ProjectChange[];
   snapshots: Snapshot[];
   collaborators: ProjectRole[];
-  conversations: Conversation[];
+  conversation: Conversation | null;
 }
 
 // Conversation Types
@@ -149,7 +149,7 @@ export interface ConversationFilters {
 export interface ConversationWithRelations extends Conversation {
   user: User;
   messages: Message[];
-  project?: Project | null;
+  project: Project | null;
 }
 
 // Message Types

@@ -57,9 +57,12 @@ export class ProjectService {
             user: true,
           },
         },
-        conversations: {
-          orderBy: { updatedAt: 'desc' },
-          take: 5, // Limit to recent conversations
+        conversation: {
+          include: {
+            messages: {
+              orderBy: { createdAt: 'asc' },
+            },
+          },
         },
       },
     });
