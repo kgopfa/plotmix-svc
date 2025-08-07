@@ -1,5 +1,6 @@
 import { prisma } from '../clients/database.client';
 import { logger } from '../utils/logger';
+import { getSystemUserId } from '../utils/system-user';
 import {
   CreateProjectWithConversationRequest,
   Message,
@@ -206,17 +207,27 @@ export class ContentGenService {
   private static async createConversationMessages(
     conversationId: string,
     data: CreateProjectWithConversationRequest,
-    canvasResponse: any
+    openAIResponse: any
   ) {
     logger.info('Starting conversation messages creation', {
       conversationId,
       hasPrompt: !!data.prompt,
       hasAttachments: !!data.attachments,
       hasOptions: !!data.options,
-      hasCanvasResponse: !!canvasResponse,
+      hasCanvasResponse: !!openAIResponse,
     });
 
     try {
+      // Get conversation to find the userId
+      const conversation = await prisma.conversation.findUnique({
+        where: { id: conversationId },
+        select: { userId: true }
+      });
+
+      if (!conversation) {
+        throw new Error('Conversation not found');
+      }
+
       // Create user message with the prompt
       logger.info('Adding user message to conversation', { conversationId, promptLength: data.prompt?.length || 0 });
       
@@ -225,6 +236,7 @@ export class ContentGenService {
           content: data.prompt,
           messageType: MESSAGE_TYPES.USER,
           conversationId,
+          userId: conversation.userId,
           attachments: data.attachments ? (data.attachments as any) : null,
           options: data.options ? (data.options as any) : null,
         },
@@ -239,13 +251,21 @@ export class ContentGenService {
       });
 
       // Create LLM response message
-      if (canvasResponse.message) {
-        logger.info('Creating LLM response message', { conversationId, messageLength: canvasResponse.message.length });
+      if (openAIResponse.success) {
+        logger.info('Creating LLM response message', {
+          conversationId, 
+          description: openAIResponse.canvasData.metadata.description
+        });
+        
+        // Get system user ID for LLM messages
+        const systemUserId = await getSystemUserId();
+        
         const llmMessage = await prisma.message.create({
           data: {
-            content: canvasResponse.message,
+            content: openAIResponse.canvasData.metadata.description,
             messageType: MESSAGE_TYPES.LLM,
             conversationId,
+            userId: systemUserId,
           },
         });
         logger.info('LLM response message added to conversation', {
@@ -278,11 +298,25 @@ export class ContentGenService {
     });
 
     try {
+      // Get conversation to find the userId
+      const conversation = await prisma.conversation.findUnique({
+        where: { id: conversationId },
+        select: { userId: true }
+      });
+
+      if (!conversation) {
+        throw new Error('Conversation not found');
+      }
+
+      // Get system user ID for system messages
+      const systemUserId = await getSystemUserId();
+      
       const message = await prisma.message.create({
         data: {
           content,
           messageType: MESSAGE_TYPES.SYSTEM,
           conversationId,
+          userId: systemUserId,
           metadata: metadata ? (metadata as any) : null,
         },
       });
@@ -318,13 +352,27 @@ export class ContentGenService {
     });
 
     try {
+      // Get conversation to find the userId
+      const conversation = await prisma.conversation.findUnique({
+        where: { id: conversationId },
+        select: { userId: true }
+      });
+
+      if (!conversation) {
+        throw new Error('Conversation not found');
+      }
+
       const metadata = errorCode ? { errorCode } : null;
+      
+      // Get system user ID for error messages
+      const systemUserId = await getSystemUserId();
       
       const message = await prisma.message.create({
         data: {
           content,
           messageType: MESSAGE_TYPES.ERROR,
           conversationId,
+          userId: systemUserId,
           metadata: metadata ? (metadata as any) : null,
         },
       });

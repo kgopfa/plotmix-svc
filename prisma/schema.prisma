@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,100 +9,91 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  ownedProjects     Project[]     @relation("ProjectOwner")
-  projectChanges    ProjectChange[] @relation("ChangeAuthor")
-  projectRoles      ProjectRole[]
-  conversations     Conversation[] @relation("UserConversations")
+  id             String          @id @default(cuid())
+  name           String
+  email          String          @unique
+  password       String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  conversations  Conversation[]  @relation("UserConversations")
+  messages       Message[]       @relation("MessageAuthor")
+  projectChanges ProjectChange[] @relation("ChangeAuthor")
+  projectRoles   ProjectRole[]
+  ownedProjects  Project[]       @relation("ProjectOwner")
 
   @@map("users")
 }
 
 model Project {
-  id          String   @id @default(cuid())
-  name        String   // Project name (actual project name)
-  title       String?  // Project title/heading (summary/display name)
-  description String?  // Project description
-  source      String?  // Source of the project (e.g., "conversation", "import", etc.)
-  mainState   Json     // Current canonical project structure
-  version     String   // Current version number or hash
-  features    Json?    // Optional features configuration
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  userId        String        @map("user_id") // FK: owner
-  owner         User          @relation("ProjectOwner", fields: [userId], references: [id], onDelete: Cascade)
+  id            String          @id @default(cuid())
+  name          String
+  mainState     Json
+  version       String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  userId        String          @map("user_id")
+  features      Json?
+  description   String?
+  source        String?
+  title         String?
+  conversation  Conversation?   @relation("ProjectConversation")
   changes       ProjectChange[]
-  snapshots     Snapshot[]
   collaborators ProjectRole[]
-  conversation  Conversation? @relation("ProjectConversation")
+  owner         User            @relation("ProjectOwner", fields: [userId], references: [id], onDelete: Cascade)
+  snapshots     Snapshot[]
 
   @@map("projects")
 }
 
 model Conversation {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  userId        String @map("user_id")
-  user          User   @relation("UserConversations", fields: [userId], references: [id], onDelete: Cascade)
-  messages      Message[]
-  projectId     String? @unique @map("project_id")
-  project       Project? @relation("ProjectConversation", fields: [projectId], references: [id], onDelete: SetNull)
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  userId    String    @map("user_id")
+  projectId String?   @unique @map("project_id")
+  project   Project?  @relation("ProjectConversation", fields: [projectId], references: [id])
+  user      User      @relation("UserConversations", fields: [userId], references: [id], onDelete: Cascade)
+  messages  Message[]
 
   @@map("conversations")
 }
 
 model Message {
-  id          String   @id @default(cuid())
-  content     String   // The actual message content
-  messageType String   @map("message_type") // "user" | "llm" | "system" | "canvas_generation" | "error"
-  metadata    Json?    // Additional data like canvas state, attachments, etc.
-  attachments Json?    // Array of attachment objects (only if project has attachments enabled)
-  options     Json?    // Message-specific options (only if project has corresponding features enabled)
-  createdAt   DateTime @default(now())
-
-  // Relations
-  conversationId String      @map("conversation_id")
+  id             String       @id @default(cuid())
+  content        String
+  messageType    String       @map("message_type")
+  metadata       Json?
+  attachments    Json?
+  options        Json?
+  createdAt      DateTime     @default(now())
+  conversationId String       @map("conversation_id")
+  userId         String       @map("user_id")
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation("MessageAuthor", fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("messages")
 }
 
 model ProjectChange {
-  id              String   @id @default(cuid())
-  version         String   // Incremental version that matches or leads to Project.version
-  diff            Json     // JSON Patch or chosen diff format, including previous values for reverse
-  actionDescription String? // Optional description of the change
-  clientHash      String?  // Optional client-side hash for conflict resolution
-  createdAt       DateTime @default(now())
-
-  // Relations
-  projectId       String   @map("project_id")
-  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  authorUserId    String   @map("author_user_id")
-  author          User     @relation("ChangeAuthor", fields: [authorUserId], references: [id], onDelete: Cascade)
+  id                String   @id @default(cuid())
+  version           String
+  diff              Json
+  actionDescription String?
+  clientHash        String?
+  createdAt         DateTime @default(now())
+  projectId         String   @map("project_id")
+  authorUserId      String   @map("author_user_id")
+  author            User     @relation("ChangeAuthor", fields: [authorUserId], references: [id], onDelete: Cascade)
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@map("project_changes")
 }
 
 model Snapshot {
   id        String   @id @default(cuid())
-  version   String   // Version at which this snapshot was taken
-  state     Json     // Full copy of the project at this point in time
+  version   String
+  state     Json
   createdAt DateTime @default(now())
-
-  // Relations
   projectId String   @map("project_id")
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
@@ -113,14 +101,12 @@ model Snapshot {
 }
 
 model ProjectRole {
-  id     String @id @default(cuid())
-  role   String // editor, viewer, etc.
-  status String // pending, accepted, declined, etc.
-  
-  // Relations
+  id        String  @id @default(cuid())
+  role      String
+  status    String
   projectId String  @map("project_id")
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   userId    String  @map("user_id")
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, userId])

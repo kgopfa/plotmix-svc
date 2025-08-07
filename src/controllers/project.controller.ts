@@ -122,8 +122,6 @@ export class ProjectController {
         return;
       }
 
-      console.log("Project: ", JSON.stringify(project));
-
       res.json({
         success: true,
         message: 'Project retrieved successfully',

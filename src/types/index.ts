@@ -147,9 +147,7 @@ export interface ConversationFilters {
 }
 
 export interface ConversationWithRelations extends Conversation {
-  user: User;
   messages: Message[];
-  project: Project | null;
 }
 
 // Message Types
@@ -171,6 +169,7 @@ export interface SendMessageRequest {
 
 export interface MessageWithRelations extends Message {
   conversation: Conversation;
+  user: User;
 }
 
 export interface PaginationOptions {

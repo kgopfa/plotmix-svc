@@ -46,8 +46,6 @@ export class ConversationService {
         userId, // Only allow access to own conversations
       },
       include: {
-        user: true,
-        project: true,
         messages: {
           orderBy: { createdAt: 'asc' },
         },
@@ -179,6 +177,7 @@ export class ConversationService {
       content: messageData.content,
       messageType,
       conversationId,
+      userId,
     };
 
     if (messageData.attachments) {
@@ -240,6 +239,15 @@ export class ConversationService {
       orderBy: { createdAt: 'asc' },
       skip,
       take: limit,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
     });
   }
 
@@ -256,6 +264,13 @@ export class ConversationService {
       },
       include: {
         conversation: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
       },
     });
 
