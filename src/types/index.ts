@@ -82,13 +82,15 @@ export interface CreateProjectRequest {
   title?: string;
   description?: string;
   source?: string;
-  mainState: Record<string, any>;
+  mainState: Record<string, any>; // Required canvas state
+  configuration?: Record<string, any>; // Optional UI configuration
   features?: ProjectFeatures;
 }
 
 export interface UpdateProjectRequest {
   name?: string;
-  mainState?: Record<string, any>;
+  mainState?: Record<string, any>; // Optional canvas state update
+  configuration?: Record<string, any>; // Optional UI configuration update
   features?: ProjectFeatures;
 }
 
@@ -230,4 +232,7 @@ export interface ProjectHistory {
   project: Project;
   changes: VersionInfo[];
   snapshots: VersionInfo[];
-} 
+}
+
+// Project Data Structure Types (new separated mainState and configuration approach)
+export * from './project'; 

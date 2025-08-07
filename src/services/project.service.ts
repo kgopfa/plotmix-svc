@@ -14,12 +14,16 @@ import {
 
 export class ProjectService {
   static async createProject(userId: string, projectData: CreateProjectRequest): Promise<Project> {
-    const { features, ...restData } = projectData;
+    const { features, mainState, configuration, ...restData } = projectData;
+    const version = '1.0.0'; // initial version
+    
     const project = await prisma.project.create({
       data: {
         ...restData,
+        mainState,
+        configuration: configuration as any,
         userId,
-        version: '1.0.0', // Initial version
+        version,
         features: features ? (features as any) : null,
       },
     });
@@ -48,6 +52,9 @@ export class ProjectService {
             id: true,
             name: true,
             email: true,
+            createdAt: true,
+            updatedAt: true,
+            password: true,
           },
         },
         changes: {
@@ -72,6 +79,10 @@ export class ProjectService {
         conversation: {
           select: {
             id: true,
+            createdAt: true,
+            updatedAt: true,
+            userId: true,
+            projectId: true,
           }
         },
       },
@@ -111,14 +122,26 @@ export class ProjectService {
       return null;
     }
 
-    const { features, ...restUpdateData } = updateData;
+    const { features, mainState, configuration, ...restUpdateData } = updateData;
+    
+    // Prepare update data
+    let updateFields: any = {
+      ...restUpdateData,
+      features: features ? (features as any) : undefined,
+      updatedAt: new Date(),
+    };
+    
+    // Handle mainState and configuration updates
+    if (mainState) {
+      updateFields.mainState = mainState;
+    }
+    if (configuration) {
+      updateFields.configuration = configuration;
+    }
+    
     const updatedProject = await prisma.project.update({
       where: { id: projectId },
-      data: {
-        ...restUpdateData,
-        features: features ? (features as any) : undefined,
-        updatedAt: new Date(),
-      },
+      data: updateFields,
     });
 
     logger.info('Project updated successfully', {

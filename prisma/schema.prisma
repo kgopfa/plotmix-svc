@@ -27,7 +27,8 @@ model User {
 model Project {
   id            String          @id @default(cuid())
   name          String
-  mainState     Json
+  mainState     Json            // Canvas state: elements, groups, animations, timeline data
+  configuration Json?           // UI configuration: resolution, selected shapes, panel states, etc.
   version       String
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
