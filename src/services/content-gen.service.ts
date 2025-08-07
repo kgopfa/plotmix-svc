@@ -4,18 +4,15 @@ import {
   CreateProjectWithConversationRequest,
   Message,
   MESSAGE_TYPES,
-  Project,
   ProjectFeatures,
+  ProjectConfigurationResponse,
 } from '../types';
 
 export class ContentGenService {
   static async generateProjectConfiguration(
     userId: string,
     data: CreateProjectWithConversationRequest
-  ): Promise<{
-    project: Project;
-    conversationId: string;
-  }> {
+  ): Promise<ProjectConfigurationResponse> {
     logger.info('Starting project configuration generation', {
       userId,
       promptLength: data.prompt?.length || 0,
@@ -33,6 +30,8 @@ export class ContentGenService {
       
       await this.createConversationMessages(conversationId, data, openAIResponse);
 
+      const user = await this.getUserData(userId);
+
       logger.info('Project configuration generation completed successfully', { 
         projectId: project.id, 
         conversationId, 
@@ -43,6 +42,7 @@ export class ContentGenService {
       return {
         project,
         conversationId,
+        user,
       };
     } catch (error) {
       logger.error('Project configuration generation failed', {
@@ -342,6 +342,37 @@ export class ContentGenService {
         conversationId,
         contentLength: content.length,
         errorCode: errorCode || 'unknown',
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      throw error;
+    }
+  }
+
+  private static async getUserData(userId: string) {
+    logger.info('Fetching user data', { userId });
+
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      });
+
+      if (!user) {
+        logger.error('User not found', { userId });
+        throw new Error('User not found');
+      }
+
+      logger.info('User data fetched successfully', { userId, userName: user.name });
+
+      return user;
+    } catch (error) {
+      logger.error('Failed to fetch user data', {
+        userId,
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
       });

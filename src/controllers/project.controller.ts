@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { ProjectService } from '../services/project.service';
 import { ContentGenService } from '../services/content-gen.service';
 import { logger } from '../utils/logger';
-import { AuthenticatedRequest, CreateProjectWithConversationRequest } from '../types';
+import { AuthenticatedRequest, CreateProjectWithConversationRequest, ProjectConfigurationResponse } from '../types';
 
 export class ProjectController {
   static async createProject(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -63,7 +63,7 @@ export class ProjectController {
         return;
       }
 
-      const result = await ContentGenService.generateProjectConfiguration(req.user.userId, data);
+      const result: ProjectConfigurationResponse = await ContentGenService.generateProjectConfiguration(req.user.userId, data);
 
       res.status(201).json({
         success: true,
@@ -71,6 +71,7 @@ export class ProjectController {
         data: {
           project: result.project,
           conversationId: result.conversationId,
+          user: result.user,
         },
       });
     } catch (error) {

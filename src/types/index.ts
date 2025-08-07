@@ -126,6 +126,16 @@ export interface CreateProjectWithConversationRequest {
   };
 }
 
+export interface ProjectConfigurationResponse {
+  project: Project;
+  conversationId: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+}
+
 export interface UpdateConversationRequest {
   // No fields to update since conversations no longer have titles
 }
