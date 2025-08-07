@@ -1,8 +1,34 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import { config } from '../config';
+import { logger } from '../utils/logger';
 import { JWTPayload, AuthenticatedRequest } from '../types';
 import { AuthService } from '../services/auth.service';
+
+/**
+ * Middleware to verify internal API key
+ * Used for secure backend-to-backend communication
+ */
+export const verifyInternalKey = (req: Request, res: Response, next: NextFunction): void => {
+  const internalKey = req.headers['x-internal-key'] as string;
+  const expectedKey = config.internal.apiKey;
+  
+  if (!internalKey || internalKey !== expectedKey) {
+    logger.warn('Invalid internal API key attempt', {
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      path: req.path,
+    });
+    
+    res.status(401).json({ 
+      success: false, 
+      error: 'Unauthorized' 
+    });
+    return;
+  }
+  
+  next();
+};
 
 /**
  * Middleware to validate NextAuth JWT tokens
@@ -48,7 +74,11 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
 
     next();
   } catch (error) {
-    console.error('Token validation error:', error);
+    logger.error('Token validation failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      path: req.path,
+      ip: req.ip,
+    });
     res.status(403).json({ 
       success: false,
       message: 'Invalid or expired token' 
@@ -84,7 +114,11 @@ export const optionalAuth = (req: Request, _res: Response, next: NextFunction): 
     next();
   } catch (error) {
     // Token is invalid, but we continue without authentication
-    console.warn('Invalid token in optional auth:', error);
+    logger.warn('Invalid token in optional auth', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      path: req.path,
+      ip: req.ip,
+    });
     next();
   }
 };

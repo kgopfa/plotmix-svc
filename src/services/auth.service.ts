@@ -38,7 +38,6 @@ export class AuthService {
 
     logger.info('User registered successfully', {
       userId: user.id,
-      email: user.email,
     });
 
     // Generate token
@@ -72,7 +71,6 @@ export class AuthService {
 
     logger.info('User logged in successfully', {
       userId: user.id,
-      email: user.email,
     });
 
     // Generate token
@@ -224,7 +222,6 @@ export class AuthService {
 
     logger.info('User created successfully', {
       userId: user.id,
-      email: user.email,
     });
 
     const { password: _, ...userWithoutPassword } = user;
@@ -320,7 +317,6 @@ export class AuthService {
       
       logger.info('User logged out successfully', {
         userId,
-        tokenExp,
         logoutTime: new Date().toISOString(),
       });
     } catch (error) {
@@ -349,10 +345,9 @@ export class AuthService {
       // Store in blacklist with TTL
       // In production: await redis.setex(`blacklist:${token}`, ttl, '1');
       
-      // Log blacklisting without token details
-      logger.info('Token blacklisted', {
+      // Log blacklisting without sensitive details
+      logger.info('Token blacklisted successfully', {
         ttl,
-        expiresAt: new Date(expirationTime! * 1000).toISOString(),
       });
     }
   }
