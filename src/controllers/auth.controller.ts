@@ -135,26 +135,26 @@ export class AuthController {
   }
 
   /**
-   * Validate user exists and is active
-   * Used by frontend to check if user session is still valid
+   * Validate user session using JWT token
+   * Extracts user ID from token and validates user exists and is active
    */
-  static async validateUser(req: Request, res: Response): Promise<void> {
+  static async validateSession(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const { userId } = req.params;
-      
-      if (!userId) {
-        res.status(400).json({
+      if (!req.user || !req.user.userId) {
+        res.status(401).json({
           success: false,
-          error: 'User ID is required',
+          error: 'User not authenticated',
         });
         return;
       }
+
+      const userId = req.user.userId;
 
       // Query user from database
       const user = await AuthService.getUserById(userId);
       
       if (!user) {
-        logger.info('User validation failed - user not found', {
+        logger.info('Session validation failed - user not found', {
           userId,
           ip: req.ip,
         });
@@ -168,14 +168,13 @@ export class AuthController {
       
       // Check if user is active (you can add more conditions here)
       // For now, we'll consider any existing user as active
-      // You can add fields like isActive, deletedAt, etc. to your User model if needed
       
-      logger.info('User validation successful', {
+      logger.info('Session validation successful', {
         userId,
         ip: req.ip,
       });
       
-      // Return user data
+      // Return user data if validation successful
       res.status(200).json({
         success: true,
         data: {
@@ -189,9 +188,9 @@ export class AuthController {
       });
       
     } catch (error) {
-      logger.error('User validation error', {
+      logger.error('Session validation error', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        userId: req.params['userId'],
+        userId: req.user?.userId,
         ip: req.ip,
       });
       
