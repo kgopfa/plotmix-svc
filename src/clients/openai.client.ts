@@ -55,11 +55,20 @@ export class OpenAIClient {
       throw new Error('OPENAI_API_KEY environment variable is required');
     }
 
+    const model = process.env['OPENAI_MODEL'];
+    if (!model) {
+      throw new Error('OPENAI_MODEL environment variable is required');
+    }
+
+    const systemPrompt = process.env['OPENAI_SYSTEM_PROMPT'];
+    if (!systemPrompt) {
+      throw new Error('OPENAI_SYSTEM_PROMPT environment variable is required');
+    }
+
     return {
       apiKey,
-      model: process.env['OPENAI_MODEL'] || 'gpt-4-turbo-preview',
-      systemPrompt: process.env['OPENAI_SYSTEM_PROMPT'] || 
-        'You are an AI assistant that generates canvas designs for system architecture diagrams. You can create, modify, and enhance visual representations of software systems, infrastructure, and data flows.',
+      model,
+      systemPrompt,
     };
   }
 
