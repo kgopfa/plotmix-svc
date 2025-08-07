@@ -68,11 +68,7 @@ export class ProjectController {
       res.status(201).json({
         success: true,
         message: 'Project and conversation created successfully',
-        data: {
-          project: result.project,
-          conversationId: result.conversationId,
-          user: result.user,
-        },
+        data: { project: result.project },
       });
     } catch (error) {
       logger.error('Project generation failed', {
@@ -116,9 +112,9 @@ export class ProjectController {
         });
         return;
       }
-      const projectWithRelations = await ProjectService.getProjectById(projectId, req.user.userId);
+      const project = await ProjectService.getProjectById(projectId, req.user.userId);
 
-      if (!projectWithRelations) {
+      if (!project) {
         res.status(404).json({
           success: false,
           message: 'Project not found or access denied',
@@ -126,26 +122,12 @@ export class ProjectController {
         return;
       }
 
-      // Get the conversation ID (now there's only one conversation per project)
-      const conversationId = projectWithRelations.conversation?.id || null;
-
-      // Format user data to match ProjectConfigurationResponse
-      const user = {
-        id: projectWithRelations.owner.id,
-        name: projectWithRelations.owner.name,
-        email: projectWithRelations.owner.email,
-      };
-
-      console.log("Project: ", JSON.stringify(projectWithRelations));
+      console.log("Project: ", JSON.stringify(project));
 
       res.json({
         success: true,
         message: 'Project retrieved successfully',
-        data: {
-          project: projectWithRelations,
-          conversationId,
-          user,
-        },
+        data: { project },
       });
     } catch (error) {
       logger.error('Get project failed', {

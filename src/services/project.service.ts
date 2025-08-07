@@ -2,7 +2,6 @@ import { prisma } from '../clients/database.client';
 import { logger } from '../utils/logger';
 import {
   Project,
-  ProjectWithRelations,
   CreateProjectRequest,
   UpdateProjectRequest,
   CreateProjectChangeRequest,
@@ -10,6 +9,7 @@ import {
   ProjectHistory,
   VersionInfo,
   Snapshot,
+  ProjectWithRelations,
 } from '../types';
 
 export class ProjectService {
@@ -43,26 +43,36 @@ export class ProjectService {
     return prisma.project.findUnique({
       where: { id: projectId },
       include: {
-        owner: true,
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
         changes: {
           orderBy: { createdAt: 'desc' },
-          take: 10, // Limit to recent changes
+          take: 10,
         },
         snapshots: {
           orderBy: { createdAt: 'desc' },
-          take: 5, // Limit to recent snapshots
+          take: 5,
         },
         collaborators: {
           include: {
-            user: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
           },
         },
         conversation: {
-          include: {
-            messages: {
-              orderBy: { createdAt: 'asc' },
-            },
-          },
+          select: {
+            id: true,
+          }
         },
       },
     });
