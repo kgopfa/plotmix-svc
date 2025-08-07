@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { ConversationService } from '../services/conversation.service';
 import { ApiResponse, AuthenticatedRequest, MESSAGE_TYPES } from '../types';
 import { logger } from '../utils/logger';
@@ -16,14 +16,14 @@ export class ConversationController {
 
       const conversation = await ConversationService.createConversation(userId, req.body);
 
-      res.status(201).json({
+      return res.status(201).json({
         success: true,
         message: 'Conversation created successfully',
         data: conversation,
       } as ApiResponse);
     } catch (error) {
       logger.error('Error creating conversation', { error, userId: req.user?.sub });
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: 'Failed to create conversation',
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -41,7 +41,13 @@ export class ConversationController {
         } as ApiResponse);
       }
 
-      const { conversationId } = req.params;
+      const conversationId = req.params['conversationId'];
+      if (!conversationId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Conversation ID is required',
+        } as ApiResponse);
+      }
       const conversation = await ConversationService.getConversationById(conversationId, userId);
 
       if (!conversation) {
@@ -51,14 +57,14 @@ export class ConversationController {
         } as ApiResponse);
       }
 
-      res.json({
+      return res.json({
         success: true,
         message: 'Conversation retrieved successfully',
         data: conversation,
       } as ApiResponse);
     } catch (error) {
-      logger.error('Error retrieving conversation', { error, conversationId: req.params.conversationId });
-      res.status(500).json({
+      logger.error('Error retrieving conversation', { error, conversationId: req.params['conversationId'] });
+      return res.status(500).json({
         success: false,
         message: 'Failed to retrieve conversation',
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -67,9 +73,9 @@ export class ConversationController {
   }
 
   static async getUserConversations(req: AuthenticatedRequest, res: Response) {
-    logger.info('🔍 getUserConversations called', {
+    logger.info('Attempting to fetch user conversations', {
       userId: req.user?.userId,
-      projectId: req.query.projectId,
+      projectId: req.query['projectId'],
       method: req.method,
       url: req.url,
     });
@@ -97,18 +103,18 @@ export class ConversationController {
       
       logger.info('✅ Conversations retrieved successfully', {
         userId,
-        projectId: req.query.projectId,
+        projectId: req.query['projectId'],
         conversationCount: conversations.length,
       });
 
-      res.json({
+      return res.json({
         success: true,
         message: 'Conversations retrieved successfully',
         data: conversations,
       } as ApiResponse);
     } catch (error) {
       logger.error('Error retrieving user conversations', { error, userId: req.user?.sub });
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: 'Failed to retrieve conversations',
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -126,7 +132,13 @@ export class ConversationController {
         } as ApiResponse);
       }
 
-      const { conversationId } = req.params;
+      const conversationId = req.params['conversationId'];
+      if (!conversationId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Conversation ID is required',
+        } as ApiResponse);
+      }
       const conversation = await ConversationService.updateConversation(conversationId, userId, req.body);
 
       if (!conversation) {
@@ -136,14 +148,14 @@ export class ConversationController {
         } as ApiResponse);
       }
 
-      res.json({
+      return res.json({
         success: true,
         message: 'Conversation updated successfully',
         data: conversation,
       } as ApiResponse);
     } catch (error) {
-      logger.error('Error updating conversation', { error, conversationId: req.params.conversationId });
-      res.status(500).json({
+      logger.error('Error updating conversation', { error, conversationId: req.params['conversationId'] });
+      return res.status(500).json({
         success: false,
         message: 'Failed to update conversation',
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -161,7 +173,13 @@ export class ConversationController {
         } as ApiResponse);
       }
 
-      const { conversationId } = req.params;
+      const conversationId = req.params['conversationId'];
+      if (!conversationId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Conversation ID is required',
+        } as ApiResponse);
+      }
       const deleted = await ConversationService.deleteConversation(conversationId, userId);
 
       if (!deleted) {
@@ -171,13 +189,13 @@ export class ConversationController {
         } as ApiResponse);
       }
 
-      res.json({
+      return res.json({
         success: true,
         message: 'Conversation deleted successfully',
       } as ApiResponse);
     } catch (error) {
-      logger.error('Error deleting conversation', { error, conversationId: req.params.conversationId });
-      res.status(500).json({
+      logger.error('Error deleting conversation', { error, conversationId: req.params['conversationId'] });
+      return res.status(500).json({
         success: false,
         message: 'Failed to delete conversation',
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -195,19 +213,25 @@ export class ConversationController {
         } as ApiResponse);
       }
 
-      const { conversationId } = req.params;
+      const conversationId = req.params['conversationId'];
+      if (!conversationId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Conversation ID is required',
+        } as ApiResponse);
+      }
       const { messageType = MESSAGE_TYPES.USER, ...messageData } = req.body;
 
       const message = await ConversationService.addMessage(conversationId, userId, messageData, messageType);
 
-      res.status(201).json({
+      return res.status(201).json({
         success: true,
         message: 'Message added successfully',
         data: message,
       } as ApiResponse);
     } catch (error) {
-      logger.error('Error adding message', { error, conversationId: req.params.conversationId });
-      res.status(500).json({
+      logger.error('Error adding message', { error, conversationId: req.params['conversationId'] });
+      return res.status(500).json({
         success: false,
         message: 'Failed to add message',
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -225,7 +249,13 @@ export class ConversationController {
         } as ApiResponse);
       }
 
-      const { conversationId } = req.params;
+      const conversationId = req.params['conversationId'];
+      if (!conversationId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Conversation ID is required',
+        } as ApiResponse);
+      }
       const { page, limit, before } = req.query;
       const pagination = {
         page: page ? parseInt(page as string) : undefined,
@@ -235,14 +265,14 @@ export class ConversationController {
 
       const messages = await ConversationService.getMessages(conversationId, userId, pagination);
 
-      res.json({
+      return res.json({
         success: true,
         message: 'Messages retrieved successfully',
         data: messages,
       } as ApiResponse);
     } catch (error) {
-      logger.error('Error retrieving messages', { error, conversationId: req.params.conversationId });
-      res.status(500).json({
+      logger.error('Error retrieving messages', { error, conversationId: req.params['conversationId'] });
+      return res.status(500).json({
         success: false,
         message: 'Failed to retrieve messages',
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -260,7 +290,13 @@ export class ConversationController {
         } as ApiResponse);
       }
 
-      const { messageId } = req.params;
+      const messageId = req.params['messageId'];
+      if (!messageId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Message ID is required',
+        } as ApiResponse);
+      }
       const message = await ConversationService.getMessageById(messageId, userId);
 
       if (!message) {
@@ -270,14 +306,14 @@ export class ConversationController {
         } as ApiResponse);
       }
 
-      res.json({
+      return res.json({
         success: true,
         message: 'Message retrieved successfully',
         data: message,
       } as ApiResponse);
     } catch (error) {
-      logger.error('Error retrieving message', { error, messageId: req.params.messageId });
-      res.status(500).json({
+      logger.error('Error retrieving message', { error, messageId: req.params['messageId'] });
+      return res.status(500).json({
         success: false,
         message: 'Failed to retrieve message',
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -295,7 +331,13 @@ export class ConversationController {
         } as ApiResponse);
       }
 
-      const { messageId } = req.params;
+      const messageId = req.params['messageId'];
+      if (!messageId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Message ID is required',
+        } as ApiResponse);
+      }
       const { content } = req.body;
 
       if (!content) {
@@ -314,14 +356,14 @@ export class ConversationController {
         } as ApiResponse);
       }
 
-      res.json({
+      return res.json({
         success: true,
         message: 'Message updated successfully',
         data: message,
       } as ApiResponse);
     } catch (error) {
-      logger.error('Error updating message', { error, messageId: req.params.messageId });
-      res.status(500).json({
+      logger.error('Error updating message', { error, messageId: req.params['messageId'] });
+      return res.status(500).json({
         success: false,
         message: 'Failed to update message',
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -339,7 +381,13 @@ export class ConversationController {
         } as ApiResponse);
       }
 
-      const { messageId } = req.params;
+        const messageId = req.params['messageId'];
+      if (!messageId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Message ID is required',
+        } as ApiResponse);
+      }
       const deleted = await ConversationService.deleteMessage(messageId, userId);
 
       if (!deleted) {
@@ -349,13 +397,13 @@ export class ConversationController {
         } as ApiResponse);
       }
 
-      res.json({
+      return res.json({
         success: true,
         message: 'Message deleted successfully',
       } as ApiResponse);
     } catch (error) {
-      logger.error('Error deleting message', { error, messageId: req.params.messageId });
-      res.status(500).json({
+      logger.error('Error deleting message', { error, messageId: req.params['messageId'] });
+      return res.status(500).json({
         success: false,
         message: 'Failed to delete message',
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -373,7 +421,13 @@ export class ConversationController {
         } as ApiResponse);
       }
 
-      const { conversationId } = req.params;
+      const conversationId = req.params['conversationId'];
+      if (!conversationId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Conversation ID is required',
+        } as ApiResponse);
+      }
       const stats = await ConversationService.getConversationStats(conversationId, userId);
 
       if (!stats) {
@@ -383,14 +437,14 @@ export class ConversationController {
         } as ApiResponse);
       }
 
-      res.json({
+      return res.json({
         success: true,
         message: 'Conversation stats retrieved successfully',
         data: stats,
       } as ApiResponse);
     } catch (error) {
-      logger.error('Error retrieving conversation stats', { error, conversationId: req.params.conversationId });
-      res.status(500).json({
+      logger.error('Error retrieving conversation stats', { error, conversationId: req.params['conversationId'] });
+      return res.status(500).json({
         success: false,
         message: 'Failed to retrieve conversation stats',
         error: error instanceof Error ? error.message : 'Unknown error',

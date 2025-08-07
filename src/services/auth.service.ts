@@ -316,7 +316,7 @@ export class AuthService {
       
       // Store blacklisted token (in production, use Redis with TTL)
       // This prevents the token from being used even if it hasn't expired
-      await this.blacklistToken(token, tokenExp);
+      await this.blacklistToken(tokenExp);
       
       logger.info('User logged out successfully', {
         userId,
@@ -336,7 +336,7 @@ export class AuthService {
    * Blacklist a token to prevent its reuse
    * In production, this should use Redis with TTL matching token expiration
    */
-  private static async blacklistToken(token: string, expirationTime?: number): Promise<void> {
+  private static async blacklistToken(expirationTime?: number): Promise<void> {
     // For now, we'll store in memory (not recommended for production)
     // In production, use Redis with TTL:
     // await redis.setex(`blacklist:${token}`, ttl, '1');
@@ -349,9 +349,8 @@ export class AuthService {
       // Store in blacklist with TTL
       // In production: await redis.setex(`blacklist:${token}`, ttl, '1');
       
-      // For now, just log the blacklisting
+      // Log blacklisting without token details
       logger.info('Token blacklisted', {
-        tokenHash: this.hashToken(token),
         ttl,
         expiresAt: new Date(expirationTime! * 1000).toISOString(),
       });
@@ -362,7 +361,7 @@ export class AuthService {
    * Check if a token is blacklisted
    * Used during token validation to prevent use of logged out tokens
    */
-  static async isTokenBlacklisted(token: string): Promise<boolean> {
+  static async isTokenBlacklisted(): Promise<boolean> {
     // In production, check Redis:
     // const blacklisted = await redis.get(`blacklist:${token}`);
     // return !!blacklisted;
@@ -370,15 +369,8 @@ export class AuthService {
     // For now, return false (no blacklist checking in development)
     // In production, implement proper Redis-based blacklist checking
     // This prevents the token from being used even if it hasn't expired
-    console.log(`Checking if token is blacklisted: ${this.hashToken(token)}`);
     return false;
   }
 
-  /**
-   * Hash token for logging (security best practice)
-   */
-  private static hashToken(token: string): string {
-    const crypto = require('crypto');
-    return crypto.createHash('sha256').update(token).digest('hex').substring(0, 16);
-  }
+
 } 

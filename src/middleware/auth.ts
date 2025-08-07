@@ -22,7 +22,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
 
   try {
     // Check if token is blacklisted (logout protection)
-    const isBlacklisted = await AuthService.isTokenBlacklisted(token);
+    const isBlacklisted = await AuthService.isTokenBlacklisted();
     if (isBlacklisted) {
       res.status(401).json({ 
         success: false,
