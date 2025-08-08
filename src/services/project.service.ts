@@ -216,7 +216,8 @@ export class ProjectService {
 
     // Apply delta to current mainState to compute new state
     const currentState = (project.mainState as any) ?? {};
-    const newState = diffPatcher.patch(JSON.parse(JSON.stringify(currentState)), changeData.diff as any);
+    const safeDiff = (changeData.diff ?? {}) as any;
+    const newState = diffPatcher.patch(JSON.parse(JSON.stringify(currentState)), safeDiff);
 
     // Compute new version (bump patch)
     const bump = (v: string | null): string => {
@@ -232,7 +233,7 @@ export class ProjectService {
     await prisma.projectChange.create({
       data: {
         version: newVersion,
-        diff: changeData.diff as any,
+        diff: safeDiff,
         actionDescription: changeData.actionDescription ?? null,
         clientHash: changeData.clientHash ?? null,
         projectId,
