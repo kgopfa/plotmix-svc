@@ -456,4 +456,99 @@ export class ProjectController {
       });
     }
   }
+
+  static async rollforward(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user || !req.user.userId) {
+        res.status(401).json({
+          success: false,
+          message: 'User not authenticated',
+        });
+        return;
+      }
+
+      const { projectId } = req.params;
+      const steps = typeof req.body?.steps === 'number' ? req.body.steps : 1;
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          message: 'Project ID is required',
+        });
+        return;
+      }
+      const project = await ProjectService.rollforward(projectId, req.user.userId, steps);
+
+      if (!project) {
+        res.status(404).json({
+          success: false,
+          message: 'Project not found or edit access denied',
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        message: 'Project rolled forward successfully',
+        data: { project },
+      });
+    } catch (error) {
+      logger.error('Rollforward project failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: req.user?.userId,
+        projectId: req.params['projectId'],
+        body: req.body,
+      });
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to rollforward project',
+      });
+    }
+  }
+
+  static async undo(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user || !req.user.userId) {
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+        return;
+      }
+      const { projectId } = req.params;
+      if (!projectId) {
+        res.status(400).json({ success: false, message: 'Project ID is required' });
+        return;
+      }
+      const project = await ProjectService.undo(projectId, req.user.userId);
+      if (!project) {
+        res.status(404).json({ success: false, message: 'Project not found or access denied' });
+        return;
+      }
+      res.json({ success: true, message: 'Undo applied', data: { project } });
+    } catch (error) {
+      logger.error('Undo failed', { error: error instanceof Error ? error.message : 'Unknown error', userId: req.user?.userId, projectId: req.params['projectId'] });
+      res.status(500).json({ success: false, message: 'Failed to undo' });
+    }
+  }
+
+  static async redo(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user || !req.user.userId) {
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+        return;
+      }
+      const { projectId } = req.params;
+      if (!projectId) {
+        res.status(400).json({ success: false, message: 'Project ID is required' });
+        return;
+      }
+      const project = await ProjectService.redo(projectId, req.user.userId);
+      if (!project) {
+        res.status(404).json({ success: false, message: 'Project not found or access denied' });
+        return;
+      }
+      res.json({ success: true, message: 'Redo applied', data: { project } });
+    } catch (error) {
+      logger.error('Redo failed', { error: error instanceof Error ? error.message : 'Unknown error', userId: req.user?.userId, projectId: req.params['projectId'] });
+      res.status(500).json({ success: false, message: 'Failed to redo' });
+    }
+  }
 } 

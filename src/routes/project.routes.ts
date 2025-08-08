@@ -19,6 +19,9 @@ router.post('/:projectId/changes', ProjectController.applyChange);
 router.post('/:projectId/snapshots', ProjectController.createSnapshot);
 router.get('/:projectId/history', ProjectController.getProjectHistory);
 router.post('/:projectId/rollback/:version', ProjectController.rollbackToVersion);
+router.post('/:projectId/rollforward', ProjectController.rollforward);
+router.post('/:projectId/undo', ProjectController.undo);
+router.post('/:projectId/redo', ProjectController.redo);
 
 // Project Generation
 router.post('/generate', ProjectController.generateProjectConfiguration);

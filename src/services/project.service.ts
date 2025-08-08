@@ -4,13 +4,14 @@ import {
   Project,
   CreateProjectRequest,
   UpdateProjectRequest,
-  CreateProjectChangeRequest,
+  ApplyProjectChangeRequest,
   CreateSnapshotRequest,
   ProjectHistory,
   VersionInfo,
   Snapshot,
   ProjectWithRelations,
 } from '../types';
+import { DiffPatcher } from 'jsondiffpatch';
 
 export class ProjectService {
   static async createProject(userId: string, projectData: CreateProjectRequest): Promise<Project> {
@@ -122,7 +123,7 @@ export class ProjectService {
       return null;
     }
 
-    const { features, mainState, configuration, ...restUpdateData } = updateData;
+    const { features, mainState, configuration, title, ...restUpdateData } = updateData;
     
     // Prepare update data
     let updateFields: any = {
@@ -137,6 +138,22 @@ export class ProjectService {
     }
     if (configuration) {
       updateFields.configuration = configuration;
+    }
+    if (typeof title !== 'undefined') {
+      updateFields.title = title;
+    }
+
+    // Bump version only if name, mainState, or title changed (not configuration)
+    const shouldBumpVersion = Boolean(mainState || typeof restUpdateData.name !== 'undefined' || typeof title !== 'undefined');
+    if (shouldBumpVersion) {
+      const bump = (v: string | null): string => {
+        const [majStr = '1', minStr = '0', patStr = '0'] = (v ?? '1.0.0').split('.');
+        const maj = Number(majStr) || 1;
+        const min = Number(minStr) || 0;
+        const pat = Number(patStr) || 0;
+        return `${maj}.${min}.${pat + 1}`;
+      };
+      updateFields.version = bump(project.version as unknown as string | null);
     }
     
     const updatedProject = await prisma.project.update({
@@ -179,7 +196,7 @@ export class ProjectService {
   static async applyProjectChange(
     projectId: string,
     userId: string,
-    changeData: CreateProjectChangeRequest
+    changeData: ApplyProjectChangeRequest
   ): Promise<Project | null> {
     // Check if user has edit access
     const hasEditAccess = await this.userHasEditAccess(projectId, userId);
@@ -195,21 +212,40 @@ export class ProjectService {
       return null;
     }
 
-    // Create the change record
+    const diffPatcher = new DiffPatcher();
+
+    // Apply delta to current mainState to compute new state
+    const currentState = (project.mainState as any) ?? {};
+    const newState = diffPatcher.patch(JSON.parse(JSON.stringify(currentState)), changeData.diff as any);
+
+    // Compute new version (bump patch)
+    const bump = (v: string | null): string => {
+      const [majStr = '1', minStr = '0', patStr = '0'] = (v ?? '1.0.0').split('.');
+      const maj = Number(majStr) || 1;
+      const min = Number(minStr) || 0;
+      const pat = Number(patStr) || 0;
+      return `${maj}.${min}.${pat + 1}`;
+    };
+    const newVersion = bump(project.version as unknown as string | null);
+
+    // Create the change record (store only diff)
     await prisma.projectChange.create({
       data: {
-        ...changeData,
+        version: newVersion,
+        diff: changeData.diff as any,
+        actionDescription: changeData.actionDescription ?? null,
+        clientHash: changeData.clientHash ?? null,
         projectId,
         authorUserId: userId,
       },
     });
 
-    // Update project version and state
+    // Update project version and mainState
     const updatedProject = await prisma.project.update({
       where: { id: projectId },
       data: {
-        version: changeData.version,
-        mainState: changeData.diff, // This should be the new state, not just the diff
+        version: newVersion,
+        mainState: newState as any,
         updatedAt: new Date(),
       },
     });
@@ -217,7 +253,7 @@ export class ProjectService {
     logger.info('Project change applied successfully', {
       projectId,
       userId,
-      version: changeData.version,
+      version: newVersion,
       actionDescription: changeData.actionDescription,
     });
 
@@ -343,15 +379,173 @@ export class ProjectService {
       return updatedProject;
     }
 
-    // If no snapshot, we'd need to replay changes (more complex)
-    // This is a simplified version - in production you'd want more sophisticated change replay
-    logger.warn('Rollback to version without snapshot not implemented', {
+    // If no snapshot, compute state by rolling back diffs from current to target
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) return null;
+
+    const diffPatcher = new DiffPatcher();
+
+    // Get changes newer than target version (to undo)
+    const changesToUndo = await prisma.projectChange.findMany({
+      where: { projectId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Find the index where target version appears; everything before that should be undone
+    let workingState = JSON.parse(JSON.stringify(project.mainState ?? {}));
+    for (const change of changesToUndo) {
+      if (change.version === version) break; // stop once we reached target version
+      if (!change.diff) continue;
+      // Inverse patch to undo
+      workingState = diffPatcher.unpatch(workingState, change.diff as any);
+    }
+
+    const updatedProject = await prisma.project.update({
+      where: { id: projectId },
+      data: {
+        mainState: workingState as any,
+        version,
+        updatedAt: new Date(),
+      },
+    });
+
+    logger.info('Project rolled back by reversing diffs', {
       projectId,
       userId,
       version,
     });
 
-    return null;
+    return updatedProject;
+  }
+
+  static async rollforward(projectId: string, userId: string, steps: number = 1): Promise<Project | null> {
+    const hasEditAccess = await this.userHasEditAccess(projectId, userId);
+    if (!hasEditAccess) return null;
+
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) return null;
+
+    const diffPatcher = new DiffPatcher();
+    // Get changes in chronological order
+    const changes = await prisma.projectChange.findMany({
+      where: { projectId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Find the current version index
+    let currentIndex = changes.findIndex(c => c.version === project.version);
+    if (currentIndex === -1) {
+      // If not found, assume before all changes
+      currentIndex = -1;
+    }
+
+    let workingState = JSON.parse(JSON.stringify(project.mainState ?? {}));
+    let targetIndex = Math.min(currentIndex + steps, changes.length - 1);
+    for (let i = currentIndex + 1; i <= targetIndex; i++) {
+      const change = changes[i];
+      if (!change) break;
+      if (!change.diff) continue;
+      workingState = diffPatcher.patch(workingState, change.diff as any);
+    }
+
+    const newVersion = targetIndex >= 0 && changes[targetIndex] ? changes[targetIndex].version : project.version;
+
+    const updated = await prisma.project.update({
+      where: { id: projectId },
+      data: {
+        mainState: workingState as any,
+        version: newVersion,
+        updatedAt: new Date(),
+      },
+    });
+
+    logger.info('Project rolled forward', { projectId, userId, steps, newVersion });
+    return updated;
+  }
+
+  static async undo(projectId: string, userId: string): Promise<Project | null> {
+    const hasEditAccess = await this.userHasEditAccess(projectId, userId);
+    if (!hasEditAccess) return null;
+
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) return null;
+
+    // Find the change corresponding to current version
+    const changes = await prisma.projectChange.findMany({
+      where: { projectId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const currentIdx = changes.findIndex(c => c.version === project.version);
+    if (currentIdx === -1) {
+      // Nothing to undo
+      return project;
+    }
+
+    const diffPatcher = new DiffPatcher();
+    let workingState = JSON.parse(JSON.stringify(project.mainState ?? {}));
+    const currentChange = changes[currentIdx];
+    if (currentChange?.diff) {
+      // Unapply last change
+      workingState = diffPatcher.unpatch(workingState, currentChange.diff as any);
+    }
+
+    const prevChange = currentIdx > 0 ? changes[currentIdx - 1] : undefined;
+    const newVersion = prevChange ? prevChange.version : '1.0.0';
+
+    const updated = await prisma.project.update({
+      where: { id: projectId },
+      data: {
+        mainState: workingState as any,
+        version: newVersion,
+        updatedAt: new Date(),
+      },
+    });
+
+    logger.info('Project undo (single step) applied', { projectId, userId, from: project.version, to: newVersion });
+    return updated;
+  }
+
+  static async redo(projectId: string, userId: string): Promise<Project | null> {
+    const hasEditAccess = await this.userHasEditAccess(projectId, userId);
+    if (!hasEditAccess) return null;
+
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) return null;
+
+    const changes = await prisma.projectChange.findMany({
+      where: { projectId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Determine current index; -1 means before first change
+    const currentIdx = changes.findIndex(c => c.version === project.version);
+    const nextIdx = currentIdx + 1;
+    if (nextIdx < 0 || nextIdx >= changes.length) {
+      // Nothing to redo
+      return project;
+    }
+
+    const diffPatcher = new DiffPatcher();
+    let workingState = JSON.parse(JSON.stringify(project.mainState ?? {}));
+    const nextChange = changes[nextIdx];
+    if (nextChange?.diff) {
+      workingState = diffPatcher.patch(workingState, nextChange.diff as any);
+    }
+
+    const newVersion = nextChange ? nextChange.version : project.version;
+
+    const updated = await prisma.project.update({
+      where: { id: projectId },
+      data: {
+        mainState: workingState as any,
+        version: newVersion,
+        updatedAt: new Date(),
+      },
+    });
+
+    logger.info('Project redo (single step) applied', { projectId, userId, to: newVersion });
+    return updated;
   }
 
   // Helper Methods

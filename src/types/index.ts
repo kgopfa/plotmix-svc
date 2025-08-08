@@ -89,6 +89,7 @@ export interface CreateProjectRequest {
 
 export interface UpdateProjectRequest {
   name?: string;
+  title?: string;
   mainState?: Record<string, any>; // Optional canvas state update
   configuration?: Record<string, any>; // Optional UI configuration update
   features?: ProjectFeatures;
@@ -183,9 +184,15 @@ export interface PaginationOptions {
 // Project Change Types
 export interface CreateProjectChangeRequest {
   version: string;
-  diff: Record<string, any>;
+  diff: Record<string, any>; // jsondiffpatch delta representing changes from previous mainState
   actionDescription?: string;
   clientHash?: string;
+}
+
+export interface ApplyProjectChangeRequest extends CreateProjectChangeRequest {}
+
+export interface RollforwardRequest {
+  steps?: number; // number of changes to roll forward
 }
 
 export interface ProjectChangeWithRelations extends ProjectChange {

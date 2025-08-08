@@ -42,6 +42,7 @@
     "morgan": "^1.10.0",
     "openai": "^5.12.0",
     "prisma": "^6.13.0",
+    "jsondiffpatch": "^0.6.0",
     "winston": "^3.11.0"
   },
   "devDependencies": {
