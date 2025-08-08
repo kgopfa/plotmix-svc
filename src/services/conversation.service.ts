@@ -4,7 +4,6 @@ import {
   Conversation,
   Message,
   ConversationWithRelations,
-  MessageWithRelations,
   CreateConversationRequest,
   UpdateConversationRequest,
   SendMessageRequest,
@@ -82,8 +81,20 @@ export class ConversationService {
       skip,
       take: limit,
       include: {
+        project: {
+          select: {
+            id: true,
+            title: true,
+            name: true,
+          },
+        },
         _count: {
           select: { messages: true },
+        },
+        messages: {
+          select: { createdAt: true },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
         },
       },
     });
@@ -254,7 +265,12 @@ export class ConversationService {
   static async getMessageById(
     messageId: string,
     userId: string
-  ): Promise<MessageWithRelations | null> {
+  ): Promise<
+    (Message & {
+      conversation: Conversation;
+      user: { id: string; name: string; email: string };
+    }) | null
+  > {
     const message = await prisma.message.findFirst({
       where: {
         id: messageId,

@@ -180,8 +180,11 @@ export class ProjectService {
       return false;
     }
 
-    await prisma.project.delete({
-      where: { id: projectId },
+    // Ensure associated conversation (and its messages) are removed, then the project.
+    // Project changes, snapshots, and collaborators are configured to cascade on delete.
+    await prisma.$transaction(async (tx) => {
+      await tx.conversation.deleteMany({ where: { projectId } });
+      await tx.project.delete({ where: { id: projectId } });
     });
 
     logger.info('Project deleted successfully', {
