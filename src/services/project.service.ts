@@ -90,7 +90,14 @@ export class ProjectService {
     });
   }
 
-  static async getUserProjects(userId: string): Promise<Project[]> {
+  static async getUserProjects(
+    userId: string,
+    pagination?: { page?: number; limit?: number }
+  ): Promise<Project[]> {
+    const page = pagination?.page && pagination.page > 0 ? pagination.page : 1;
+    const limit = pagination?.limit && pagination.limit > 0 ? pagination.limit : 20;
+    const skip = (page - 1) * limit;
+
     return prisma.project.findMany({
       where: {
         OR: [
@@ -106,6 +113,8 @@ export class ProjectService {
         ],
       },
       orderBy: { updatedAt: 'desc' },
+      skip,
+      take: limit,
     });
   }
 

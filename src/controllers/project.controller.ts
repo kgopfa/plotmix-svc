@@ -151,7 +151,12 @@ export class ProjectController {
         return;
       }
 
-      const projects = await ProjectService.getUserProjects(req.user.userId);
+      const page = req.query['page'] ? parseInt(req.query['page'] as string) : undefined;
+      const limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
+      const paginator: { page?: number; limit?: number } = {};
+      if (typeof page === 'number') paginator.page = page;
+      if (typeof limit === 'number') paginator.limit = limit;
+      const projects = await ProjectService.getUserProjects(req.user.userId, paginator);
 
       res.json({
         success: true,
