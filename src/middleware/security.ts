@@ -41,7 +41,7 @@ export const securityMiddleware: RequestHandler[] = [
     origin: config.cors.origin,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-render-auth', 'X-Render-Auth'],
   }),
 
   // Rate limiting
