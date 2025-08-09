@@ -62,6 +62,44 @@ Environment variables used by the render service:
 - `RENDER_OUTPUT_DIR` (default `/tmp`): Local output directory (for MVP).
 - `RENDER_PUBLIC_BASE` (default `http://localhost:8000`): Base URL to build response links (replace with CDN/S3 public base).
 
+### Generate and set the render token secret
+
+The same secret must be available to both the backend and the UI (middleware) so they can mint and validate the short‑lived render JWT.
+
+1) Generate a strong random secret (choose one):
+
+```bash
+# OpenSSL (hex)
+openssl rand -hex 48
+
+# OpenSSL (base64)
+openssl rand -base64 48 | tr -d '\n'
+
+# Node.js
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
+
+2) Set it in your environment:
+
+- Backend (`plotmix-svc/.env`):
+
+```
+RENDER_TOKEN_SECRET=YOUR_LONG_RANDOM_VALUE
+```
+
+- UI (`plotmix-ui/.env.local`):
+
+```
+RENDER_TOKEN_SECRET=YOUR_LONG_RANDOM_VALUE
+```
+
+3) Restart both apps.
+
+Notes:
+- Use at least 32 bytes of entropy; 48–64 bytes is recommended.
+- Do not reuse NextAuth or other app secrets; keep this dedicated to rendering.
+- In production, set the variable in your hosting provider for both services (e.g., Vercel Project Env for UI, server/container env for API). If using multiple environments, generate a different secret per environment.
+
 ### Dependencies
 
 - `puppeteer` (add to backend dependencies)
@@ -76,6 +114,8 @@ Environment variables used by the render service:
 
 ### Example Request
 
+API_BASE refers to your backend origin (the API server). In local development, this is typically `http://localhost:8000`.
+
 ```bash
 curl -X POST "$API_BASE/api/render" \
   -H 'Content-Type: application/json' \
@@ -85,6 +125,24 @@ curl -X POST "$API_BASE/api/render" \
 ```json
 { "url": "https://cdn.example.com/renders/proj_123/1720548123.mp4" }
 ```
+
+#### Local examples
+
+- Start a render job (POST with JSON body):
+
+```bash
+curl -X POST 'http://localhost:8000/api/render' \
+  -H 'Content-Type: application/json' \
+  -d '{"projectId":"YOUR_PROJECT_ID","fps":30,"width":1280,"height":720}'
+```
+
+- Open a browser debug session (GET with query params):
+
+```bash
+open "http://localhost:8000/api/render/debug-session?projectId=YOUR_PROJECT_ID&fps=30&width=1280&height=720"
+```
+
+Note: The render debug session is at `/api/render/debug-session`. There is no route at `/api/render/:projectId`; POST to `/api/render` with a JSON body instead.
 
 ### Debugging in the browser (dev/staging)
 
