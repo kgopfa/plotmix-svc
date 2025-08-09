@@ -153,10 +153,13 @@ export class ProjectController {
 
       const page = req.query['page'] ? parseInt(req.query['page'] as string) : undefined;
       const limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
+      const source = typeof req.query['source'] === 'string' ? (req.query['source'] as string) : undefined;
       const paginator: { page?: number; limit?: number } = {};
       if (typeof page === 'number') paginator.page = page;
       if (typeof limit === 'number') paginator.limit = limit;
-      const projects = await ProjectService.getUserProjects(req.user.userId, paginator);
+      const filters: { source?: string } = {};
+      if (typeof source === 'string') filters.source = source;
+      const projects = await ProjectService.getUserProjects(req.user.userId, paginator, filters);
 
       res.json({
         success: true,
@@ -554,6 +557,29 @@ export class ProjectController {
     } catch (error) {
       logger.error('Redo failed', { error: error instanceof Error ? error.message : 'Unknown error', userId: req.user?.userId, projectId: req.params['projectId'] });
       res.status(500).json({ success: false, message: 'Failed to redo' });
+    }
+  }
+
+  static async convertToNative(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user || !req.user.userId) {
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+        return;
+      }
+      const { projectId } = req.params;
+      if (!projectId) {
+        res.status(400).json({ success: false, message: 'Project ID is required' });
+        return;
+      }
+      const updated = await ProjectService.convertToNative(projectId, req.user.userId);
+      if (!updated) {
+        res.status(404).json({ success: false, message: 'Project not found or access denied' });
+        return;
+      }
+      res.json({ success: true, message: 'Project converted to native', data: { project: updated } });
+    } catch (error) {
+      logger.error('Convert to native failed', { error: error instanceof Error ? error.message : 'Unknown error', userId: req.user?.userId, projectId: req.params['projectId'] });
+      res.status(500).json({ success: false, message: 'Failed to convert project' });
     }
   }
 

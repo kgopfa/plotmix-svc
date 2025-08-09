@@ -26,6 +26,8 @@ export class ProjectService {
         userId,
         version,
         features: features ? (features as any) : null,
+        // Default to NATIVE unless explicitly set (e.g., GENERATED via content-gen)
+        source: (restData as any)?.source ?? 'NATIVE',
       },
     });
 
@@ -92,8 +94,9 @@ export class ProjectService {
 
   static async getUserProjects(
     userId: string,
-    pagination?: { page?: number; limit?: number }
-  ): Promise<Project[]> {
+    pagination?: { page?: number; limit?: number },
+    filters?: { source?: string }
+  ): Promise<(Project & { conversation: { id: string } | null })[]> {
     const page = pagination?.page && pagination.page > 0 ? pagination.page : 1;
     const limit = pagination?.limit && pagination.limit > 0 ? pagination.limit : 20;
     const skip = (page - 1) * limit;
@@ -111,11 +114,27 @@ export class ProjectService {
             },
           }, // Collaborated projects
         ],
+        ...(filters?.source ? { source: filters.source } : {}),
       },
       orderBy: { updatedAt: 'desc' },
       skip,
       take: limit,
+      include: {
+        conversation: {
+          select: { id: true },
+        },
+      },
     });
+  }
+
+  static async convertToNative(projectId: string, userId: string): Promise<Project | null> {
+    // Only the owner can convert
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project || project.userId !== userId) {
+      return null;
+    }
+    // Mark project as NATIVE, keep any existing conversation association intact
+    return prisma.project.update({ where: { id: projectId }, data: { source: 'NATIVE' } });
   }
 
   static async updateProject(

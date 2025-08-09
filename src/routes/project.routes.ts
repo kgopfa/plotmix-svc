@@ -22,6 +22,7 @@ router.post('/:projectId/rollback/:version', ProjectController.rollbackToVersion
 router.post('/:projectId/rollforward', ProjectController.rollforward);
 router.post('/:projectId/undo', ProjectController.undo);
 router.post('/:projectId/redo', ProjectController.redo);
+router.post('/:projectId/convert-to-native', ProjectController.convertToNative);
 
 // Project Generation
 router.post('/generate', ProjectController.generateProjectConfiguration);
