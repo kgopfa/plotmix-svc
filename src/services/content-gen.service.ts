@@ -177,7 +177,9 @@ export class ContentGenService {
           projectId,
         },
         include: {
-          user: true,
+          user: {
+            select: { id: true, name: true, email: true }
+          },
           messages: true,
           project: true,
         },

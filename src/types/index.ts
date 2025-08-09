@@ -1,7 +1,8 @@
 import { Request } from 'express';
 import { User as PrismaUser, Project as PrismaProject, ProjectChange as PrismaProjectChange, Snapshot as PrismaSnapshot, ProjectRole as PrismaProjectRole, Conversation as PrismaConversation, Message as PrismaMessage } from '@prisma/client';
 
-export type User = PrismaUser;
+// Sanitize exposed User type to exclude password by default in service/controller layers
+export type User = Omit<PrismaUser, 'password'> & { password?: never };
 export type Project = PrismaProject;
 export type ProjectChange = PrismaProjectChange;
 export type Snapshot = PrismaSnapshot;
@@ -96,7 +97,7 @@ export interface UpdateProjectRequest {
 }
 
 export interface ProjectWithRelations extends Project {
-  owner: User;
+  owner: Pick<User, 'id' | 'name' | 'email' | 'createdAt' | 'updatedAt'>;
   changes: ProjectChange[];
   snapshots: Snapshot[];
   collaborators: ProjectRole[];
@@ -197,7 +198,7 @@ export interface RollforwardRequest {
 
 export interface ProjectChangeWithRelations extends ProjectChange {
   project: Project;
-  author: User;
+  author: Pick<User, 'id' | 'name' | 'email'>;
 }
 
 // Snapshot Types
@@ -223,7 +224,7 @@ export interface UpdateProjectRoleRequest {
 
 export interface ProjectRoleWithRelations extends ProjectRole {
   project: Project;
-  user: User;
+  user: Pick<User, 'id' | 'name' | 'email' | 'createdAt' | 'updatedAt'>;
 }
 
 // Version Control Types

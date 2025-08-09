@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { ProjectService } from '../services/project.service';
 import { ContentGenService } from '../services/content-gen.service';
 import { logger } from '../utils/logger';
+import { config } from '../config';
 import { AuthenticatedRequest, CreateProjectWithConversationRequest, ProjectConfigurationResponse, BatchDeleteRequest } from '../types';
 
 export class ProjectController {
@@ -121,6 +122,21 @@ export class ProjectController {
         });
         return;
       }
+
+      // Log full project payload (with minimal sanitization) only in non-production
+      try {
+        if (config.nodeEnv !== 'production') {
+          const safeProject: any = JSON.parse(JSON.stringify(project));
+          if (safeProject?.owner) {
+            if ('password' in safeProject.owner) safeProject.owner.password = '[REDACTED]';
+          }
+          logger.info('GetProject full payload', {
+            projectId,
+            userId: req.user?.userId,
+            project: safeProject,
+          });
+        }
+      } catch {}
 
       res.json({
         success: true,

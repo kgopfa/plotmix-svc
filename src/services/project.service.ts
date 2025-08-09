@@ -1,5 +1,6 @@
 import { prisma } from '../clients/database.client';
 import { logger } from '../utils/logger';
+import { config } from '../config';
 import {
   Project,
   CreateProjectRequest,
@@ -47,7 +48,7 @@ export class ProjectService {
       return null;
     }
 
-    return prisma.project.findUnique({
+    return (await prisma.project.findUnique({
       where: { id: projectId },
       include: {
         owner: {
@@ -55,9 +56,6 @@ export class ProjectService {
             id: true,
             name: true,
             email: true,
-            createdAt: true,
-            updatedAt: true,
-            password: true,
           },
         },
         changes: {
@@ -89,7 +87,7 @@ export class ProjectService {
           }
         },
       },
-    });
+    })) as unknown as ProjectWithRelations | null;
   }
 
   static async getUserProjects(
@@ -248,7 +246,74 @@ export class ProjectService {
     // Apply delta to current mainState to compute new state
     const currentState = (project.mainState as any) ?? {};
     const safeDiff = (changeData.diff ?? {}) as any;
-    const newState = diffPatcher.patch(JSON.parse(JSON.stringify(currentState)), safeDiff);
+
+    let baseState = JSON.parse(JSON.stringify(currentState));
+    // Pre-initialize common containers expected by the diff
+    if (safeDiff?.elements && safeDiff.elements._t === 'a' && !Array.isArray(baseState.elements)) {
+      baseState.elements = [];
+    }
+    if (safeDiff?.timeline && (typeof baseState.timeline !== 'object' || baseState.timeline === null)) {
+      baseState.timeline = {};
+    }
+    if (
+      safeDiff?.timeline?.animationStates &&
+      (typeof baseState.timeline?.animationStates !== 'object' || baseState.timeline.animationStates === null)
+    ) {
+      baseState.timeline.animationStates = {};
+    }
+
+    let newState: any;
+    try {
+      newState = diffPatcher.patch(baseState, safeDiff);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      // jsondiffpatch uses Array#splice for array patches. If the target path is undefined,
+      // patching may throw "Cannot read properties of undefined (reading 'splice')".
+      if (errMsg && errMsg.toLowerCase().includes('splice')) {
+        // Initialize common containers if the diff indicates array/object patches
+        if (safeDiff?.elements && safeDiff.elements._t === 'a' && !Array.isArray(baseState.elements)) {
+          baseState.elements = [];
+        }
+        if (safeDiff?.timeline && (typeof baseState.timeline !== 'object' || baseState.timeline === null)) {
+          baseState.timeline = {};
+        }
+        if (
+          safeDiff?.timeline?.animationStates &&
+          (typeof baseState.timeline?.animationStates !== 'object' || baseState.timeline.animationStates === null)
+        ) {
+          baseState.timeline.animationStates = {};
+        }
+        try {
+          newState = diffPatcher.patch(baseState, safeDiff);
+        } catch (err2) {
+          logger.error('Diff patch failed even after initializing containers', {
+            error: err2 instanceof Error ? err2.message : 'Unknown error',
+            projectId,
+            userId,
+            diff: safeDiff,
+            baseStateKeys: Object.keys(baseState ?? {}),
+          });
+          throw err2;
+        }
+      } else {
+        throw err;
+      }
+    }
+
+    try {
+      // Log full pre/post project state (sanitized) and diff only in non-production
+      if (config.nodeEnv !== 'production') {
+        const safeBefore = JSON.parse(JSON.stringify(currentState));
+        const safeAfter = JSON.parse(JSON.stringify(newState));
+        logger.info('ApplyChange full log', {
+          projectId,
+          userId,
+          diff: safeDiff,
+          before: safeBefore,
+          after: safeAfter,
+        });
+      }
+    } catch {}
 
     // Compute new version (bump patch)
     const bump = (v: string | null): string => {
@@ -340,7 +405,13 @@ export class ProjectService {
       include: {
         changes: {
           include: {
-            author: true,
+            author: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              }
+            },
           },
           orderBy: { createdAt: 'desc' },
         },

@@ -184,47 +184,85 @@ export class CollaborationService {
       throw new Error('Project not found or access denied');
     }
 
-    return prisma.projectRole.findMany({
+    return (await prisma.projectRole.findMany({
       where: { projectId },
       include: {
-        user: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
         project: true,
       },
-    });
+    })) as unknown as ProjectRoleWithRelations[];
   }
 
   static async getUserInvitations(userId: string): Promise<ProjectRoleWithRelations[]> {
-    return prisma.projectRole.findMany({
+    return (await prisma.projectRole.findMany({
       where: {
         userId,
         status: 'pending',
       },
       include: {
-        user: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
         project: {
           include: {
-            owner: true,
+            owner: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            },
           },
         },
       },
-    });
+    })) as unknown as ProjectRoleWithRelations[];
   }
 
   static async getUserCollaborations(userId: string): Promise<ProjectRoleWithRelations[]> {
-    return prisma.projectRole.findMany({
+    return (await prisma.projectRole.findMany({
       where: {
         userId,
         status: 'accepted',
       },
       include: {
-        user: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
         project: {
           include: {
-            owner: true,
+            owner: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            },
           },
         },
       },
-    });
+    })) as unknown as ProjectRoleWithRelations[];
   }
 
   // Helper Methods
