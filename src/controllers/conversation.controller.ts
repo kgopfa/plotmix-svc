@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { ConversationService } from '../services/conversation.service';
-import { ApiResponse, AuthenticatedRequest, MESSAGE_TYPES } from '../types';
+import { ApiResponse, AuthenticatedRequest, MESSAGE_TYPES, BatchDeleteRequest } from '../types';
 import { logger } from '../utils/logger';
 
 export class ConversationController {
@@ -449,6 +449,28 @@ export class ConversationController {
         message: 'Failed to retrieve conversation stats',
         error: error instanceof Error ? error.message : 'Unknown error',
       } as ApiResponse);
+    }
+  }
+
+  static async batchDelete(req: AuthenticatedRequest, res: Response) {
+    try {
+      const userId = req.user?.sub || req.user?.id || req.user?.userId;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'User not authenticated' } as ApiResponse);
+      }
+      const body = req.body as BatchDeleteRequest;
+      if (!body?.ids || !Array.isArray(body.ids) || body.ids.length === 0) {
+        return res.status(400).json({ success: false, message: 'ids[] is required' } as ApiResponse);
+      }
+      let deleted = 0;
+      for (const id of body.ids) {
+        const ok = await ConversationService.deleteConversation(id, userId);
+        if (ok) deleted += 1;
+      }
+      return res.json({ success: true, message: 'Conversations batch deleted', data: { requested: body.ids.length, deleted } } as ApiResponse);
+    } catch (error) {
+      logger.error('Batch delete conversations failed', { error });
+      return res.status(500).json({ success: false, message: 'Failed to batch delete conversations' } as ApiResponse);
     }
   }
 } 

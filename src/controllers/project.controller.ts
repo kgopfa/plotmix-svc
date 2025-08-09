@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { ProjectService } from '../services/project.service';
 import { ContentGenService } from '../services/content-gen.service';
 import { logger } from '../utils/logger';
-import { AuthenticatedRequest, CreateProjectWithConversationRequest, ProjectConfigurationResponse } from '../types';
+import { AuthenticatedRequest, CreateProjectWithConversationRequest, ProjectConfigurationResponse, BatchDeleteRequest } from '../types';
 
 export class ProjectController {
   static async createProject(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -554,6 +554,29 @@ export class ProjectController {
     } catch (error) {
       logger.error('Redo failed', { error: error instanceof Error ? error.message : 'Unknown error', userId: req.user?.userId, projectId: req.params['projectId'] });
       res.status(500).json({ success: false, message: 'Failed to redo' });
+    }
+  }
+
+  static async batchDelete(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user || !req.user.userId) {
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+        return;
+      }
+      const body = req.body as BatchDeleteRequest;
+      if (!body?.ids || !Array.isArray(body.ids) || body.ids.length === 0) {
+        res.status(400).json({ success: false, message: 'ids[] is required' });
+        return;
+      }
+      let deleted = 0;
+      for (const id of body.ids) {
+        const ok = await ProjectService.deleteProject(id, req.user.userId);
+        if (ok) deleted += 1;
+      }
+      res.json({ success: true, message: 'Projects batch deleted', data: { requested: body.ids.length, deleted } });
+    } catch (error) {
+      logger.error('Batch delete projects failed', { error: error instanceof Error ? error.message : 'Unknown error', userId: req.user?.userId });
+      res.status(500).json({ success: false, message: 'Failed to batch delete projects' });
     }
   }
 } 

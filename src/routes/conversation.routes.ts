@@ -26,4 +26,7 @@ router.get('/messages/:messageId', ConversationController.getMessage);
 router.put('/messages/:messageId', ConversationController.updateMessage);
 router.delete('/messages/:messageId', ConversationController.deleteMessage);
 
+// Batch operations
+router.post('/batch/delete', ConversationController.batchDelete);
+
 export { router as conversationRoutes }; 

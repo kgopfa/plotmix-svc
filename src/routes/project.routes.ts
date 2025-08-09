@@ -26,4 +26,7 @@ router.post('/:projectId/redo', ProjectController.redo);
 // Project Generation
 router.post('/generate', ProjectController.generateProjectConfiguration);
 
+// Batch operations
+router.post('/batch/delete', ProjectController.batchDelete);
+
 export { router as projectRoutes }; 
