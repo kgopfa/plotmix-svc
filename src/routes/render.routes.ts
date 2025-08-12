@@ -1,8 +1,11 @@
 import { Router, type Router as ExpressRouter, type Request, type Response } from 'express';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
+import fs from 'node:fs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../clients/database.client';
+import { createR2Client } from '../clients/r2.client';
+import { buildRenderObjectKey, uploadFileToR2 } from '../services/render-storage.service';
 
 export const renderRoutes: ExpressRouter = Router();
 
@@ -133,10 +136,30 @@ renderRoutes.post('/', async (req, res) => {
 
     await browser.close();
 
-    // TODO: upload outPath to object storage and return URL
-    const publicBase = process.env['RENDER_PUBLIC_BASE'] || 'http://localhost:8000';
-    const urlPath = `/media/${path.basename(outPath)}`; // replace with uploaded key path
-    const finalUrl = `${publicBase}${urlPath}`;
+    let finalUrl: string;
+    const useR2 = !!(process.env['R2_BUCKET'] && (process.env['R2_ENDPOINT'] || process.env['R2_ACCOUNT_ID']));
+    if (useR2) {
+      try {
+        const client = createR2Client();
+        const bucket = process.env['R2_BUCKET'] as string;
+        const key = buildRenderObjectKey(projectId);
+        const cfg: { bucket: string; publicBase?: string; prefix?: string } = { bucket };
+        if (process.env['R2_PUBLIC_BASE']) cfg.publicBase = process.env['R2_PUBLIC_BASE'] as string;
+        if (process.env['R2_PREFIX']) cfg.prefix = process.env['R2_PREFIX'] as string;
+        finalUrl = await uploadFileToR2(client, outPath, key, cfg);
+        // Cleanup local file after upload
+        try { fs.unlinkSync(outPath); } catch {}
+      } catch (e) {
+        console.error('[render] R2 upload failed, falling back to local URL', e);
+        const publicBase = process.env['RENDER_PUBLIC_BASE'] || 'http://localhost:8000';
+        const urlPath = `/media/${path.basename(outPath)}`;
+        finalUrl = `${publicBase}${urlPath}`;
+      }
+    } else {
+      const publicBase = process.env['RENDER_PUBLIC_BASE'] || 'http://localhost:8000';
+      const urlPath = `/media/${path.basename(outPath)}`;
+      finalUrl = `${publicBase}${urlPath}`;
+    }
     console.log('[render] Completed. URL:', finalUrl);
     return res.json({ url: finalUrl });
   } catch (err) {
@@ -274,9 +297,29 @@ renderRoutes.post('/x', async (req, res) => {
 
     await browser.close();
 
-    const publicBase = process.env['RENDER_PUBLIC_BASE'] || 'http://localhost:8000';
-    const urlPath = `/media/${path.basename(outPath)}`;
-    const finalUrl = `${publicBase}${urlPath}`;
+    let finalUrl: string;
+    const useR2 = !!(process.env['R2_BUCKET'] && (process.env['R2_ENDPOINT'] || process.env['R2_ACCOUNT_ID']));
+    if (useR2) {
+      try {
+        const client = createR2Client();
+        const bucket = process.env['R2_BUCKET'] as string;
+        const key = buildRenderObjectKey(projectId);
+        const cfg: { bucket: string; publicBase?: string; prefix?: string } = { bucket };
+        if (process.env['R2_PUBLIC_BASE']) cfg.publicBase = process.env['R2_PUBLIC_BASE'] as string;
+        if (process.env['R2_PREFIX']) cfg.prefix = process.env['R2_PREFIX'] as string;
+        finalUrl = await uploadFileToR2(client, outPath, key, cfg);
+        try { fs.unlinkSync(outPath); } catch {}
+      } catch (e) {
+        console.error('[renderx] R2 upload failed, falling back to local URL', e);
+        const publicBase = process.env['RENDER_PUBLIC_BASE'] || 'http://localhost:8000';
+        const urlPath = `/media/${path.basename(outPath)}`;
+        finalUrl = `${publicBase}${urlPath}`;
+      }
+    } else {
+      const publicBase = process.env['RENDER_PUBLIC_BASE'] || 'http://localhost:8000';
+      const urlPath = `/media/${path.basename(outPath)}`;
+      finalUrl = `${publicBase}${urlPath}`;
+    }
     console.log('[renderx] Completed. URL:', finalUrl);
     return res.json({ url: finalUrl });
   } catch (err) {
