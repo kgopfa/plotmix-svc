@@ -77,6 +77,29 @@ renderRoutes.post('/', async (req, res) => {
       outPath,
     ], { stdio: ['pipe', 'inherit', 'inherit'] });
 
+    // If page exposes a crop rectangle, use it to clip screenshots to the design canvas
+    let cropRect = await page.evaluate(() => {
+      const g: any = globalThis as any;
+      const fn = g.__computeCropRect__ || g.__getDesignClip__;
+      try {
+        return typeof fn === 'function' ? fn() : null;
+      } catch {
+        return null;
+      }
+    });
+    // Retry a few times to allow layout/zoom to settle
+    if (!cropRect || !cropRect.width || !cropRect.height) {
+      for (let tries = 0; tries < 5; tries++) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        cropRect = await page.evaluate(() => {
+          const g: any = globalThis as any;
+          const fn = g.__computeCropRect__ || g.__getDesignClip__;
+          try { return typeof fn === 'function' ? fn() : null; } catch { return null; }
+        });
+        if (cropRect && cropRect.width > 0 && cropRect.height > 0) break;
+      }
+    }
+
     for (let i = 0; i < totalFrames; i++) {
       const t = i / fps;
       await page.evaluate((t) => {
@@ -87,7 +110,18 @@ renderRoutes.post('/', async (req, res) => {
         }
         fn(t);
       }, t);
-      const buf = await page.screenshot({ type: 'png', omitBackground: false });
+      // Recompute crop occasionally in case viewport changes, but avoid per-frame thrash
+      if (i === 0 || i % 30 === 0) {
+        try {
+          const cr = await page.evaluate(() => {
+            const g: any = globalThis as any;
+            const fn = g.__computeCropRect__ || g.__getDesignClip__;
+            return typeof fn === 'function' ? fn() : null;
+          });
+          if (cr && cr.width > 0 && cr.height > 0) cropRect = cr;
+        } catch {}
+      }
+      const buf = await page.screenshot({ type: 'png', omitBackground: false, clip: cropRect || undefined });
       ffmpeg.stdin.write(buf as unknown as Buffer);
     }
 
