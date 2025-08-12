@@ -168,7 +168,12 @@ renderRoutes.post('/x', async (req, res) => {
     });
     const page = await browser.newPage();
     page.on('console', (msg) => {
-      try { console.log('[renderx-ui][console]', msg.type(), msg.text()); } catch {}
+      try {
+        const text = msg.text();
+        // Suppress extremely chatty per-frame logs
+        if (text.includes('[renderx] seek')) return;
+        console.log('[renderx-ui][console]', msg.type(), text);
+      } catch {}
     });
     page.on('pageerror', (err) => console.error('[renderx-ui][pageerror]', err));
     page.on('requestfailed', (request) => console.error('[renderx-ui][requestfailed]', request.url(), request.failure()?.errorText));
@@ -190,20 +195,62 @@ renderRoutes.post('/x', async (req, res) => {
     console.log('[renderx] Ready. Info:', info, 'totalFrames:', totalFrames);
 
     const outPath = path.join(process.env['RENDER_OUTPUT_DIR'] || '/tmp', `${projectId}-${Date.now()}-fast.mp4`);
-    const ffmpeg = spawn('ffmpeg', [
+    // Build ffmpeg args with fast, portable defaults and optional HW acceleration via env
+    const selectedEncoder = (process.env['RENDER_ENCODER'] || 'libx264').toLowerCase();
+    const gop = String((Number(fps) || 30) * 2);
+    const inputArgs = [
       '-y',
       '-f', 'image2pipe',
       '-r', String(fps),
+      // JPEG over pipe for faster frame encoding than PNG
+      '-vcodec', 'mjpeg',
       '-i', 'pipe:0',
-      // Fastest reasonable H.264 for MP4 delivery
-      '-c:v', 'libx264',
-      '-preset', 'veryfast',
-      '-tune', 'zerolatency',
-      '-pix_fmt', 'yuv420p',
-      '-movflags', '+faststart',
-      '-crf', '23',
-      outPath,
-    ], { stdio: ['pipe', 'inherit', 'inherit'] });
+    ];
+    let outputArgs: string[];
+    if (selectedEncoder === 'h264_nvenc') {
+      outputArgs = [
+        '-c:v', 'h264_nvenc',
+        '-preset', 'p1',
+        '-tune', 'll',
+        '-rc', 'constqp',
+        '-qp', '23',
+        '-g', gop,
+        '-pix_fmt', 'yuv420p',
+        '-movflags', '+faststart',
+      ];
+    } else if (selectedEncoder === 'h264_vaapi') {
+      const vaapiDevice = process.env['RENDER_VAAPI_DEVICE'] || '/dev/dri/renderD128';
+      outputArgs = [
+        '-vaapi_device', vaapiDevice,
+        '-vf', 'format=nv12,hwupload',
+        '-c:v', 'h264_vaapi',
+        '-b:v', '8000k',
+        '-maxrate', '8000k',
+        '-bufsize', '16000k',
+        '-g', gop,
+        '-movflags', '+faststart',
+      ];
+    } else if (selectedEncoder === 'h264_qsv') {
+      outputArgs = [
+        '-c:v', 'h264_qsv',
+        '-global_quality', '23',
+        '-look_ahead', '0',
+        '-g', gop,
+        '-movflags', '+faststart',
+      ];
+    } else {
+      // libx264 ultrafast baseline
+      outputArgs = [
+        '-c:v', 'libx264',
+        '-preset', 'ultrafast',
+        '-tune', 'zerolatency',
+        '-crf', '23',
+        '-g', gop,
+        '-pix_fmt', 'yuv420p',
+        '-movflags', '+faststart',
+      ];
+    }
+    const ffmpeg = spawn('ffmpeg', [...inputArgs, ...outputArgs, outPath], { stdio: ['pipe', 'inherit', 'inherit'] });
 
     for (let i = 0; i < totalFrames; i++) {
       const t = i / fps;
@@ -215,7 +262,7 @@ renderRoutes.post('/x', async (req, res) => {
         }
         fn(t);
       }, t);
-      const buf = await page.screenshot({ type: 'png', omitBackground: false });
+      const buf = await page.screenshot({ type: 'jpeg', quality: 80, omitBackground: false });
       ffmpeg.stdin.write(buf as unknown as Buffer);
     }
 
