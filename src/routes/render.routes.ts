@@ -146,8 +146,8 @@ renderRoutes.post('/', async (req, res) => {
 });
 
 // POST /api/renderx
-// Same as /api/render but targets the unprotected UI page /renderx/[projectId]
-// and uses faster ffmpeg settings for quickest output
+// Same as /api/render but targets the UI page /renderx/[projectId]
+// (now protected by the same middleware) and uses faster ffmpeg settings for quickest output
 renderRoutes.post('/x', async (req, res) => {
   const { projectId, fps = 30, width = 1280, height = 720 } = req.body || {};
   if (!projectId) return res.status(400).json({ error: 'projectId required' });
@@ -311,6 +311,39 @@ renderRoutes.get('/debug-session', async (req: Request, res: Response) => {
   } catch (err) {
     console.error('Debug session init failed', err);
     return res.status(500).json({ error: 'Failed to start debug session' });
+  }
+});
+
+// GET /api/render/x/debug-session?projectId=...&fps=30&width=1280&height=720
+// Same as the render debug session but targets the /renderx page
+renderRoutes.get('/x/debug-session', async (req: Request, res: Response) => {
+  const { projectId, fps = '30', width = '1280', height = '720' } = req.query as Record<string, string>;
+
+  if (!projectId) return res.status(400).json({ error: 'projectId required' });
+
+  try {
+    const token = jwt.sign(
+      { projectId },
+      process.env['RENDER_TOKEN_SECRET'] as string,
+      { expiresIn: '2m', issuer: 'plotmix-svc', audience: 'plotmix-ui' }
+    );
+
+    // Set cookie scoped to the renderx path for this projectId
+    res.cookie('x-render-auth', token, {
+      httpOnly: true,
+      secure: process.env['NODE_ENV'] === 'production',
+      sameSite: 'lax',
+      maxAge: 120 * 1000, // 2 min
+      path: `/renderx/${projectId}`,
+      domain: undefined,
+    });
+
+    const uiBase = process.env['UI_BASE_URL'] || 'http://localhost:3000';
+    const redirectUrl = `${uiBase}/renderx/${projectId}?fps=${encodeURIComponent(fps)}&width=${encodeURIComponent(width)}&height=${encodeURIComponent(height)}`;
+    return res.redirect(302, redirectUrl);
+  } catch (err) {
+    console.error('RenderX debug session init failed', err);
+    return res.status(500).json({ error: 'Failed to start renderX debug session' });
   }
 });
 
