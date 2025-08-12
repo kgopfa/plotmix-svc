@@ -39,8 +39,13 @@ export const logger = winston.createLogger({
 
 // Ensure logs directory exists and set per-run file paths
 const logsDir = path.resolve(process.cwd(), 'logs');
+const combinedDir = path.join(logsDir, 'combined');
+const errorDir = path.join(logsDir, 'error');
+const accessDir = path.join(logsDir, 'access');
 try {
-  fs.mkdirSync(logsDir, { recursive: true });
+  fs.mkdirSync(combinedDir, { recursive: true });
+  fs.mkdirSync(errorDir, { recursive: true });
+  fs.mkdirSync(accessDir, { recursive: true });
 } catch {
   // If directory creation fails, we still keep console logging
 }
@@ -57,15 +62,15 @@ function formatRunTimestamp(date: Date): string {
 }
 
 const RUN_ID = `${formatRunTimestamp(new Date())}-${process.pid}`;
-const combinedLogPath = path.join(logsDir, `combined_${RUN_ID}.log`);
-const errorLogPath = path.join(logsDir, `error_${RUN_ID}.log`);
-const accessLogPath = path.join(logsDir, `access_${RUN_ID}.log`);
+const combinedLogPath = path.join(combinedDir, `combined_${RUN_ID}.log`);
+const errorLogPath = path.join(errorDir, `error_${RUN_ID}.log`);
+const accessLogPath = path.join(accessDir, `access_${RUN_ID}.log`);
 
-// Add file transports (per run) regardless of environment
+// Attach per-run file transports
 logger.add(
   new winston.transports.File({
     filename: combinedLogPath,
-    level: config.logging.level,
+    level: 'silly',
     format: jsonFormat,
   })
 );
