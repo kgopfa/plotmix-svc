@@ -134,6 +134,16 @@ export class OpenAIClient {
 
       const mainState = this.parseMainStateResponse(content);
       
+      // Log the received mainState for debugging/inspection
+      try {
+        logger.info('OpenAI mainState received', {
+          elementsCount: Array.isArray(mainState?.elements) ? mainState.elements.length : 0,
+          groupsCount: Array.isArray(mainState?.groups) ? mainState.groups.length : 0,
+          timelineKeys: mainState?.timeline ? Object.keys(mainState.timeline?.animationStates || {}).length : 0,
+          mainState,
+        });
+      } catch {}
+
       logger.info('Canvas data generated successfully', {
         model: this.config.model,
         promptLength: request.prompt.length,
