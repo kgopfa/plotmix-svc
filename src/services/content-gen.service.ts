@@ -37,7 +37,7 @@ export class ContentGenService {
         projectId: project.id, 
         conversationId, 
         userId, 
-        canvasGenerated: !!openAIResponse.canvasData 
+        mainStateGenerated: !!openAIResponse.mainState 
       });
 
       return {
@@ -66,18 +66,18 @@ export class ContentGenService {
       const { OpenAIClient } = await import('../clients/openai.client');
       const openAIClient = OpenAIClient.getInstance();
       
-      const canvasRequest = {
+      const mainStateRequest = {
         prompt: data.prompt,
         conversationHistory: [], // No history for first message
         projectFeatures: data.features || this.getDefaultFeatures(),
       };
 
       logger.info('Sending request to OpenAI', {
-        promptLength: canvasRequest.prompt?.length || 0,
-        hasFeatures: !!canvasRequest.projectFeatures,
+        promptLength: mainStateRequest.prompt?.length || 0,
+        hasFeatures: !!mainStateRequest.projectFeatures,
       });
 
-      const openAIResponse = await openAIClient.generateProjectData(canvasRequest);
+      const openAIResponse = await openAIClient.generateMainState(mainStateRequest);
 
       // If OpenAI processing fails, throw an error - don't create project
       if (!openAIResponse.success) {
@@ -89,10 +89,9 @@ export class ContentGenService {
       }
 
       logger.info('OpenAI processing completed successfully', {
-        hasCanvasData: !!openAIResponse.canvasData,
+        hasMainState: !!openAIResponse.mainState,
         hasMessage: !!openAIResponse.message,
-        elementCount: openAIResponse.canvasData?.elements?.length || 0,
-        connectionCount: openAIResponse.canvasData?.connections?.length || 0,
+        elementCount: openAIResponse.mainState?.elements?.length || 0,
       });
 
       return openAIResponse;
@@ -111,31 +110,33 @@ export class ContentGenService {
     data: CreateProjectWithConversationRequest,
     openAIResponse: any
   ) {
-    logger.info('Creating project with generated configuration', {
+      logger.info('Creating project with generated configuration', {
       userId,
-      hasCanvasData: !!openAIResponse.canvasData,
-      hasMetadata: !!openAIResponse.canvasData?.metadata,
+        hasMainState: !!openAIResponse.mainState,
     });
 
     try {
       const { ProjectService } = await import('./project.service');
       
-      // Extract title and description from OpenAI response metadata
-      const projectName = openAIResponse.canvasData?.metadata?.name || data.name || 'New Project';
-      const projectTitle = openAIResponse.canvasData?.metadata?.title || data.title;
-      const projectDescription = openAIResponse.canvasData?.metadata?.description || 
-        `Project created from prompt: ${data.prompt.substring(0, 100)}...`;
+      const projectName = data.name || 'New Project';
+      const projectTitle = data.title;
+      const projectDescription = `Project created from prompt: ${data.prompt.substring(0, 100)}...`;
 
-      const project = await ProjectService.createProject(userId, {
+      const payload: import('../types').CreateProjectRequest = {
         name: projectName,
-        title: projectTitle,
-        description: projectDescription,
         source: 'GENERATED',
-        mainState: openAIResponse.canvasData || {
-          createdAt: new Date().toISOString(),
-        },
+        mainState: openAIResponse.mainState || { createdAt: new Date().toISOString() },
         features: data.features || this.getDefaultFeatures(),
-      });
+      };
+
+      if (projectTitle !== undefined) {
+        payload.title = projectTitle;
+      }
+      if (projectDescription !== undefined) {
+        payload.description = projectDescription;
+      }
+
+      const project = await ProjectService.createProject(userId, payload);
 
       logger.info('Project created successfully', {
         userId,
@@ -151,7 +152,7 @@ export class ContentGenService {
         userId,
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
-        hasCanvasData: !!openAIResponse.canvasData,
+        hasMainState: !!openAIResponse.mainState,
       });
       throw error;
     }
@@ -254,9 +255,10 @@ export class ContentGenService {
 
       // Create LLM response message
       if (openAIResponse.success) {
+        const description = `Generated project from prompt: ${data.prompt.substring(0, 200)}...`;
         logger.info('Creating LLM response message', {
           conversationId, 
-          description: openAIResponse.canvasData.metadata.description
+          description
         });
         
         // Get system user ID for LLM messages
@@ -264,7 +266,7 @@ export class ContentGenService {
         
         const llmMessage = await prisma.message.create({
           data: {
-            content: openAIResponse.canvasData.metadata.description,
+            content: description,
             messageType: MESSAGE_TYPES.LLM,
             conversationId,
             userId: systemUserId,

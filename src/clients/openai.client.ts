@@ -4,10 +4,9 @@ import { logger } from '../utils/logger';
 export interface OpenAIConfig {
   apiKey: string;
   model: string;
-  systemPrompt: string;
 }
 
-export interface CanvasGenerationRequest {
+export interface MainStateGenerationRequest {
   prompt: string;
   conversationHistory: Array<{
     role: 'user' | 'assistant' | 'system';
@@ -21,9 +20,9 @@ export interface CanvasGenerationRequest {
   };
 }
 
-export interface CanvasGenerationResponse {
+export interface MainStateGenerationResponse {
   success: boolean;
-  canvasData?: any;
+  mainState?: any;
   message?: string;
   error?: string;
 }
@@ -60,15 +59,9 @@ export class OpenAIClient {
       throw new Error('OPENAI_MODEL environment variable is required');
     }
 
-    const systemPrompt = process.env['OPENAI_SYSTEM_PROMPT'];
-    if (!systemPrompt) {
-      throw new Error('OPENAI_SYSTEM_PROMPT environment variable is required');
-    }
-
     return {
       apiKey,
       model,
-      systemPrompt,
     };
   }
 
@@ -82,7 +75,7 @@ export class OpenAIClient {
 
     try {
       const messages = [
-        { role: 'system' as const, content: this.config.systemPrompt },
+        { role: 'system' as const, content: 'You are a helpful assistant.' },
         ...conversationHistory,
         { role: 'user' as const, content: prompt }
       ];
@@ -114,7 +107,7 @@ export class OpenAIClient {
     }
   }
 
-  public async generateProjectData(request: CanvasGenerationRequest): Promise<CanvasGenerationResponse> {
+  public async generateMainState(request: MainStateGenerationRequest): Promise<MainStateGenerationResponse> {
     if (!this.client) {
       throw new Error('OpenAI client not initialized');
     }
@@ -139,18 +132,18 @@ export class OpenAIClient {
         throw new Error('No response content received from OpenAI');
       }
 
-      const canvasData = this.parseCanvasResponse(content);
+      const mainState = this.parseMainStateResponse(content);
       
       logger.info('Canvas data generated successfully', {
         model: this.config.model,
         promptLength: request.prompt.length,
-        canvasElements: canvasData?.elements?.length || 0,
+        canvasElements: mainState?.elements?.length || 0,
         usage: response.usage,
       });
 
       return {
         success: true,
-        canvasData,
+        mainState,
       };
     } catch (error) {
       logger.error('Error generating canvas data', {
@@ -165,8 +158,8 @@ export class OpenAIClient {
     }
   }
 
-  private buildCanvasPrompt(request: CanvasGenerationRequest): string {
-    let prompt = `Generate a canvas design based on the following request: ${request.prompt}\n\n`;
+  private buildCanvasPrompt(request: MainStateGenerationRequest): string {
+    let prompt = `Generate a project mainState for our design canvas based on the following request: ${request.prompt}\n\n`;
     
     if (request.projectFeatures) {
       prompt += 'Available features:\n';
@@ -184,93 +177,152 @@ export class OpenAIClient {
       }
     }
 
-    prompt += '\nPlease respond with a valid JSON object containing the canvas structure.';
+    prompt += '\nRespond ONLY with a valid JSON object representing mainState (no prose).';
     return prompt;
   }
 
   private getCanvasSystemPrompt(projectFeatures?: any): string {
-    let systemPrompt = `You are an AI assistant specialized in generating canvas designs for system architecture diagrams. 
-
-Your response must be a valid JSON object with the following structure:
+    let systemPrompt = `You generate JSON for a design canvas mainState used by a renderer. Output must be a single JSON object with this shape:
 {
   "elements": [
     {
-      "id": "unique-id",
-      "type": "rectangle|circle|text|image|line",
-      "x": 100,
-      "y": 100,
-      "width": 200,
+      "id": "string",
+      "name": "string",
+      "type": "rectangle|circle|triangle|arc|line|path|image|text",
+      "x": 0,
+      "y": 0,
+      "width": 100,
       "height": 100,
-      "text": "Element text",
-      "style": {
-        "fill": "#ffffff",
-        "stroke": "#000000",
-        "strokeWidth": 2,
-        "fontSize": 14,
-        "fontFamily": "Arial"
-      }
+      "fill": "#ffffff",
+      "stroke": "#000000",
+      "strokeWidth": 1,
+      "pivotX": 0,
+      "pivotY": 0,
+      "opacity": 1,
+      "visible": true,
+      "zIndex": 1,
+      "groupId": "optional-group-id",
+      "isAnimationPath": false,
+      // Optional shape-specific fields
+      "cornerRadius": 0,
+      "rotation": 0,
+      "lineOptions": { "points": { "start": {"x":0,"y":0}, "end": {"x":100,"y":0} }, "arrow": false, "dotted": false },
+      "pathPoints": [ { "x": 0, "y": 0 }, { "x": 100, "y": 0 } ],
+      // Text-specific (when type === "text")
+      "text": "",
+      "fontSize": 16,
+      "fontFamily": "Inter",
+      // Animations attached to this element
+      "animations": [
+        {
+          "id": "string",
+          "displayName": "move-1",
+          "type": "move|rotate|scale|fade|color|path|typewriter|textScale|physics",
+          "startTime": 0,
+          "duration": 1,
+          "properties": { "x": 0, "y": 0 },
+          "easing": "power1.inOut",
+          "repeat": 0,
+          "repeatDelay": 0,
+          "yoyo": false
+        }
+      ]
     }
   ],
-  "connections": [
+  "groups": [
     {
-      "id": "connection-id",
-      "from": "element-id-1",
-      "to": "element-id-2",
-      "type": "line|arrow",
-      "style": {
-        "stroke": "#000000",
-        "strokeWidth": 2
-      }
+      "id": "string",
+      "name": "string",
+      "elementIds": ["element-id"],
+      "x": 0,
+      "y": 0,
+      "rotation": 0,
+      "visible": true,
+      "opacity": 1,
+      "type": "text|custom|polygon",
+      "isDefaultGroup": false,
+      "isAnimationPath": false,
+      "animations": [ /* same animation schema as elements */ ]
     }
   ],
-  "metadata": {
-    "title": "Diagram title",
-    "description": "Diagram description"
+  "timeline": {
+    "scale": 1,
+    "duration": 2,
+    "currentTime": 0,
+    "animationStates": {
+      "<animation-id>": {
+        "baseDuration": 2,
+        "effectiveDuration": 2,
+        "effectiveEndTime": 2,
+        "repeat": 0,
+        "repeatDelay": 0,
+        "yoyo": false
+      }
+    }
   }
 }
 
-Guidelines:
-- Use meaningful IDs for elements
-- Position elements logically with appropriate spacing
-- Use consistent styling
-- Include descriptive text for elements
-- Create logical connections between related elements`;
+Rules:
+- Return only JSON (no markdown, no prose).
+- Follow the field names and types exactly. Do not include unknown fields like connections or metadata.
+- Use valid color strings (e.g., "#RRGGBB").
+- Canvas dimensions are Full HD: width 1920, height 1080. The logical origin (0,0) is the center of the canvas; place elements relative to the center unless the prompt implies a layout.
+- Prefer simple coordinates centered around (0,0) unless the prompt implies otherwise.`;
 
     if (projectFeatures) {
       if (projectFeatures.attachments?.enabled) {
-        systemPrompt += '\n- You can reference attachments in your design';
+        systemPrompt += '\n- Attachments may inform element or text content, but do not add attachment objects.';
       }
       if (projectFeatures.audio?.enabled) {
-        systemPrompt += '\n- Audio elements can be included';
+        systemPrompt += '\n- Ignore audio generation; mainState has no audio objects.';
       }
       if (projectFeatures.music?.enabled) {
-        systemPrompt += '\n- Music elements can be included';
+        systemPrompt += '\n- Ignore music generation; mainState has no music objects.';
       }
       if (projectFeatures.webSearch?.enabled) {
-        systemPrompt += '\n- You can incorporate real-time information from web search';
+        systemPrompt += '\n- You may use web knowledge for layout ideas, but output remains strictly the mainState JSON.';
       }
     }
 
     return systemPrompt;
   }
 
-  private parseCanvasResponse(content: string): any {
+  private parseMainStateResponse(content: string): any {
     try {
       const parsed = JSON.parse(content);
-      
+
+      // Allow either direct mainState object or wrapper { mainState }
+      const mainStateCandidate = parsed.mainState ?? parsed;
+
       // Validate basic structure
-      if (!parsed.elements || !Array.isArray(parsed.elements)) {
-        throw new Error('Invalid canvas response: missing or invalid elements array');
+      if (!mainStateCandidate.elements || !Array.isArray(mainStateCandidate.elements)) {
+        throw new Error('Invalid mainState: missing or invalid elements array');
       }
 
       // Validate each element has required fields
-      for (const element of parsed.elements) {
+      for (const element of mainStateCandidate.elements) {
         if (!element.id || !element.type || typeof element.x !== 'number' || typeof element.y !== 'number') {
-          throw new Error('Invalid canvas element: missing required fields');
+          throw new Error('Invalid element: missing required fields');
+        }
+        if (!('animations' in element)) {
+          element.animations = [];
         }
       }
 
-      return parsed;
+      // Ensure groups and timeline exist
+      if (!Array.isArray(mainStateCandidate.groups)) {
+        mainStateCandidate.groups = [];
+      }
+      if (!mainStateCandidate.timeline || typeof mainStateCandidate.timeline !== 'object') {
+        mainStateCandidate.timeline = {
+          scale: 1,
+          duration: 0,
+          currentTime: 0,
+          animationStates: {},
+        };
+      }
+
+      return mainStateCandidate;
     } catch (error) {
       if (error instanceof SyntaxError) {
         throw new Error('Invalid JSON response from OpenAI');
