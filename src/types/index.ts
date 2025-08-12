@@ -50,7 +50,7 @@ export interface JWTPayload {
   id?: string; // Alternative user ID field
   userId?: string; // Legacy user ID field
   email: string;
-  name?: string;
+  name: string;
   iat: number;
   exp: number;
 }

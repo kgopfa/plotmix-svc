@@ -41,7 +41,7 @@ export class AuthService {
     });
 
     // Generate token
-    const token = this.generateNextAuthToken(user);
+    const token = this.generateNextAuthToken({ id: user.id, email: user.email, name: user.name });
 
     const { password: _, ...userWithoutPassword } = user;
     return { user: userWithoutPassword, token };
@@ -74,7 +74,7 @@ export class AuthService {
     });
 
     // Generate token
-    const token = this.generateNextAuthToken(user);
+    const token = this.generateNextAuthToken({ id: user.id, email: user.email, name: user.name });
 
     const { password: _, ...userWithoutPassword } = user;
     return { user: userWithoutPassword, token };
@@ -101,11 +101,11 @@ export class AuthService {
    * This should match the structure expected by NextAuth.js
    * Uses the NextAuth secret to ensure compatibility with frontend validation
    */
-  static generateNextAuthToken(user: User): string {
+  static generateNextAuthToken(user: { id: string; email: string; name?: string }): string {
     const payload: Omit<JWTPayload, 'iat' | 'exp'> = {
       sub: user.id, // NextAuth uses 'sub' for user ID
       email: user.email,
-      name: user.name,
+      name: user.name ?? '',
     };
 
     return jwt.sign(payload, config.nextAuth.secret, {
@@ -130,11 +130,11 @@ export class AuthService {
    * Generate internal JWT token for backend operations
    * Uses the internal JWT secret for backend-to-backend communication
    */
-  static generateInternalToken(user: User): string {
+  static generateInternalToken(user: { id: string; email: string; name?: string }): string {
     const payload: Omit<JWTPayload, 'iat' | 'exp'> = {
       sub: user.id,
       email: user.email,
-      name: user.name,
+      name: user.name ?? '',
     };
 
     return jwt.sign(payload, config.jwt.secret, {
