@@ -30,6 +30,8 @@
   "dependencies": {
     "@prisma/client": "^6.13.0",
     "@aws-sdk/client-s3": "^3.640.0",
+    "bullmq": "^5.16.0",
+    "ioredis": "^5.4.1",
     "axios-retry": "^4.5.0",
     "bcryptjs": "^2.4.3",
     "compression": "^1.7.4",

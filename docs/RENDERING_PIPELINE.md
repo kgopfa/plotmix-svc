@@ -196,3 +196,29 @@ open "http://localhost:8000/api/render/x/debug-session?projectId=YOUR_PROJECT_ID
 - Replace the local file handoff with an S3 upload step before returning the URL.
 
 
+
+## Asynchronous render kickoff (after project generation)
+
+To reduce perceived wait time, kick off rendering immediately after a project is generated, without blocking the HTTP response.
+
+- **Trigger point**: In `generateProjectConfiguration` (project creation), compute a deterministic R2 key and public URL, persist them on the project, and start a background render job.
+- **Precomputed URL**: Build a stable key such as `renders/{projectId}/{projectId}-{timestamp}.mp4` and precompute the public URL using `R2_PUBLIC_BASE` (or R2 endpoint + bucket). Save both:
+  - `contentVideoUrl`: final public link (string)
+  - `contentVideoStatus`: `pending | ready | failed`
+  - `contentVideoKey` (optional): the storage key used by the renderer
+- **Async execution**: Do not await rendering in the request.
+  - MVP: fire a Promise that calls `POST /api/render/x` with `{ projectId, fps, width, height, key }`.
+  - Recommended: enqueue a job (BullMQ/Redis) to render and upload; update status upon completion.
+- **UI flow**: After the project is created, the UI redirects to the content page immediately.
+  - While `contentVideoStatus = pending`, show a processing state.
+  - Poll either the project API for status or `HEAD` the `contentVideoUrl` until it is available (200).
+- **Renderer behavior**: The renderer must honor a provided `key`; when uploading to R2, use exactly that key so the precomputed URL remains valid.
+- **Failure handling**: On failure, set `contentVideoStatus = failed` and an optional `contentVideoError`. The UI can expose a retry button.
+
+Example pseudo-sequence:
+
+1) Client: POST `/api/projects/generate` with prompt → receives `{ project, contentVideoUrl, contentVideoStatus: 'pending' }`
+2) Server (in controller): compute `key` + `contentVideoUrl`, persist, and `enqueue(renderJob)` (fire-and-forget)
+3) UI redirects to content page and shows a loading indicator
+4) Worker: runs renderX, uploads to R2 at `key`, updates project `contentVideoStatus` → `ready`
+5) UI polling detects ready; player switches to `contentVideoUrl`

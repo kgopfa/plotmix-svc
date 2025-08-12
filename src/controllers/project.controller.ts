@@ -4,6 +4,8 @@ import { ContentGenService } from '../services/content-gen.service';
 import { logger } from '../utils/logger';
 import { config } from '../config';
 import { AuthenticatedRequest, CreateProjectWithConversationRequest, ProjectConfigurationResponse, BatchDeleteRequest } from '../types';
+import { enqueueRenderJob } from '../services/render-queue.service';
+import { buildRenderObjectKey } from '../services/render-storage.service';
 
 export class ProjectController {
   static async createProject(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -65,6 +67,56 @@ export class ProjectController {
       }
 
       const result: ProjectConfigurationResponse = await ContentGenService.generateProjectConfiguration(req.user.userId, data);
+
+      // Precompute render key and URL (using existing helper: same key format as renderer)
+      try {
+        const key = buildRenderObjectKey(result.project.id);
+        const publicBase = process.env['R2_PUBLIC_BASE'] || process.env['R2_PUBLIC_ENDPOINT'] || process.env['R2_ENDPOINT'];
+        if (!publicBase) {
+          throw new Error('Missing required environment variable for public render URL: set R2_PUBLIC_BASE or R2_ENDPOINT');
+        }
+        let url: string | undefined;
+        if (publicBase) {
+          const bucket = (process.env['R2_BUCKET'] || '').replace(/^\/+|\/+$/g, '');
+          const base = String(publicBase).replace(/\/$/, '');
+          try {
+            const u = new URL(base);
+            const isR2Public = /\.r2\.dev$/i.test(u.hostname);
+            const firstSeg = u.pathname.split('/').filter(Boolean)[0];
+            if (isR2Public && firstSeg !== bucket && bucket) {
+              url = `${base}/${bucket}/${key}`;
+            } else {
+              url = `${base}/${key}`;
+            }
+          } catch {
+            url = `${base}/${key}`;
+          }
+        }
+
+        // Update project with pending status and URL if we could compute it
+        await ProjectService.updateProject(result.project.id, req.user.userId, {
+          contentVideoKey: key,
+          contentVideoUrl: url,
+          contentVideoStatus: 'pending',
+        } as any);
+
+        // Enqueue async render (fire-and-forget)
+        void enqueueRenderJob({
+          projectId: result.project.id,
+          fps: 30,
+          width: 1280,
+          height: 720,
+          key,
+        });
+      } catch (err) {
+        logger.error('Failed to enqueue render job', { err });
+        // If we cannot enqueue or compute a public URL, ensure project reflects failure state
+        try {
+          await ProjectService.updateProject(result.project.id, req.user.userId, {
+            contentVideoStatus: 'failed',
+          } as any);
+        } catch {}
+      }
 
       res.status(201).json({
         success: true,

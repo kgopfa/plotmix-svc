@@ -43,7 +43,18 @@ model Project {
   owner         User            @relation("ProjectOwner", fields: [userId], references: [id], onDelete: Cascade)
   snapshots     Snapshot[]
 
+  // Render pipeline fields
+  contentVideoUrl   String?
+  contentVideoKey   String?
+  contentVideoStatus ContentVideoStatus @default(pending)
+
   @@map("projects")
+}
+
+enum ContentVideoStatus {
+  pending
+  ready
+  failed
 }
 
 model Conversation {

@@ -10,7 +10,7 @@ import { logger } from '../utils/logger';
 
 export class RenderController {
   static async renderX(req: Request, res: Response): Promise<void> {
-    const { projectId, fps = 30, width = 1280, height = 720 } = req.body || {};
+    const { projectId, fps = 30, width = 1280, height = 720, key: providedKey } = req.body || {} as any;
     if (!projectId) {
       res.status(400).json({ error: 'projectId required' });
       return;
@@ -44,7 +44,8 @@ export class RenderController {
       await page.setExtraHTTPHeaders({ 'x-render-auth': token });
       await page.setViewport({ width, height, deviceScaleFactor: 1 });
 
-      const uiBase = process.env['UI_BASE_URL'] || 'http://localhost:3000';
+      const uiBase = process.env['UI_BASE_URL'];
+      if (!uiBase) throw new Error('Missing required environment variable: UI_BASE_URL');
       const url = `${uiBase}/renderx/${projectId}?fps=${fps}&width=${width}&height=${height}&token=${encodeURIComponent(token)}`;
       logger.info('[renderx] Navigating to', url);
       await page.goto(url, { waitUntil: 'networkidle2', timeout: 120000 });
@@ -95,28 +96,35 @@ export class RenderController {
       await browser.close();
 
       let finalUrl: string;
-      const useR2 = !!(process.env['R2_BUCKET'] && (process.env['R2_ENDPOINT'] || process.env['R2_ACCOUNT_ID']))
+      const hasR2 = !!(process.env['R2_BUCKET'] && (process.env['R2_ENDPOINT'] || process.env['R2_ACCOUNT_ID']))
         && !!process.env['R2_ACCESS_KEY_ID'] && !!process.env['R2_SECRET_ACCESS_KEY'];
-      if (useR2) {
+      if (hasR2) {
         try {
           const client = createR2Client();
           const bucket = process.env['R2_BUCKET'] as string;
-          const key = buildRenderObjectKey(projectId);
+          const key = typeof providedKey === 'string' && providedKey ? providedKey : buildRenderObjectKey(projectId);
           const cfg: { bucket: string; publicBase?: string; prefix?: string } = { bucket };
           if (process.env['R2_PUBLIC_BASE']) cfg.publicBase = process.env['R2_PUBLIC_BASE'] as string;
           if (process.env['R2_PREFIX']) cfg.prefix = process.env['R2_PREFIX'] as string;
           finalUrl = await uploadFileToR2(client, outPath, key, cfg);
           try { fs.unlinkSync(outPath); } catch {}
+          // Update project status to ready
+          try {
+            const { prisma } = await import('../clients/database.client');
+            await prisma.project.update({ where: { id: projectId }, data: { contentVideoStatus: 'ready', contentVideoUrl: finalUrl } as any });
+          } catch (e) { logger.error('Failed to update project status to ready', e); }
         } catch (e) {
           logger.error('[renderx] R2 upload failed, falling back to local URL', e);
           const publicBase = process.env['RENDER_PUBLIC_BASE'] || 'http://localhost:8000';
           const urlPath = `/media/${path.basename(outPath)}`;
           finalUrl = `${publicBase}${urlPath}`;
+          try {
+            const { prisma } = await import('../clients/database.client');
+            await prisma.project.update({ where: { id: projectId }, data: { contentVideoStatus: 'failed' } as any });
+          } catch {}
         }
       } else {
-        const publicBase = process.env['RENDER_PUBLIC_BASE'] || 'http://localhost:8000';
-        const urlPath = `/media/${path.basename(outPath)}`;
-        finalUrl = `${publicBase}${urlPath}`;
+        throw new Error('R2 configuration required: R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and either R2_ENDPOINT or R2_ACCOUNT_ID');
       }
       logger.info('[renderx] Completed. URL:', finalUrl);
       res.json({ url: finalUrl });
