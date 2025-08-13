@@ -6,6 +6,7 @@ import type {
   GsapEase,
   CanvasGroup,
 } from '../types/project';
+import { logger } from '../utils/logger';
 
 export interface ValidationResult<T> {
   valid: boolean;
@@ -154,6 +155,10 @@ export function validateElementAnimation(obj: unknown): ValidationResult<Element
   const a = obj as Partial<ElementAnimation>;
 
   if (!a || typeof a !== 'object') {
+    logger.error('Animation validation failed: not an object', {
+      animation: obj,
+      errors: ['Animation must be an object'],
+    });
     return { valid: false, errors: ['Animation must be an object'] };
   }
 
@@ -183,6 +188,13 @@ export function validateElementAnimation(obj: unknown): ValidationResult<Element
     if (!propsResult.valid) errors.push(...propsResult.errors);
   } else {
     errors.push('type is required to validate properties');
+  }
+
+  if (errors.length) {
+    logger.error('Animation failed validation', {
+      animation: a,
+      errors,
+    });
   }
 
   return {

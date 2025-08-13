@@ -225,7 +225,7 @@ Global rules:
         model: client.getConfig().model,
         promptLength: enhancedPrompt.length,
         hasFeatures: !!request.projectFeatures,
-        messages: messages,
+        messagesLength: messages.length,
       });
 
       const response = await sdk.chat.completions.create({

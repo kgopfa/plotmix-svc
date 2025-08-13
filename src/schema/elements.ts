@@ -5,6 +5,7 @@ import type {
   LineOptions,
 } from '../types/project';
 import { validateElementAnimation } from './animations';
+import { logger } from '../utils/logger';
 
 export interface ValidationResult<T> {
   valid: boolean;
@@ -234,9 +235,28 @@ export function validateAnimatedCanvasObject(obj: unknown): ValidationResult<Ani
     for (let i = 0; i < o.animations.length; i++) {
       const res = validateElementAnimation(o.animations[i] as ElementAnimation);
       if (!res.valid) {
+        logger.error('Animation failed validation', {
+          elementId: o.id,
+          animationIndex: i,
+          animation: o.animations[i],
+          errors: res.errors,
+        });
         errors.push(`animations[${i}] invalid: ${res.errors.join('; ')}`);
       }
     }
+  }
+
+  if (errors.length) {
+    logger.error('Element failed validation', {
+      elementId: o.id,
+      name: o.name,
+      type: o.type,
+      x: o.x,
+      y: o.y,
+      width: o.width,
+      height: o.height,
+      errors,
+    });
   }
 
   return { valid: errors.length === 0, errors, value: o as AnimatedCanvasObject };
