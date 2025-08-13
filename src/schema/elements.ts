@@ -80,8 +80,15 @@ function validateCommonElementFields(obj: any): string[] {
 
   if (!isNumber(obj.x)) errors.push('x must be a number');
   if (!isNumber(obj.y)) errors.push('y must be a number');
-  if (!isNumber(obj.width)) errors.push('width must be a number');
-  if (!isNumber(obj.height)) errors.push('height must be a number');
+  // width/height are not semantically required for line/path; default to 0 later
+  const isLineOrPath = obj.type === 'line' || obj.type === 'path';
+  if (!isLineOrPath) {
+    if (!isNumber(obj.width)) errors.push('width must be a number');
+    if (!isNumber(obj.height)) errors.push('height must be a number');
+  } else {
+    if (obj.width !== undefined && !isNumber(obj.width)) errors.push('width must be a number when provided');
+    if (obj.height !== undefined && !isNumber(obj.height)) errors.push('height must be a number when provided');
+  }
 
   if (!isString(obj.fill) || !isColorStringOrNone(obj.fill)) errors.push('fill must be a color string "#RRGGBB"/"#RGB" or "none"');
   if (obj.stroke !== undefined && (!isString(obj.stroke) || !isColorStringOrNone(obj.stroke))) errors.push('stroke must be a color string "#RRGGBB"/"#RGB" or "none"');
@@ -244,6 +251,12 @@ export function validateAnimatedCanvasObject(obj: unknown): ValidationResult<Ani
         errors.push(`animations[${i}] invalid: ${res.errors.join('; ')}`);
       }
     }
+  }
+
+  // Defaults for line/path: ensure width/height exist as numbers
+  if (o.type === 'line' || o.type === 'path') {
+    if (!isNumber(o.width)) o.width = 0;
+    if (!isNumber(o.height)) o.height = 0;
   }
 
   if (errors.length) {

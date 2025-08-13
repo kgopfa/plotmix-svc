@@ -47,8 +47,8 @@ AnimatedCanvasObject (element):
 - type: "rectangle" | "circle" | "triangle" | "arc" | "line" | "path" | "image" | "text"
 - x: number
 - y: number
-- width: number
-- height: number
+- width: number // for type "line" and "path" you may set 0 or omit; backend defaults to 0
+- height: number // for type "line" and "path" you may set 0 or omit; backend defaults to 0
 - fill: string (hex color "#RRGGBB" or "#RGB" or "none")
 - stroke?: string (hex color "#RRGGBB" or "#RGB" or "none")
 - strokeWidth?: number
@@ -185,8 +185,8 @@ Global rules:
   - Shadows: shadowColor must be hex if provided; other shadow fields are numeric.
   - Text stroke: textStroke must be hex if provided; set textStrokeWidth to 0 (or omit) to disable.
   - Gradients: for textGradient.colors, each color must be hex.
-- For "line", include lineOptions.points.start and .end; include controlPoint for curves; arrow/dotted booleans allowed.
-- For "path" elements, include pathPoints with at least 2 points.
+- For "line", include lineOptions.points.start and .end; include controlPoint for curves; arrow/dotted booleans allowed. Width/height are not used for rendering lines.
+- For "path" elements, include pathPoints with at least 2 points. Width/height are not used for rendering paths.
  - Each element MUST include "animations" (can be []). If you add animations, include both id and displayName as defined above.
  - Do NOT include unknown fields.
   - Return ONLY the JSON object with shape: { "name": string, "title": string, "description": string, "mainState": { "elements": [...], "groups": [...], "timeline": {...} } }.`;
