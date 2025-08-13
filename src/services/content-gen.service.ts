@@ -74,11 +74,6 @@ export class ContentGenService {
         projectFeatures: data.features || this.getDefaultFeatures(),
       };
 
-      logger.info('Sending request to OpenAI', {
-        promptLength: mainStateRequest.prompt?.length || 0,
-        hasFeatures: !!mainStateRequest.projectFeatures,
-      });
-
       const openAIResponse = await OpenAIGenerationService.generateMainState(mainStateRequest);
 
       // If OpenAI processing fails, throw an error - don't create project
@@ -120,8 +115,8 @@ export class ContentGenService {
     try {
       const { ProjectService } = await import('./project.service');
 
-      const projectName = data.name || 'New Project';
-      const projectTitle = data.title;
+      const projectName = data.name || openAIResponse.name || 'New Project';
+      const projectTitle = data.title ?? openAIResponse.title;
       const projectDescription = `Project created from prompt: ${data.prompt.substring(0, 100)}...`;
 
       // Validate and normalize mainState using schema helpers

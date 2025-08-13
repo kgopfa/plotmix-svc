@@ -36,6 +36,17 @@ function isPoint(v: any): v is { x: number; y: number } {
   return v && isNumber(v.x) && isNumber(v.y);
 }
 
+function isHexColorString(v: unknown): boolean {
+  if (typeof v !== 'string') return false;
+  // Allow #RRGGBB or #RGB
+  return /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(v);
+}
+
+function isColorStringOrNone(v: unknown): boolean {
+  if (v === 'none') return true;
+  return isHexColorString(v);
+}
+
 // -------------------------
 // Common validators
 // -------------------------
@@ -71,8 +82,8 @@ function validateCommonElementFields(obj: any): string[] {
   if (!isNumber(obj.width)) errors.push('width must be a number');
   if (!isNumber(obj.height)) errors.push('height must be a number');
 
-  if (!isString(obj.fill)) errors.push('fill must be a string');
-  if (obj.stroke !== undefined && !isString(obj.stroke)) errors.push('stroke must be a string');
+  if (!isString(obj.fill) || !isColorStringOrNone(obj.fill)) errors.push('fill must be a color string "#RRGGBB"/"#RGB" or "none"');
+  if (obj.stroke !== undefined && (!isString(obj.stroke) || !isColorStringOrNone(obj.stroke))) errors.push('stroke must be a color string "#RRGGBB"/"#RGB" or "none"');
   if (obj.strokeWidth !== undefined && !isNumber(obj.strokeWidth)) errors.push('strokeWidth must be a number');
 
   if (obj.opacity !== undefined && !isNumber(obj.opacity)) errors.push('opacity must be a number');
@@ -87,7 +98,7 @@ function validateCommonElementFields(obj: any): string[] {
 
   // Shadow
   if (obj.shadowEnabled !== undefined && !isBoolean(obj.shadowEnabled)) errors.push('shadowEnabled must be a boolean');
-  if (obj.shadowColor !== undefined && !isString(obj.shadowColor)) errors.push('shadowColor must be a string');
+  if (obj.shadowColor !== undefined && (!isString(obj.shadowColor) || !isHexColorString(obj.shadowColor))) errors.push('shadowColor must be a hex color string');
   if (obj.shadowBlur !== undefined && !isNonNegativeNumber(obj.shadowBlur)) errors.push('shadowBlur must be a non-negative number');
   if (obj.shadowOffsetX !== undefined && !isNumber(obj.shadowOffsetX)) errors.push('shadowOffsetX must be a number');
   if (obj.shadowOffsetY !== undefined && !isNumber(obj.shadowOffsetY)) errors.push('shadowOffsetY must be a number');
@@ -159,8 +170,16 @@ function validateText(obj: any): string[] {
   if (obj.lineHeight !== undefined && !isNumber(obj.lineHeight)) errors.push('lineHeight must be a number');
   if (obj.wordWrap !== undefined && !isBoolean(obj.wordWrap)) errors.push('wordWrap must be a boolean');
   if (obj.wordWrapWidth !== undefined && !isNumber(obj.wordWrapWidth)) errors.push('wordWrapWidth must be a number');
+  if (obj.textStroke !== undefined && (!isString(obj.textStroke) || !isHexColorString(obj.textStroke))) errors.push('textStroke must be a hex color string');
   if (obj.textStrokeWidth !== undefined && !isNumber(obj.textStrokeWidth)) errors.push('textStrokeWidth must be a number');
   if (obj.textStrokeJoin !== undefined && !isString(obj.textStrokeJoin)) errors.push('textStrokeJoin must be a string');
+  if (obj.textDropShadow?.color !== undefined && !isHexColorString(obj.textDropShadow.color)) errors.push('textDropShadow.color must be a hex color string');
+  if (obj.textGradient?.colors !== undefined) {
+    const colors = obj.textGradient.colors as any[];
+    if (!Array.isArray(colors) || !colors.every(c => c && isHexColorString(c.color) && isNumber(c.offset))) {
+      errors.push('textGradient.colors must be an array of { color: "#RRGGBB", offset: number }');
+    }
+  }
   return errors;
 }
 

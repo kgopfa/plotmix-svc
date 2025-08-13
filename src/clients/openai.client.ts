@@ -25,6 +25,8 @@ export interface MainStateGenerationResponse {
   mainState?: any;
   message?: string;
   error?: string;
+  name?: string;
+  title?: string;
 }
 
 export class OpenAIClient {
