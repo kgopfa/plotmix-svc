@@ -1,6 +1,5 @@
 import { prisma } from '../clients/database.client';
 import { logger } from '../utils/logger';
-import { config } from '../config';
 import {
   Project,
   CreateProjectRequest,
@@ -230,6 +229,10 @@ export class ProjectService {
     // Check if user has edit access
     const hasEditAccess = await this.userHasEditAccess(projectId, userId);
     if (!hasEditAccess) {
+      logger.error('User does not have edit access', {
+        projectId,
+        userId,
+      });
       return null;
     }
 
@@ -238,8 +241,17 @@ export class ProjectService {
     });
 
     if (!project) {
+      logger.error('Project not found', {
+        projectId,
+        userId,
+      });
       return null;
     }
+
+    logger.info('Project state changes', {
+      projectId,
+      changeData,
+    });
 
     const diffPatcher = new DiffPatcher();
 
@@ -251,6 +263,9 @@ export class ProjectService {
     // Pre-initialize common containers expected by the diff
     if (safeDiff?.elements && safeDiff.elements._t === 'a' && !Array.isArray(baseState.elements)) {
       baseState.elements = [];
+    }
+    if (safeDiff?.groups && safeDiff.groups._t === 'a' && !Array.isArray(baseState.groups)) {
+      baseState.groups = [];
     }
     if (safeDiff?.timeline && (typeof baseState.timeline !== 'object' || baseState.timeline === null)) {
       baseState.timeline = {};
@@ -267,12 +282,21 @@ export class ProjectService {
       newState = diffPatcher.patch(baseState, safeDiff);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
+      logger.error('Diff patch failed', {
+        error: errMsg,
+        projectId,
+        userId,
+        changeData,
+      });
       // jsondiffpatch uses Array#splice for array patches. If the target path is undefined,
       // patching may throw "Cannot read properties of undefined (reading 'splice')".
       if (errMsg && errMsg.toLowerCase().includes('splice')) {
         // Initialize common containers if the diff indicates array/object patches
         if (safeDiff?.elements && safeDiff.elements._t === 'a' && !Array.isArray(baseState.elements)) {
           baseState.elements = [];
+        }
+        if (safeDiff?.groups && safeDiff.groups._t === 'a' && !Array.isArray(baseState.groups)) {
+          baseState.groups = [];
         }
         if (safeDiff?.timeline && (typeof baseState.timeline !== 'object' || baseState.timeline === null)) {
           baseState.timeline = {};
@@ -299,21 +323,6 @@ export class ProjectService {
         throw err;
       }
     }
-
-    try {
-      // Log full pre/post project state (sanitized) and diff only in non-production
-      if (config.nodeEnv !== 'production') {
-        const safeBefore = JSON.parse(JSON.stringify(currentState));
-        const safeAfter = JSON.parse(JSON.stringify(newState));
-        logger.info('ApplyChange full log', {
-          projectId,
-          userId,
-          diff: safeDiff,
-          before: safeBefore,
-          after: safeAfter,
-        });
-      }
-    } catch {}
 
     // Compute new version (bump patch)
     const bump = (v: string | null): string => {
