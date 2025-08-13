@@ -127,13 +127,12 @@ function validateRectangle(obj: any): string[] {
 
 function validateCircle(obj: any): string[] {
   const errors: string[] = [];
-  if (obj.radius === undefined || !isNumber(obj.radius)) errors.push('radius must be a number for circle');
+  if (obj.radius !== undefined && !isNumber(obj.radius)) errors.push('radius must be a number for circle');
   return errors;
 }
 
-function validateTriangle(obj: any): string[] {
+function validateTriangle(_obj: any): string[] {
   const errors: string[] = [];
-  if (obj.radius === undefined || !isNumber(obj.radius)) errors.push('radius must be a number for triangle');
   return errors;
 }
 
