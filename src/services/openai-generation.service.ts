@@ -4,7 +4,7 @@ import { logger } from '../utils/logger';
 
 export class OpenAIGenerationService {
   static buildCanvasPrompt(request: MainStateGenerationRequest): string {
-    let prompt = `Generate a project mainState for our design canvas based on the following request: ${request.prompt}\n\n`;
+    let prompt = `Generate a project mainState for our motion design canvas based on the following request: ${request.prompt}\n\n`;
     if (request.projectFeatures) {
       prompt += 'Available features:\n';
       if (request.projectFeatures.attachments?.enabled) prompt += '- Attachments: enabled\n';
@@ -12,17 +12,20 @@ export class OpenAIGenerationService {
       if (request.projectFeatures.music?.enabled) prompt += '- Music: enabled\n';
       if (request.projectFeatures.webSearch?.enabled) prompt += '- Web search: enabled\n';
     }
-    prompt += '\nRespond ONLY with a valid JSON object with keys { "name", "title", "mainState" } (no prose).';
+    prompt += '\nRespond ONLY with a valid JSON object with keys { "name", "title", "description", "mainState" } (no prose).';
     return prompt;
   }
 
   static getCanvasSystemPrompt(projectFeatures?: any): string {
-    let systemPrompt = `You generate JSON for a design canvas mainState used by a renderer built on PixiJS and GSAP timelines. Output must be a SINGLE JSON object with EXACTLY these top-level keys at the root: "name", "title", "mainState". Do NOT include any other top-level keys. Do NOT include prose or markdown.
+    let systemPrompt = `You design animated explainer scenes for a 2D canvas product (think Canva/Adobe Express, but for motion). The engine is PixiJS (graphics/sprites) with GSAP timelines for animation. Your goal is to communicate concepts clearly using layout, typography, color, and tasteful motion.
+
+Output must be a SINGLE JSON object with EXACTLY these top-level keys at the root: "name", "title", "description", "mainState". Do NOT include any other top-level keys. Do NOT include prose outside this object.
 
 Root object:
 {
   "name": string, // project internal name (short, slug-friendly)
   "title": string, // human-friendly display title
+  "description": string, // plain-language explanation of the scene: describe entities and connections only (not visual styles). For example: "Messages flow from client devices to servers through a load balancer; servers publish events into a streaming system; processors aggregate counts; a dashboard queries results." Keep it concise and clear but abstract to avoid introducing any biases.
   "mainState": { "elements": [...], "groups": [...], "timeline": {...} }
 }
 
@@ -101,8 +104,22 @@ AnimatedCanvasObject (element):
 - isAnimationPath?: boolean
 - animations: ElementAnimation[] // can be empty
 
+Narrative and motion guidance:
+- Compose a clear, balanced layout that reads left-to-right, top-to-bottom.
+- Use text elements for headings, callouts, and concise bullet points. Prefer short lines; set wordWrap and width to keep text readable.
+- Emphasize important objects with subtle animations (e.g., scale 1.0→1.15, fade-in, gentle rotate, or move) to draw attention without causing distraction.
+- Time animations to the scene: stagger related items by 0.05–0.2s; typical durations 0.5–1.2s. Use yoyo sparingly (e.g., two cycles to pulse).
+- Group related elements (type 'custom' or 'polygon' for connected lines) and optionally apply coordinated group animations (e.g., slight move-in or fade-in with stagger).
+- Use curved lines (isCurved: true) with controlPoint for flows; add arrow: true for direction.
+- You may stage elements off-screen then animate them into view, but ensure final positions fit the visible area.
+
+Description guidance:
+- Provide a short description that explains "what is happening" conceptually using generic entity labels and verbs (e.g., "clients send requests to servers", "events stream into a broker", "processors compute aggregates").
+- Avoid visual terms (colors, sizes, fonts) and avoid proper names/brands; focus on relationships and flow.
+
 ElementAnimation:
-- DO NOT include "id" or "displayName" (backend assigns these).
+- id: string (non-empty; can be any unique string like '<type>-<timestamp>')
+- displayName: string (must follow UI convention per element: '<type>-<n>', where n increments per type on that element, e.g., move-1, move-2)
 - type: "move" | "rotate" | "scale" | "fade" | "color" | "path" | "typewriter" | "textScale" | "physics"
 - startTime: number (>= 0)
 - duration: number (> 0)
@@ -170,9 +187,9 @@ Global rules:
   - Gradients: for textGradient.colors, each color must be hex.
 - For "line", include lineOptions.points.start and .end; include controlPoint for curves; arrow/dotted booleans allowed.
 - For "path" elements, include pathPoints with at least 2 points.
-- Each element MUST include "animations" (can be []).
-- Do NOT include animation ids or displayNames. Do NOT include unknown fields.
- - Return ONLY the JSON object with shape: { "name": string, "title": string, "mainState": { "elements": [...], "groups": [...], "timeline": {...} } }.`;
+ - Each element MUST include "animations" (can be []). If you add animations, include both id and displayName as defined above.
+ - Do NOT include unknown fields.
+  - Return ONLY the JSON object with shape: { "name": string, "title": string, "description": string, "mainState": { "elements": [...], "groups": [...], "timeline": {...} } }.`;
 
     if (projectFeatures) {
       if (projectFeatures.attachments?.enabled) {
@@ -206,7 +223,6 @@ Global rules:
 
       logger.info('Sending request to OpenAI', {
         model: client.getConfig().model,
-        prompt: enhancedPrompt,
         promptLength: enhancedPrompt.length,
         hasFeatures: !!request.projectFeatures,
         messages: messages,
@@ -224,7 +240,7 @@ Global rules:
       }
 
       const parsed = JSON.parse(content);
-      const root = parsed.mainState ? parsed : { name: parsed.name, title: parsed.title, mainState: parsed };
+      const root = parsed.mainState ? parsed : { name: parsed.name, title: parsed.title, description: parsed.description, mainState: parsed };
       const mainState = root.mainState;
 
       try {
@@ -242,7 +258,7 @@ Global rules:
         usage: response.usage,
       });
 
-      return { success: true, mainState, name: root.name, title: root.title };
+      return { success: true, mainState, name: root.name, title: root.title, description: root.description };
     } catch (error) {
       logger.error('Error generating canvas data', {
         error: error instanceof Error ? error.message : 'Unknown error',

@@ -28,6 +28,8 @@ export class ContentGenService {
     try {
       const openAIResponse = await this.processPromptWithOpenAI(data);
 
+      openAIResponse.mainState = this.normalizeAndValidateMainState(openAIResponse.mainState);
+
       const project = await this.createProjectFromGeneratedResponse(userId, data, openAIResponse);
 
       const conversationId = await this.createConversationForProject(userId, data, project.id, openAIResponse);
@@ -107,7 +109,7 @@ export class ContentGenService {
     data: CreateProjectWithConversationRequest,
     openAIResponse: any
   ) {
-    logger.info('Creating project with generated configuration', {
+    logger.info('Creating project from validated project configuration', {
       userId,
       hasMainState: !!openAIResponse.mainState,
     });
@@ -117,41 +119,10 @@ export class ContentGenService {
 
       const projectName = data.name || openAIResponse.name || 'New Project';
       const projectTitle = data.title ?? openAIResponse.title;
-      const projectDescription = `Project created from prompt: ${data.prompt.substring(0, 100)}...`;
+      const projectDescription = openAIResponse.description || `${data.prompt.substring(0, 100)}...`;
 
-      // Validate and normalize mainState using schema helpers
-      let normalizedMainState = openAIResponse.mainState || { createdAt: new Date().toISOString() };
-      try {
-        // Validate elements
-        const elemRes = validateElementsArray(normalizedMainState.elements);
-        if (!elemRes.valid || !elemRes.value) {
-          throw new Error(`Invalid elements: ${elemRes.errors.join('; ')}`);
-        }
-
-        // Groups may exist; ensure structure minimally
-        const groups = Array.isArray(normalizedMainState.groups) ? normalizedMainState.groups : [];
-
-        // Assign animation ids and display names consistently with UI
-        const assigned = assignAnimationIdentifiers(elemRes.value, groups, { recomputeDisplayNames: true });
-
-        normalizedMainState = {
-          ...normalizedMainState,
-          elements: assigned.elements,
-          groups: assigned.groups,
-          timeline: {
-            scale: normalizedMainState.timeline?.scale ?? 1,
-            duration: normalizedMainState.timeline?.duration ?? 0,
-            currentTime: normalizedMainState.timeline?.currentTime ?? 0,
-            animationStates: {},
-          },
-        };
-      } catch (schemaError) {
-        // Log validation issues and rethrow to stop project creation
-        logger.error('MainState validation failed', {
-          error: schemaError instanceof Error ? schemaError.message : String(schemaError),
-        });
-        throw schemaError;
-      }
+      // Use normalized mainState (already validated earlier)
+      const normalizedMainState = openAIResponse.mainState || { createdAt: new Date().toISOString() };
 
       const payload: CreateProjectRequest = {
         name: projectName,
@@ -184,6 +155,43 @@ export class ContentGenService {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
         hasMainState: !!openAIResponse.mainState,
+      });
+      throw error;
+    }
+  }
+
+  // Centralized schema validation + normalization
+  private static normalizeAndValidateMainState(raw: any) {
+    logger.info('Validating and normalizing openAI mainState response', {
+      raw,
+    });
+
+    try {
+      const source = raw || {};
+      const elementsInput = Array.isArray(source.elements) ? source.elements : [];
+
+      const elemRes = validateElementsArray(elementsInput);
+      if (!elemRes.valid || !elemRes.value) {
+        throw new Error(`Invalid elements: ${elemRes.errors.join('; ')}`);
+      }
+
+      const groupsInput = Array.isArray(source.groups) ? source.groups : [];
+
+      const assigned = assignAnimationIdentifiers(elemRes.value, groupsInput, { recomputeDisplayNames: true });
+
+      return {
+        elements: assigned.elements,
+        groups: assigned.groups,
+        timeline: {
+          scale: source.timeline?.scale ?? 1,
+          duration: source.timeline?.duration ?? 0,
+          currentTime: source.timeline?.currentTime ?? 0,
+          animationStates: {},
+        },
+      };
+    } catch (error) {
+      logger.error('normalizeAndValidateMainState failed', {
+        error: error instanceof Error ? error.message : String(error),
       });
       throw error;
     }
