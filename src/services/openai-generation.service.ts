@@ -234,6 +234,7 @@ Global rules:
   static async generateMainState(request: MainStateGenerationRequest): Promise<MainStateGenerationResponse> {
     const client = OpenAIClient.getInstance();
     const sdk = client.getSdk();
+    const { model, provider } = client.getConfig();
 
     try {
       const enhancedPrompt = this.buildCanvasPrompt(request);
@@ -243,22 +244,23 @@ Global rules:
         { role: 'user' as const, content: enhancedPrompt }
       ];
 
-      logger.info('Sending request to OpenAI', {
-        model: client.getConfig().model,
+      logger.info('Sending request to LLM provider', {
+        provider,
+        model,
         promptLength: enhancedPrompt.length,
         hasFeatures: !!request.projectFeatures,
         messagesLength: messages.length,
       });
 
       const response = await sdk.chat.completions.create({
-        model: client.getConfig().model,
+        model,
         messages,
         response_format: { type: 'json_object' },
       });
 
       const content = response.choices[0]?.message?.content;
       if (!content) {
-        throw new Error('No response content received from OpenAI');
+        throw new Error('No response content received from LLM provider');
       }
 
       const parsed = JSON.parse(content);
@@ -266,7 +268,7 @@ Global rules:
       const mainState = root.mainState;
 
       try {
-        logger.info('OpenAI mainState received', {
+        logger.info('LLM mainState received', {
           elementsCount: Array.isArray(mainState?.elements) ? mainState.elements.length : 0,
           groupsCount: Array.isArray(mainState?.groups) ? mainState.groups.length : 0,
           timelineKeys: mainState?.timeline ? Object.keys(mainState.timeline?.animationStates || {}).length : 0,
@@ -274,7 +276,8 @@ Global rules:
       } catch {}
 
       logger.info('Canvas data generated successfully', {
-        model: client.getConfig().model,
+        provider,
+        model,
         promptLength: request.prompt.length,
         canvasElements: mainState?.elements?.length || 0,
         usage: response.usage,

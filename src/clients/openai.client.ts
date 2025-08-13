@@ -4,6 +4,8 @@ import OpenAI from 'openai';
 export interface OpenAIConfig {
   apiKey: string;
   model: string;
+  provider: 'openai' | 'anthropic';
+  baseURL?: string;
 }
 
 export interface MainStateGenerationRequest {
@@ -39,8 +41,18 @@ export class OpenAIClient {
     this.config = this.loadConfig();
     
     // Create OpenAI client (will be mocked in tests)
+    const isAnthropic = this.config.provider === 'anthropic';
+    const defaultHeaders = isAnthropic
+      ? {
+          'x-api-key': this.config.apiKey,
+          'anthropic-version': process.env['ANTHROPIC_VERSION'] || '2023-06-01',
+        }
+      : undefined;
+
     this.client = new OpenAI({
       apiKey: this.config.apiKey,
+      baseURL: this.config.baseURL,
+      defaultHeaders,
     });
   }
 
@@ -52,19 +64,37 @@ export class OpenAIClient {
   }
 
   private loadConfig(): OpenAIConfig {
+    const provider = (process.env['LLM_PROVIDER'] as 'openai' | 'anthropic') || 'openai';
+
+    if (provider === 'anthropic') {
+      const apiKey = process.env['ANTHROPIC_API_KEY'];
+      if (!apiKey) {
+        throw new Error('ANTHROPIC_API_KEY environment variable is required when LLM_PROVIDER=anthropic');
+      }
+      const model = process.env['ANTHROPIC_MODEL'];
+      if (!model) {
+        throw new Error('ANTHROPIC_MODEL environment variable is required when LLM_PROVIDER=anthropic');
+      }
+      return {
+        apiKey,
+        model,
+        provider,
+        baseURL: process.env['ANTHROPIC_BASE_URL'] || 'https://api.anthropic.com/v1/',
+      };
+    }
+
     const apiKey = process.env['OPENAI_API_KEY'];
     if (!apiKey) {
       throw new Error('OPENAI_API_KEY environment variable is required');
     }
-
     const model = process.env['OPENAI_MODEL'];
     if (!model) {
       throw new Error('OPENAI_MODEL environment variable is required');
     }
-
     return {
       apiKey,
       model,
+      provider,
     };
   }
 
