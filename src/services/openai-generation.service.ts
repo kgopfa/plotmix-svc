@@ -1,4 +1,4 @@
-import { OpenAIClient } from '../clients/openai.client';
+import { OpenAIClient, LlmJsonParseError } from '../clients/openai.client';
 import { logger } from '../utils/logger';
 import { validateElementsArray } from '../schema/elements';
 import { validateAnimationArrayWithNaming } from '../schema/animations';
@@ -10,14 +10,14 @@ export class OpenAIGenerationService {
   static getAuthoritativeEngineSpec(): string {
     return ENGINE_SPEC;
   }
-  private static async runWithRetry<T>(fn: () => Promise<T>, attempts = 2): Promise<T> {
+  private static async runWithRetry<T>(stage: string, fn: () => Promise<T>, attempts = 2): Promise<T> {
     let lastErr: unknown;
     for (let i = 0; i < attempts; i++) {
       try {
         return await fn();
       } catch (err) {
         lastErr = err;
-        logger.warn('LLM stage attempt failed, retrying if attempts remain', { attempt: i + 1, attempts, error: err instanceof Error ? err.message : String(err) });
+        logger.warn('LLM stage attempt failed, retrying if attempts remain', { stage, attempt: i + 1, attempts, error: err instanceof Error ? err.message : String(err) });
       }
     }
     throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
@@ -33,9 +33,9 @@ export class OpenAIGenerationService {
   private static async runSpecNormalizer(engineSpec: string) {
     const system = 'You are extracting an actionable checklist from an engine spec.';
     const user = `You are extracting an actionable checklist from the following engine spec. Output JSON with these keys only:\n` +
-      `typesAllowed, topLevelKeys, requiredPerType, colorRules, fontAllowlist, easingAllowlist, timelineRules, lineRules, pathRules, textRules, animationRules, globalCanvas.\n\n` +
+      `typesAllowed, topLevelKeys, requiredPerType, colorRules, fontAllowlist, easingAllowlist, timelineRules, lineRules, pathRules, textRules, animationRules, groupTypeAllowlist, globalCanvas.\n\n` +
       `- Keep strings/enums compact; no explanations.\n- Echo all numeric ranges and exact enums verbatim.\n\n<ENGINE_SPEC>\n${engineSpec}\n</ENGINE_SPEC>`;
-    return await this.runWithRetry(() => this.chatJson([
+    return await this.runWithRetry('SpecNormalizer', () => this.chatJson([
       { role: 'system', content: system },
       { role: 'user', content: user },
     ], { temperature: 0.0 }));
@@ -54,7 +54,7 @@ export class OpenAIGenerationService {
       `Constraints:\n- Numbers should be integers where sensible.\n- Keep narrative/objectPlan/motionPlan short and focused (max 15 items total).\n\n` +
       `<SPEC_FACTS>\n${JSON.stringify(specFacts)}\n</SPEC_FACTS>\n\n` +
       `<USER_BRIEF>\n${userBrief}\n</USER_BRIEF>`;
-    return await this.runWithRetry(() => this.chatJson([
+    return await this.runWithRetry('SceneOutline', () => this.chatJson([
       { role: 'system', content: system },
       { role: 'user', content: user },
     ], { temperature: 0.2 }));
@@ -74,7 +74,7 @@ export class OpenAIGenerationService {
       `Return JSON with exactly { "elements": [...] } and nothing else.\n\n` +
       `<SPEC_FACTS>\n${JSON.stringify(specFacts)}\n</SPEC_FACTS>\n` +
       `<OBJECT_PLAN>\n${JSON.stringify(objectPlan)}\n</OBJECT_PLAN>`;
-    return await this.runWithRetry(() => this.chatJson([
+    return await this.runWithRetry('ElementsMaker', () => this.chatJson([
       { role: 'system', content: system },
       { role: 'user', content: user },
     ], { temperature: 0.0 }));
@@ -89,12 +89,16 @@ export class OpenAIGenerationService {
       `- displayName must be "<type>-<n>" per element (n starts at 1 and increments per type).\n` +
       `- Stagger related items by 0.05–0.2s when helpful.\n` +
       `- timeline.currentTime should be 0; duration should cover the latest animation end.\n` +
-      `- Do not introduce new elements or ids.\n\n` +
+      `- Do not introduce new elements or ids.\n` +
+      `- Group "type" must be one of: "text" | "custom" | "polygon".\n` +
+      `  Use "text" only if ALL elementIds are text.\n` +
+      `  Use "polygon" only when representing a closed connector shape.\n` +
+      `  Otherwise use "custom". (Default = "custom")\n\n` +
       `Return JSON with exactly { "groups": [...], "timeline": {...}, "elements": [...] }.\n\n` +
       `<SPEC_FACTS>\n${JSON.stringify(specFacts)}\n</SPEC_FACTS>\n` +
       `<ELEMENTS_FROZEN>\n${JSON.stringify(elementsFrozen)}\n</ELEMENTS_FROZEN>\n` +
       `<MOTION_PLAN>\n${JSON.stringify(motionPlan)}\n</MOTION_PLAN>`;
-    return await this.runWithRetry(() => this.chatJson([
+    return await this.runWithRetry('GroupsTimelineMaker', () => this.chatJson([
       { role: 'system', content: system },
       { role: 'user', content: user },
     ], { temperature: 0.2 }));
@@ -183,6 +187,9 @@ export class OpenAIGenerationService {
     const fontAllow = Array.isArray(specFacts?.fontAllowlist) && specFacts.fontAllowlist.length
       ? specFacts.fontAllowlist
       : ['Inter','Roboto','Open Sans','Lato','Arial'];
+    const groupTypeAllow = Array.isArray(specFacts?.groupTypeAllowlist) && specFacts.groupTypeAllowlist.length
+      ? specFacts.groupTypeAllowlist
+      : ['text','custom','polygon'];
 
     if (Array.isArray(elements)) {
       for (let i = 0; i < elements.length; i++) {
@@ -213,13 +220,24 @@ export class OpenAIGenerationService {
     // Groups validation (lightweight)
     if (!Array.isArray(groups)) errors.push('mainState.groups must be an array');
     if (Array.isArray(groups)) {
+      const elementsById = new Map<string, any>((elements || []).map((e: any) => [e.id, e]));
+      const suggestGroupType = (g: any): 'text'|'custom'|'polygon' => {
+        const els = (g.elementIds || []).map((id: string) => elementsById.get(id)).filter(Boolean);
+        const allText = els.length > 0 && els.every((e: any) => e.type === 'text');
+        if (allText) return 'text';
+        return 'custom';
+      };
       for (let i = 0; i < groups.length; i++) {
         const g = groups[i] || {};
         if (typeof g.id !== 'string' || !g.id) errors.push(`groups[${i}].id required`);
         if (typeof g.name !== 'string') errors.push(`groups[${i}].name must be a string`);
         if (!Array.isArray(g.elementIds)) errors.push(`groups[${i}].elementIds must be an array`);
         if (typeof g.x !== 'number' || typeof g.y !== 'number') errors.push(`groups[${i}].x/y must be numbers`);
-        if (!['text', 'custom', 'polygon'].includes(String(g.type))) errors.push(`groups[${i}].type invalid`);
+        if (!groupTypeAllow.includes(String(g.type))) {
+          errors.push(`groups[${i}].type invalid`);
+          const suggested = suggestGroupType(g);
+          hints.push(`Set groups[${i}].type to "${suggested}" (allowed: "text","custom","polygon")`);
+        }
         if (typeof g.isDefaultGroup !== 'boolean') errors.push(`groups[${i}].isDefaultGroup must be boolean`);
         const res = validateAnimationArrayWithNaming(g.animations || []);
         if (!res.valid) errors.push(...res.errors.map((e) => `groups[${i}]: ${e}`));
@@ -268,9 +286,10 @@ export class OpenAIGenerationService {
       `Errors:\n${JSON.stringify(errors)}\n\n` +
       `Patch hints (what to change, not how):\n${JSON.stringify(patchHints)}\n\n` +
       `Spec Facts:\n${JSON.stringify(specFacts)}\n\n` +
+      `Allowed group.type values: "text", "custom", "polygon". If unsure, use "custom".\n` +
       `Return ONLY the corrected full JSON object with top-level keys exactly:\n"name","title","description","mainState".\nNo explanations, no extra keys, no comments.\n\n` +
       `<BROKEN_JSON>\n${JSON.stringify(brokenJson)}\n</BROKEN_JSON>`;
-    return await this.runWithRetry(() => this.chatJson([
+    return await this.runWithRetry('Fixer', () => this.chatJson([
       { role: 'system', content: system },
       { role: 'user', content: user },
     ]));
@@ -327,11 +346,26 @@ export class OpenAIGenerationService {
     mainState: { elements: any[]; groups: any[]; timeline: any };
   }> {
     const engineSpec = this.getAuthoritativeEngineSpec();
+    // Helper to wrap a stage with minimal diagnostics
+    const runStage = async <T>(name: string, fn: () => Promise<T>): Promise<T> => {
+      try {
+        return await fn();
+      } catch (err) {
+        if (err instanceof LlmJsonParseError) {
+          const snippet = err.rawText?.slice(0, 300) || '';
+          logger.error(`LLM JSON parse at ${name}`, { snippetLength: snippet.length, snippet });
+        } else {
+          logger.error(`Stage failed: ${name}`, { error: err instanceof Error ? err.message : String(err) });
+        }
+        throw err;
+      }
+    };
+
     // 0) Normalize spec once
-    const specFacts = await this.getSpecFacts(engineSpec);
+    const specFacts = await runStage('SpecNormalizer', () => this.getSpecFacts(engineSpec));
 
     // 1) Outline
-    const outline = await this.runSceneOutline(specFacts, userBrief);
+    const outline = await runStage('SceneOutline', () => this.runSceneOutline(specFacts, userBrief));
     logger.info('Outline produced', {
       narrativeCount: Array.isArray(outline?.narrative) ? outline.narrative.length : 0,
       zonesCount: Array.isArray(outline?.layoutPlan?.zones) ? outline.layoutPlan.zones.length : 0,
@@ -340,7 +374,7 @@ export class OpenAIGenerationService {
     });
 
     // 2) Elements
-    const elementsOnly = await this.runElementsMaker(specFacts, outline.objectPlan);
+    const elementsOnly = await runStage('ElementsMaker', () => this.runElementsMaker(specFacts, outline.objectPlan));
     if (!elementsOnly?.elements || !Array.isArray(elementsOnly.elements)) {
       throw new Error('ElementsMaker returned no elements[]');
     }
@@ -348,11 +382,11 @@ export class OpenAIGenerationService {
     logger.info('Elements produced', { elementCount: elementsOnly.elements.length });
 
     // 3) Groups & Timeline (+ populate animations on elements)
-    const composed = await this.runGroupsTimelineMaker(
+    const composed = await runStage('GroupsTimelineMaker', () => this.runGroupsTimelineMaker(
       specFacts,
       { elements: elementsOnly.elements },
       outline.motionPlan
-    );
+    ));
     this.coerceNumbersInPlace(composed);
 
     // Freeze: preserve ids and geometry exactly as produced by Elements step
@@ -376,7 +410,7 @@ export class OpenAIGenerationService {
       const res = this.validateDoc(doc, specFacts);
       if (res.valid) return doc;
       logger.warn('Validation failed; invoking Fixer', { attempt: i + 1, errorCount: res.errors.length });
-      doc = await this.runFixer(specFacts, res.errors, res.patchHints, doc);
+      doc = await runStage('Fixer', () => this.runFixer(specFacts, res.errors, res.patchHints, doc));
       // Guard output shape
       const hasTop = doc && typeof doc === 'object' && ['name','title','description','mainState'].every((k) => Object.prototype.hasOwnProperty.call(doc, k));
       if (!hasTop) {

@@ -147,7 +147,10 @@ export class OpenAIClient {
       try {
         return JSON.parse(text);
       } catch (e) {
-        throw new Error('Failed to parse JSON from LLM response');
+        // Attempt to salvage JSON from common wrappers like Markdown fences
+        const salvaged = tryExtractJson(text);
+        if (salvaged) return salvaged;
+        throw new LlmJsonParseError(text);
       }
     }, attempts);
   }
@@ -164,4 +167,34 @@ export class OpenAIClient {
 export async function callLLM(prompt: string, json: boolean = true, temperature: number = 0.2, attempts: number = 2): Promise<any> {
   const client = OpenAIClient.getInstance();
   return client.callLLMPrompt(prompt, { json, temperature, attempts });
+}
+
+// Error type to expose raw LLM output for diagnostics on JSON parse failures
+export class LlmJsonParseError extends Error {
+  public rawText: string;
+  constructor(rawText: string) {
+    super('Failed to parse JSON from LLM response');
+    this.name = 'LlmJsonParseError';
+    this.rawText = rawText;
+  }
+}
+
+// Best-effort extraction of a JSON object string from LLM output
+function tryExtractJson(text: string): any | null {
+  try {
+    // Strip Markdown code fences if present
+    const fenceMatch = text.match(/```(?:json)?\n([\s\S]*?)\n```/i);
+    if (fenceMatch && fenceMatch[1]) {
+      const inner = fenceMatch[1].trim();
+      return JSON.parse(inner);
+    }
+    // Fallback: take substring from first '{' to last '}'
+    const first = text.indexOf('{');
+    const last = text.lastIndexOf('}');
+    if (first !== -1 && last !== -1 && last > first) {
+      const candidate = text.slice(first, last + 1);
+      return JSON.parse(candidate);
+    }
+  } catch {}
+  return null;
 }
