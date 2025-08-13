@@ -10,7 +10,7 @@ import { logger } from '../utils/logger';
 
 export class RenderController {
   static async renderX(req: Request, res: Response): Promise<void> {
-    const { projectId, fps = 30, width = 1280, height = 720, key: providedKey } = req.body || {} as any;
+    const { projectId, fps = 30, width = 1920, height = 1080, key: providedKey } = req.body || {} as any;
     if (!projectId) {
       res.status(400).json({ error: 'projectId required' });
       return;
@@ -164,7 +164,7 @@ export class RenderController {
   }
 
   static async startRenderDebugSession(req: Request, res: Response): Promise<void> {
-    const { projectId, fps = '30', width = '1280', height = '720' } = req.query as Record<string, string>;
+    const { projectId, fps = '30', width = '1920', height = '1080' } = req.query as Record<string, string>;
     if (!projectId) {
       res.status(400).json({ error: 'projectId required' });
       return;
@@ -193,7 +193,7 @@ export class RenderController {
   }
 
   static async startRenderXDebugSession(req: Request, res: Response): Promise<void> {
-    const { projectId, fps = '30', width = '1280', height = '720' } = req.query as Record<string, string>;
+    const { projectId, fps = '30', width = '1920', height = '1080' } = req.query as Record<string, string>;
     if (!projectId) {
       res.status(400).json({ error: 'projectId required' });
       return;

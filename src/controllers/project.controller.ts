@@ -103,8 +103,8 @@ export class ProjectController {
         void enqueueRenderJob({
           projectId: result.project.id,
           fps: 30,
-          width: 1280,
-          height: 720,
+          width: 1920,
+          height: 1080,
           key,
         });
       } catch (err) {
