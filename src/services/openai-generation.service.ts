@@ -47,8 +47,8 @@ AnimatedCanvasObject (element):
 - type: "rectangle" | "circle" | "triangle" | "arc" | "line" | "path" | "image" | "text"
 - x: number
 - y: number
-- width: number // for type "line" and "path" you may set 0 or omit; backend defaults to 0
-- height: number // for type "line" and "path" you may set 0 or omit; backend defaults to 0
+- width: number // REQUIRED for all types EXCEPT "line" and "path". For "line" and "path" you may set 0 or omit; backend defaults to 0
+- height: number // REQUIRED for all types EXCEPT "line" and "path". For "line" and "path" you may set 0 or omit; backend defaults to 0
 - fill: string (hex color "#RRGGBB" or "#RGB" or "none")
 - stroke?: string (hex color "#RRGGBB" or "#RGB" or "none")
 - strokeWidth?: number
@@ -104,6 +104,10 @@ AnimatedCanvasObject (element):
 - isAnimationPath?: boolean
 - animations: ElementAnimation[] // can be empty
 
+Base requirements for ALL elements:
+- Always include: id, name, type, x, y, fill. For non-line/non-path types also include width and height.
+- x and y MUST be numbers. If you don't need an offset for a line/path, set x: 0 and y: 0.
+
 Narrative and motion guidance:
 - Compose a clear, balanced layout that reads left-to-right, top-to-bottom.
 - Use text elements for headings, callouts, and concise bullet points. Prefer short lines; set wordWrap and width to keep text readable.
@@ -143,6 +147,10 @@ ElementAnimation:
 - staggerFrom?: "start" | "end" | "center"
 - staggerEase?: GsapEase
 - properties: AnimatableProperties
+
+Easing rules:
+- Use only the exact strings listed above. Do NOT output other aliases (e.g., "linear"). When you intend a linear ease, use "none".
+- If unsure, prefer "power2.out" for typical UI motions.
 
 AnimatableProperties by animation type (only include relevant fields):
 - move: { x?: number, y?: number }
@@ -187,7 +195,21 @@ Global rules:
   - Gradients: for textGradient.colors, each color must be hex.
 - For "line", include lineOptions.points.start and .end; include controlPoint for curves; arrow/dotted booleans allowed. Width/height are not used for rendering lines.
 - For "path" elements, include pathPoints with at least 2 points. Width/height are not used for rendering paths.
- - Each element MUST include "animations" (can be []). If you add animations, include both id and displayName as defined above.
+  - Each element MUST include "animations" (can be []). If you add animations, include both id and displayName as defined above.
+  - Dimension rules:
+    - For ALL non-line/non-path elements (rectangle, circle, triangle, arc, image, text): you MUST include both width and height with positive numbers.
+    - For text elements: set a reasonable width to enable wrapping; if wordWrap is true, set wordWrapWidth equal to width.
+    - For circle: width/height define the bounding box; radius is optional.
+  - Type-specific rules:
+    - text: MUST include "text" (string). Use "fill" as the text color (hex). Provide fontFamily from the supported list and fontSize.
+    - line: MUST include x and y (numbers). Set fill: "none". Provide stroke (hex) and strokeWidth (number). Provide lineOptions.points.start/end. If isCurved: true, include a valid controlPoint.
+    - path: typically set fill: "none" and provide stroke (hex) and strokeWidth for visible paths; include at least 2 pathPoints.
+  - Font support (allowed values for element.fontFamily):
+    - Sans-serif: "Inter", "Roboto", "Libre Franklin", "Raleway", "Source Sans Pro", "Poppins", "Open Sans", "Lato", "Arial", "Helvetica", "Verdana", "Tahoma", "Trebuchet MS".
+    - Serif: "Playfair Display", "Merriweather", "Lora", "Times New Roman", "Georgia", "Garamond", "Palatino".
+    - Script: "Dancing Script", "Pacifico", "Great Vibes", "Satisfy", "Kaushan Script", "Allura", "Alex Brush".
+    - Monospace: "Geist Mono", "Source Code Pro", "Fira Code", "JetBrains Mono", "Inconsolata", "Courier New", "Consolas", "Monaco", "Menlo".
+    - Choose from the above. Default to "Inter" for general text unless a different style is clearly needed (e.g., "Geist Mono" for code-like text).
  - Do NOT include unknown fields.
   - Return ONLY the JSON object with shape: { "name": string, "title": string, "description": string, "mainState": { "elements": [...], "groups": [...], "timeline": {...} } }.`;
 
