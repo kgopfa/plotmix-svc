@@ -11,8 +11,9 @@ import {
 } from '../types';
 import { validateElementsArray } from '../schema/elements';
 import { assignAnimationIdentifiers } from '../schema/animations';
+import { OpenAIGenerationService } from './openai-generation.service';
 
-export class ContentGenService {
+export class OrchestrationService {
   static async generateProjectConfiguration(
     userId: string,
     data: CreateProjectWithConversationRequest
@@ -68,28 +69,10 @@ export class ContentGenService {
     });
 
     try {
-      const { OpenAIGenerationService } = await import('./openai-generation.service');
-
-      const mainStateRequest = {
-        prompt: data.prompt,
-        conversationHistory: [], // No history for first message
-        projectFeatures: data.features || this.getDefaultFeatures(),
-      };
-
-      const openAIResponse = await OpenAIGenerationService.generateMainState(mainStateRequest);
-
-      // If OpenAI processing fails, throw an error - don't create project
-      if (!openAIResponse.success) {
-        logger.error('OpenAI processing failed', {
-          error: openAIResponse.error,
-          promptLength: data.prompt?.length || 0,
-        });
-        throw new Error(openAIResponse.error || 'Failed to process prompt with AI');
-      }
+      const openAIResponse = await OpenAIGenerationService.generateScene(data.prompt);
 
       logger.info('OpenAI processing completed successfully', {
         hasMainState: !!openAIResponse.mainState,
-        hasMessage: !!openAIResponse.message,
         elementCount: openAIResponse.mainState?.elements?.length || 0,
       });
 

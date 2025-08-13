@@ -1,296 +1,399 @@
-import type { MainStateGenerationRequest, MainStateGenerationResponse } from '../clients/openai.client';
 import { OpenAIClient } from '../clients/openai.client';
 import { logger } from '../utils/logger';
+import { validateElementsArray } from '../schema/elements';
+import { validateAnimationArrayWithNaming } from '../schema/animations';
+import { ENGINE_SPEC } from '../specs/engine-spec';
 
 export class OpenAIGenerationService {
-  static buildCanvasPrompt(request: MainStateGenerationRequest): string {
-    let prompt = `Generate a project mainState for our motion design canvas based on the following request: ${request.prompt}\n\n`;
-    if (request.projectFeatures) {
-      prompt += 'Available features:\n';
-      if (request.projectFeatures.attachments?.enabled) prompt += '- Attachments: enabled\n';
-      if (request.projectFeatures.audio?.enabled) prompt += '- Audio: enabled\n';
-      if (request.projectFeatures.music?.enabled) prompt += '- Music: enabled\n';
-      if (request.projectFeatures.webSearch?.enabled) prompt += '- Web search: enabled\n';
-    }
-    prompt += '\nRespond ONLY with a valid JSON object with keys { "name", "title", "description", "mainState" } (no prose).';
-    return prompt;
+  // --------- NEW: Multi-step chain helpers ---------
+  // Authoritative engine spec used for normalization
+  static getAuthoritativeEngineSpec(): string {
+    return ENGINE_SPEC;
   }
-
-  static getCanvasSystemPrompt(projectFeatures?: any): string {
-    let systemPrompt = `You design animated explainer scenes for a 2D canvas product (think Canva/Adobe Express, but for motion). The engine is PixiJS (graphics/sprites) with GSAP timelines for animation. Your goal is to communicate concepts clearly using layout, typography, color, and tasteful motion.
-
-Output must be a SINGLE JSON object with EXACTLY these top-level keys at the root: "name", "title", "description", "mainState". Do NOT include any other top-level keys. Do NOT include prose outside this object.
-
-Root object:
-{
-  "name": string, // project internal name (short, slug-friendly)
-  "title": string, // human-friendly display title
-  "description": string, // plain-language explanation of the scene: describe entities and connections only (not visual styles). For example: "Messages flow from client devices to servers through a load balancer; servers publish events into a streaming system; processors aggregate counts; a dashboard queries results." Keep it concise and clear but abstract to avoid introducing any biases.
-  "mainState": { "elements": [...], "groups": [...], "timeline": {...} }
-}
-
-Schema for mainState:
-{
-  "elements": AnimatedCanvasObject[],
-  "groups": CanvasGroup[],
-  "timeline": {
-    "scale": number,
-    "duration": number,
-    "currentTime": number,
-    "animationStates": {}
-  }
-}
-
-AnimatedCanvasObject (element):
-- id: string
-- name: string
-- type: "rectangle" | "circle" | "triangle" | "arc" | "line" | "path" | "image" | "text"
-- x: number
-- y: number
-- width: number // REQUIRED for all types EXCEPT "line" and "path". For "line" and "path" you may set 0 or omit; backend defaults to 0
-- height: number // REQUIRED for all types EXCEPT "line" and "path". For "line" and "path" you may set 0 or omit; backend defaults to 0
-- fill: string (hex color "#RRGGBB" or "#RGB" or "none")
-- stroke?: string (hex color "#RRGGBB" or "#RGB" or "none")
-- strokeWidth?: number
-- strokeOpacity?: number
-- cornerRadius?: number
-- radius?: number
-- rotation?: number
-- pivotX?: number
-- pivotY?: number
-- opacity?: number
-- visible?: boolean
-- zIndex?: number
-- shadowEnabled?: boolean
-- shadowColor?: string (hex color)
-- shadowBlur?: number
-- shadowOffsetX?: number
-- shadowOffsetY?: number
-- shadowOpacity?: number
-- shadowAngle?: number
-- lineOptions?: {
-    points: { start: { x: number, y: number }, end: { x: number, y: number } },
-    controlPoint?: { x: number, y: number },
-    arrow: boolean,
-    dotted: boolean,
-    isCurved?: boolean
-  } // only for type "line"
-- pathPoints?: Array<{ x: number, y: number }> // only for type "path"
-- imageData?: string // only for type "image" (e.g., "/components/aws.svg" or data URL)
-- arcOptions?: {}
-- text?: string // only for type "text"
-- fontSize?: number
-- fontFamily?: string
-- fontWeight?: string
-- fontStyle?: string
-- textAlign?: string
-- lineHeight?: number
-- letterSpacing?: number
-- wordWrap?: boolean
-- wordWrapWidth?: number
-- textStroke?: string (hex color)
-- textStrokeWidth?: number
-- textStrokeJoin?: "round" | "miter" | "bevel"
-- textDropShadow?: { color: string, blur: number, angle: number, distance: number, alpha: number }
-- textGradient?: {
-    type: "linear" | "radial",
-    colors: Array<{ color: string; offset: number }>,
-    angle?: number,
-    center?: { x: number; y: number },
-    radius?: number
-  }
-- groupId?: string
-- parent?: string | null
-- isAnimationPath?: boolean
-- animations: ElementAnimation[] // can be empty
-
-Base requirements for ALL elements:
-- Always include: id, name, type, x, y, fill. For non-line/non-path types also include width and height.
-- x and y MUST be numbers. If you don't need an offset for a line/path, set x: 0 and y: 0.
-
-Narrative and motion guidance:
-- Compose a clear, balanced layout that reads left-to-right, top-to-bottom.
-- Use text elements for headings, callouts, and concise bullet points. Prefer short lines; set wordWrap and width to keep text readable.
-- Emphasize important objects with subtle animations (e.g., scale 1.0→1.15, fade-in, gentle rotate, or move) to draw attention without causing distraction.
-- Time animations to the scene: stagger related items by 0.05–0.2s; typical durations 0.5–1.2s. Use yoyo sparingly (e.g., two cycles to pulse).
-- Group related elements (type 'custom' or 'polygon' for connected lines) and optionally apply coordinated group animations (e.g., slight move-in or fade-in with stagger).
-- Use curved lines (isCurved: true) with controlPoint for flows; add arrow: true for direction.
-- You may stage elements off-screen then animate them into view, but ensure final positions fit the visible area.
-
-Description guidance:
-- Provide a short description that explains "what is happening" conceptually using generic entity labels and verbs (e.g., "clients send requests to servers", "events stream into a broker", "processors compute aggregates").
-- Avoid visual terms (colors, sizes, fonts) and avoid proper names/brands; focus on relationships and flow.
-
-ElementAnimation:
-- id: string (non-empty; can be any unique string like '<type>-<timestamp>')
-- displayName: string (must follow UI convention per element: '<type>-<n>', where n increments per type on that element, e.g., move-1, move-2)
-- type: "move" | "rotate" | "scale" | "fade" | "color" | "path" | "typewriter" | "textScale" | "physics"
-- startTime: number (>= 0)
-- duration: number (> 0)
-- easing?: GsapEase (one of)
-  ["none",
-   "power1.in","power1.out","power1.inOut",
-   "power2.in","power2.out","power2.inOut",
-   "power3.in","power3.out","power3.inOut",
-   "power4.in","power4.out","power4.inOut",
-   "back.in","back.out","back.inOut",
-   "elastic.in","elastic.out","elastic.inOut",
-   "bounce.in","bounce.out","bounce.inOut",
-   "sine.in","sine.out","sine.inOut",
-   "expo.in","expo.out","expo.inOut",
-   "circ.in","circ.out","circ.inOut"]
-- repeat?: number (>= -1)
-- repeatDelay?: number (>= 0)
-- yoyo?: boolean
-- yoyoReturnEasing?: GsapEase
-- stagger?: number
-- staggerFrom?: "start" | "end" | "center"
-- staggerEase?: GsapEase
-- properties: AnimatableProperties
-
-Easing rules:
-- Use only the exact strings listed above. Do NOT output other aliases (e.g., "linear"). When you intend a linear ease, use "none".
-- If unsure, prefer "power2.out" for typical UI motions.
-
-AnimatableProperties by animation type (only include relevant fields):
-- move: { x?: number, y?: number }
-- scale: { scaleX?: number, scaleY?: number }
-- rotate: { rotation?: number, pivotX?: number, pivotY?: number }
-- fade: { alpha?: number }
-- color: { fillColor?: string }
-- path: { pathPoints?: Array<{ x: number, y: number }>, pathDirection?: "clockwise" | "counterclockwise" }
-- physics: { velocity?: number, angle?: number, gravity?: number, acceleration?: number, accelerationAngle?: number, friction?: number, xProp?: string, yProp?: string }
-- typewriter: { text?: string, letterSpacing?: number, fontSize?: number }
-- textScale: { fontSize?: number, letterSpacing?: number }
-
-CanvasGroup:
-- id: string
-- name: string
-- elementIds: string[]
-- x: number
-- y: number
-- rotation?: number
-- visible?: boolean
-- opacity?: number
-- type: "text" | "custom" | "polygon"
-- isDefaultGroup: boolean
-- isAnimationPath?: boolean
-- isClosed?: boolean // only for type "polygon"
-- animations: ElementAnimation[]
-
-Timeline:
-- scale: number
-- duration: number
-- currentTime: number
-- animationStates: {} // leave empty
-
-Global rules:
- - Canvas and coordinates: The visible area is 1920×1080 pixels centered at (0,0). The logical canvas extends beyond these bounds; you may place elements outside [-960,960]×[-540,540], but they will be off-screen until moved into view.
-- Color rules (PixiJS compatibility):
-  - Use only hex colors: "#RRGGBB" or "#RGB". Never use named colors or rgb()/rgba().
-  - Element fill: set via element.fill (including text color). Allowed: hex or "none".
-  - Element stroke (outlines/lines): set via element.stroke. Allowed: hex or "none". If no stroke, use "none" or omit stroke.
-  - Shadows: shadowColor must be hex if provided; other shadow fields are numeric.
-  - Text stroke: textStroke must be hex if provided; set textStrokeWidth to 0 (or omit) to disable.
-  - Gradients: for textGradient.colors, each color must be hex.
-- For "line", include lineOptions.points.start and .end; include controlPoint for curves; arrow/dotted booleans allowed. Width/height are not used for rendering lines.
-- For "path" elements, include pathPoints with at least 2 points. Width/height are not used for rendering paths.
-  - Each element MUST include "animations" (can be []). If you add animations, include both id and displayName as defined above.
-  - Dimension rules:
-    - For ALL non-line/non-path elements (rectangle, circle, triangle, arc, image, text): you MUST include both width and height with positive numbers.
-    - For text elements: set a reasonable width to enable wrapping; if wordWrap is true, set wordWrapWidth equal to width.
-    - For circle: width/height define the bounding box; radius is optional.
-  - Type-specific rules:
-    - text: MUST include "text" (string). Use "fill" as the text color (hex). Provide fontFamily from the supported list and fontSize.
-    - line: MUST include x and y (numbers). Set fill: "none". Provide stroke (hex) and strokeWidth (number). Provide lineOptions.points.start/end. If isCurved: true, include a valid controlPoint.
-    - path: typically set fill: "none" and provide stroke (hex) and strokeWidth for visible paths; include at least 2 pathPoints.
-  - Font support (allowed values for element.fontFamily):
-    - Sans-serif: "Inter", "Roboto", "Libre Franklin", "Raleway", "Source Sans Pro", "Poppins", "Open Sans", "Lato", "Arial", "Helvetica", "Verdana", "Tahoma", "Trebuchet MS".
-    - Serif: "Playfair Display", "Merriweather", "Lora", "Times New Roman", "Georgia", "Garamond", "Palatino".
-    - Script: "Dancing Script", "Pacifico", "Great Vibes", "Satisfy", "Kaushan Script", "Allura", "Alex Brush".
-    - Monospace: "Geist Mono", "Source Code Pro", "Fira Code", "JetBrains Mono", "Inconsolata", "Courier New", "Consolas", "Monaco", "Menlo".
-    - Choose from the above. Default to "Inter" for general text unless a different style is clearly needed (e.g., "Geist Mono" for code-like text).
- - Do NOT include unknown fields.
-  - Return ONLY the JSON object with shape: { "name": string, "title": string, "description": string, "mainState": { "elements": [...], "groups": [...], "timeline": {...} } }.`;
-
-    if (projectFeatures) {
-      if (projectFeatures.attachments?.enabled) {
-        systemPrompt += '\n- Attachments may inform element or text content, but do not add attachment objects.';
-      }
-      if (projectFeatures.audio?.enabled) {
-        systemPrompt += '\n- Ignore audio generation; mainState has no audio objects.';
-      }
-      if (projectFeatures.music?.enabled) {
-        systemPrompt += '\n- Ignore music generation; mainState has no music objects.';
-      }
-      if (projectFeatures.webSearch?.enabled) {
-        systemPrompt += '\n- You may use web knowledge for layout ideas, but output remains strictly the mainState JSON.';
-      }
-    }
-
-    return systemPrompt;
-  }
-
-  static async generateMainState(request: MainStateGenerationRequest): Promise<MainStateGenerationResponse> {
-    const client = OpenAIClient.getInstance();
-    const sdk = client.getSdk();
-    const { model, provider } = client.getConfig();
-
-    try {
-      const enhancedPrompt = this.buildCanvasPrompt(request);
-      const messages = [
-        { role: 'system' as const, content: this.getCanvasSystemPrompt(request.projectFeatures) },
-        ...request.conversationHistory,
-        { role: 'user' as const, content: enhancedPrompt }
-      ];
-
-      logger.info('Sending request to LLM provider', {
-        provider,
-        model,
-        promptLength: enhancedPrompt.length,
-        hasFeatures: !!request.projectFeatures,
-        messagesLength: messages.length,
-      });
-
-      const response = await sdk.chat.completions.create({
-        model,
-        messages,
-        response_format: { type: 'json_object' },
-      });
-
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        throw new Error('No response content received from LLM provider');
-      }
-
-      const parsed = JSON.parse(content);
-      const root = parsed.mainState ? parsed : { name: parsed.name, title: parsed.title, description: parsed.description, mainState: parsed };
-      const mainState = root.mainState;
-
+  private static async runWithRetry<T>(fn: () => Promise<T>, attempts = 2): Promise<T> {
+    let lastErr: unknown;
+    for (let i = 0; i < attempts; i++) {
       try {
-        logger.info('LLM mainState received', {
-          elementsCount: Array.isArray(mainState?.elements) ? mainState.elements.length : 0,
-          groupsCount: Array.isArray(mainState?.groups) ? mainState.groups.length : 0,
-          timelineKeys: mainState?.timeline ? Object.keys(mainState.timeline?.animationStates || {}).length : 0,
-        });
-      } catch {}
-
-      logger.info('Canvas data generated successfully', {
-        provider,
-        model,
-        promptLength: request.prompt.length,
-        canvasElements: mainState?.elements?.length || 0,
-        usage: response.usage,
-      });
-
-      return { success: true, mainState, name: root.name, title: root.title, description: root.description };
-    } catch (error) {
-      logger.error('Error generating canvas data', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        prompt: request.prompt.substring(0, 100) + '...',
-      });
-      return { success: false, error: (error as Error).message };
+        return await fn();
+      } catch (err) {
+        lastErr = err;
+        logger.warn('LLM stage attempt failed, retrying if attempts remain', { attempt: i + 1, attempts, error: err instanceof Error ? err.message : String(err) });
+      }
     }
+    throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+  }
+  private static async chatJson(
+    messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+    opts?: { temperature?: number }
+  ): Promise<any> {
+    const client = OpenAIClient.getInstance();
+    return client.callLLMMessages(messages, { json: true, temperature: opts?.temperature ?? 0.2, attempts: 2 });
+  }
+
+  private static async runSpecNormalizer(engineSpec: string) {
+    const system = 'You are extracting an actionable checklist from an engine spec.';
+    const user = `You are extracting an actionable checklist from the following engine spec. Output JSON with these keys only:\n` +
+      `typesAllowed, topLevelKeys, requiredPerType, colorRules, fontAllowlist, easingAllowlist, timelineRules, lineRules, pathRules, textRules, animationRules, globalCanvas.\n\n` +
+      `- Keep strings/enums compact; no explanations.\n- Echo all numeric ranges and exact enums verbatim.\n\n<ENGINE_SPEC>\n${engineSpec}\n</ENGINE_SPEC>`;
+    return await this.runWithRetry(() => this.chatJson([
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ], { temperature: 0.0 }));
+  }
+
+  private static async runSceneOutline(specFacts: any, userBrief: string) {
+    const system = 'You produce a concise plan for an animated explainer scene. Do NOT emit final elements.';
+    const user = `You produce a concise plan for an animated explainer scene. Do NOT emit final elements.\n` +
+      `Use the Spec Facts below to stay within allowed enums and rules.\n\n` +
+      `Output JSON with exactly these keys:\n` +
+      `name, title, description,\n` +
+      `narrative,           // array of short beats\n` +
+      `layoutPlan,          // { frame:[1920,1080], flow:"ltr", zones:[{id, x,y,w,h, role}] }\n` +
+      `objectPlan,          // array of { idHint, type, role, finalBounds:{x,y,w,h}, text? }\n` +
+      `motionPlan           // array of { target:idHint, type, start, duration, easing?, properties:{...} }\n\n` +
+      `Constraints:\n- Numbers should be integers where sensible.\n- Keep narrative/objectPlan/motionPlan short and focused (max 15 items total).\n\n` +
+      `<SPEC_FACTS>\n${JSON.stringify(specFacts)}\n</SPEC_FACTS>\n\n` +
+      `<USER_BRIEF>\n${userBrief}\n</USER_BRIEF>`;
+    return await this.runWithRetry(() => this.chatJson([
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ], { temperature: 0.2 }));
+  }
+
+  private static async runElementsMaker(specFacts: any, objectPlan: any) {
+    const system = 'You produce elements only, conforming to spec facts and object plan.';
+    const user = `Produce "elements" ONLY, conforming to Spec Facts and this objectPlan.\n` +
+      `Rules:\n` +
+      `- Include required fields per type: id, name, type, x, y, fill; for non-line/non-path also width and height (>0).\n` +
+      `- Colors: hex "#RRGGBB" or "none" only.\n` +
+      `- Text: include fontFamily from allowlist (default "Inter"), fontSize, wordWrap and wordWrapWidth=width when wordWrap=true.\n` +
+      `- For "line": include x,y, stroke+strokeWidth, lineOptions.points.start/end; width/height omitted or 0.\n` +
+      `- For "path": include x,y and >=2 pathPoints; width/height omitted or 0.\n` +
+      `- Every element MUST include "animations": [] (empty for now).\n` +
+      `- Keep ids stable from idHint where provided.\n\n` +
+      `Return JSON with exactly { "elements": [...] } and nothing else.\n\n` +
+      `<SPEC_FACTS>\n${JSON.stringify(specFacts)}\n</SPEC_FACTS>\n` +
+      `<OBJECT_PLAN>\n${JSON.stringify(objectPlan)}\n</OBJECT_PLAN>`;
+    return await this.runWithRetry(() => this.chatJson([
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ], { temperature: 0.0 }));
+  }
+
+  private static async runGroupsTimelineMaker(specFacts: any, elementsFrozen: any, motionPlan: any) {
+    const system = 'You add groups, timeline, and populate element animations without changing element geometry or ids.';
+    const user = `Given these FROZEN elements (do not change geometry or ids) and a motionPlan, produce:\n` +
+      `- groups[]\n- timeline { scale, duration, currentTime, animationStates:{} }\n- Populate animations INSIDE each element per motionPlan.\n\n` +
+      `Rules:\n` +
+      `- Easing must be from allowlist. Use "power2.out" by default; use "none" for linear.\n` +
+      `- displayName must be "<type>-<n>" per element (n starts at 1 and increments per type).\n` +
+      `- Stagger related items by 0.05–0.2s when helpful.\n` +
+      `- timeline.currentTime should be 0; duration should cover the latest animation end.\n` +
+      `- Do not introduce new elements or ids.\n\n` +
+      `Return JSON with exactly { "groups": [...], "timeline": {...}, "elements": [...] }.\n\n` +
+      `<SPEC_FACTS>\n${JSON.stringify(specFacts)}\n</SPEC_FACTS>\n` +
+      `<ELEMENTS_FROZEN>\n${JSON.stringify(elementsFrozen)}\n</ELEMENTS_FROZEN>\n` +
+      `<MOTION_PLAN>\n${JSON.stringify(motionPlan)}\n</MOTION_PLAN>`;
+    return await this.runWithRetry(() => this.chatJson([
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ], { temperature: 0.2 }));
+  }
+
+  // Removed legacy basic validator (replaced by validateDoc)
+
+  // Strong validator leveraging existing schema validators
+  private static deepClone<T>(v: T): T {
+    if (typeof (globalThis as any).structuredClone === 'function') {
+      return (globalThis as any).structuredClone(v);
+    }
+    return JSON.parse(JSON.stringify(v));
+  }
+
+  private static coerceNumbersInPlace(doc: any): void {
+    const numericKeys = new Set<string>([
+      'x','y','width','height','rotation','opacity','fontSize','lineHeight','letterSpacing','strokeWidth',
+      'scale','duration','currentTime','radius','pivotX','pivotY','zIndex','shadowBlur','shadowOffsetX','shadowOffsetY','shadowOpacity','shadowAngle',
+      'startTime','repeat','repeatDelay','stagger'
+    ]);
+    const walk = (node: any) => {
+      if (Array.isArray(node)) {
+        for (const item of node) walk(item);
+        return;
+      }
+      if (node && typeof node === 'object') {
+        for (const key of Object.keys(node)) {
+          const val = node[key];
+          if (numericKeys.has(key) && typeof val === 'string' && val.trim() !== '' && !Number.isNaN(Number(val))) {
+            node[key] = Number(val);
+          } else {
+            walk(val);
+          }
+        }
+      }
+    };
+    walk(doc);
+  }
+
+  private static validateDoc(root: any, specFacts?: any): { valid: boolean; errors: string[]; patchHints: string[] } {
+    const errors: string[] = [];
+    const hints: string[] = [];
+    if (!root || typeof root !== 'object') {
+      return { valid: false, errors: ['Root must be an object'], patchHints: [] };
+    }
+    const keys = Object.keys(root).sort();
+    const expectedTop = ['description', 'mainState', 'name', 'title'].sort();
+    const sameTop = keys.length === expectedTop.length && keys.every((k, i) => k === expectedTop[i]);
+    if (!sameTop) errors.push('Top-level keys must be exactly name,title,description,mainState');
+
+    if (typeof root.name !== 'string' || root.name.trim() === '') errors.push('name must be a non-empty string');
+    if (typeof root.title !== 'string' || root.title.trim() === '') errors.push('title must be a non-empty string');
+    if (typeof root.description !== 'string') errors.push('description must be a string');
+
+    // Clone so downstream validators cannot mutate the original root
+    const cloned: any = this.deepClone(root);
+    const ms = cloned.mainState;
+    if (!ms || typeof ms !== 'object') errors.push('mainState must be an object');
+
+    const elements = Array.isArray(ms?.elements) ? ms.elements : [];
+    const groups = Array.isArray(ms?.groups) ? ms.groups : [];
+    const timeline = ms?.timeline;
+
+    // Elements validation
+    const elemRes = validateElementsArray(elements);
+    if (!elemRes.valid) errors.push(...elemRes.errors);
+
+    // Animation naming enforcement per element
+    // Allowlist fallbacks
+    const easingAllow = Array.isArray(specFacts?.easingAllowlist) && specFacts.easingAllowlist.length
+      ? specFacts.easingAllowlist
+      : [
+          'none',
+          'power1.in','power1.out','power1.inOut',
+          'power2.in','power2.out','power2.inOut',
+          'power3.in','power3.out','power3.inOut',
+          'power4.in','power4.out','power4.inOut',
+          'back.in','back.out','back.inOut',
+          'elastic.in','elastic.out','elastic.inOut',
+          'bounce.in','bounce.out','bounce.inOut',
+          'sine.in','sine.out','sine.inOut',
+          'expo.in','expo.out','expo.inOut',
+          'circ.in','circ.out','circ.inOut',
+        ];
+    const fontAllow = Array.isArray(specFacts?.fontAllowlist) && specFacts.fontAllowlist.length
+      ? specFacts.fontAllowlist
+      : ['Inter','Roboto','Open Sans','Lato','Arial'];
+
+    if (Array.isArray(elements)) {
+      for (let i = 0; i < elements.length; i++) {
+        const anims = elements[i]?.animations || [];
+        const res = validateAnimationArrayWithNaming(anims);
+        if (!res.valid) {
+          errors.push(...res.errors.map((e) => `elements[${i}]: ${e}`));
+          hints.push('Ensure displayName matches "<type>-<n>" and ids are non-empty');
+        }
+        // Easing allowlist
+        for (let j = 0; j < anims.length; j++) {
+          const ez = anims[j]?.easing;
+          if (ez && !easingAllow.includes(ez)) {
+            errors.push(`elements[${i}].animations[${j}].easing not in allowlist`);
+            hints.push('Use "power2.out" or "none" for linear');
+          }
+        }
+        // Font allowlist for text elements
+        if (elements[i]?.type === 'text' && elements[i]?.fontFamily) {
+          if (!fontAllow.includes(elements[i].fontFamily)) {
+            errors.push(`elements[${i}].fontFamily not in allowlist`);
+            hints.push('Use a font from allowlist; default to "Inter"');
+          }
+        }
+      }
+    }
+
+    // Groups validation (lightweight)
+    if (!Array.isArray(groups)) errors.push('mainState.groups must be an array');
+    if (Array.isArray(groups)) {
+      for (let i = 0; i < groups.length; i++) {
+        const g = groups[i] || {};
+        if (typeof g.id !== 'string' || !g.id) errors.push(`groups[${i}].id required`);
+        if (typeof g.name !== 'string') errors.push(`groups[${i}].name must be a string`);
+        if (!Array.isArray(g.elementIds)) errors.push(`groups[${i}].elementIds must be an array`);
+        if (typeof g.x !== 'number' || typeof g.y !== 'number') errors.push(`groups[${i}].x/y must be numbers`);
+        if (!['text', 'custom', 'polygon'].includes(String(g.type))) errors.push(`groups[${i}].type invalid`);
+        if (typeof g.isDefaultGroup !== 'boolean') errors.push(`groups[${i}].isDefaultGroup must be boolean`);
+        const res = validateAnimationArrayWithNaming(g.animations || []);
+        if (!res.valid) errors.push(...res.errors.map((e) => `groups[${i}]: ${e}`));
+      }
+    }
+
+    // Timeline validation
+    if (!timeline || typeof timeline !== 'object') {
+      errors.push('mainState.timeline must be an object');
+    } else {
+      if (typeof timeline.scale !== 'number') errors.push('timeline.scale must be a number');
+      if (typeof timeline.duration !== 'number' || timeline.duration < 0) errors.push('timeline.duration must be a non-negative number');
+      if (typeof timeline.currentTime !== 'number' || timeline.currentTime < 0) errors.push('timeline.currentTime must be a non-negative number');
+      if (timeline.animationStates && typeof timeline.animationStates !== 'object') errors.push('timeline.animationStates must be an object');
+      // Duration should cover the latest animation end
+      let latestEnd = 0;
+      if (Array.isArray(elements)) {
+        for (const el of elements) {
+          for (const a of (el?.animations || [])) {
+            const end = (Number(a?.startTime) || 0) + (Number(a?.duration) || 0);
+            if (end > latestEnd) latestEnd = end;
+          }
+        }
+      }
+      if (Array.isArray(groups)) {
+        for (const g of groups) {
+          for (const a of (g?.animations || [])) {
+            const end = (Number(a?.startTime) || 0) + (Number(a?.duration) || 0);
+            if (end > latestEnd) latestEnd = end;
+          }
+        }
+      }
+      if (timeline.duration + 1e-6 < latestEnd) {
+        errors.push(`timeline.duration too short (latest animation end ${latestEnd})`);
+        hints.push('Increase timeline.duration to cover the latest animation end');
+      }
+    }
+
+    return { valid: errors.length === 0, errors, patchHints: hints };
+  }
+
+  private static async runFixer(specFacts: any, errors: string[], patchHints: string[], brokenJson: any) {
+    const system = 'You are a strict JSON fixer for a known schema. Apply minimal edits only.';
+    const user = `The JSON below failed validation. You must return a corrected FULL JSON for the final schema.\n` +
+      `Apply MINIMAL edits only: keep ids, order, geometry, and text content stable unless required.\n\n` +
+      `Errors:\n${JSON.stringify(errors)}\n\n` +
+      `Patch hints (what to change, not how):\n${JSON.stringify(patchHints)}\n\n` +
+      `Spec Facts:\n${JSON.stringify(specFacts)}\n\n` +
+      `Return ONLY the corrected full JSON object with top-level keys exactly:\n"name","title","description","mainState".\nNo explanations, no extra keys, no comments.\n\n` +
+      `<BROKEN_JSON>\n${JSON.stringify(brokenJson)}\n</BROKEN_JSON>`;
+    return await this.runWithRetry(() => this.chatJson([
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ]));
+  }
+
+  // ---------- Orchestrator & memoized spec facts ----------
+  private static _specFactsCache: Map<string, any> = new Map();
+
+  private static async getSpecFacts(engineSpec: string): Promise<any> {
+    const key = String(engineSpec?.length ?? 0) + ':' + (engineSpec || '').slice(0, 64);
+    if (this._specFactsCache.has(key)) return this._specFactsCache.get(key)!;
+    const facts = await this.runSpecNormalizer(engineSpec);
+    this._specFactsCache.set(key, facts);
+    return facts;
+  }
+
+  private static snapshotGeometry(elements: any[]): Record<string, { x: number; y: number; width: number; height: number; type: string }> {
+    const snap: Record<string, { x: number; y: number; width: number; height: number; type: string }> = {};
+    for (const el of elements || []) {
+      snap[el.id] = { x: el.x, y: el.y, width: el.width ?? 0, height: el.height ?? 0, type: el.type };
+    }
+    return snap;
+  }
+
+  private static freezeGeometry(original: any[], returned: any[]): any[] {
+    const snap = this.snapshotGeometry(original);
+    const byIdReturned: Record<string, any> = {};
+    for (const el of returned || []) byIdReturned[el.id] = el;
+    const out: any[] = [];
+    for (const base of original || []) {
+      const ret = byIdReturned[base.id] || {};
+      const kept = {
+        ...ret,
+        id: base.id,
+        name: ret.name ?? base.name,
+        type: base.type,
+        x: snap[base.id]?.x ?? base.x,
+        y: snap[base.id]?.y ?? base.y,
+        width: snap[base.id]?.width ?? base.width,
+        height: snap[base.id]?.height ?? base.height,
+        fill: ret.fill ?? base.fill,
+        animations: Array.isArray(ret.animations) ? ret.animations : (base.animations || []),
+      };
+      out.push(kept);
+    }
+    return out;
+  }
+
+  // Main public entry for the chained pipeline
+  static async generateScene(userBrief: string): Promise<{
+    name: string;
+    title: string;
+    description: string;
+    mainState: { elements: any[]; groups: any[]; timeline: any };
+  }> {
+    const engineSpec = this.getAuthoritativeEngineSpec();
+    // 0) Normalize spec once
+    const specFacts = await this.getSpecFacts(engineSpec);
+
+    // 1) Outline
+    const outline = await this.runSceneOutline(specFacts, userBrief);
+    logger.info('Outline produced', {
+      narrativeCount: Array.isArray(outline?.narrative) ? outline.narrative.length : 0,
+      zonesCount: Array.isArray(outline?.layoutPlan?.zones) ? outline.layoutPlan.zones.length : 0,
+      objectPlanCount: Array.isArray(outline?.objectPlan) ? outline.objectPlan.length : 0,
+      motionPlanCount: Array.isArray(outline?.motionPlan) ? outline.motionPlan.length : 0,
+    });
+
+    // 2) Elements
+    const elementsOnly = await this.runElementsMaker(specFacts, outline.objectPlan);
+    if (!elementsOnly?.elements || !Array.isArray(elementsOnly.elements)) {
+      throw new Error('ElementsMaker returned no elements[]');
+    }
+    this.coerceNumbersInPlace(elementsOnly);
+    logger.info('Elements produced', { elementCount: elementsOnly.elements.length });
+
+    // 3) Groups & Timeline (+ populate animations on elements)
+    const composed = await this.runGroupsTimelineMaker(
+      specFacts,
+      { elements: elementsOnly.elements },
+      outline.motionPlan
+    );
+    this.coerceNumbersInPlace(composed);
+
+    // Freeze: preserve ids and geometry exactly as produced by Elements step
+    const freezedElements = this.freezeGeometry(elementsOnly.elements, composed.elements || []);
+
+    // 4) Assemble full doc
+    let doc = {
+      name: outline.name ?? 'scene',
+      title: outline.title ?? 'Scene',
+      description: outline.description ?? 'A short conceptual flow.',
+      mainState: {
+        elements: freezedElements,
+        groups: composed.groups ?? [],
+        timeline: composed.timeline ?? { scale: 1, duration: 3, currentTime: 0, animationStates: {} },
+      },
+    };
+
+    // 5) Validate + Fix loop (minimal edits)
+    const MAX_PASSES = 3;
+    for (let i = 0; i < MAX_PASSES; i++) {
+      const res = this.validateDoc(doc, specFacts);
+      if (res.valid) return doc;
+      logger.warn('Validation failed; invoking Fixer', { attempt: i + 1, errorCount: res.errors.length });
+      doc = await this.runFixer(specFacts, res.errors, res.patchHints, doc);
+      // Guard output shape
+      const hasTop = doc && typeof doc === 'object' && ['name','title','description','mainState'].every((k) => Object.prototype.hasOwnProperty.call(doc, k));
+      if (!hasTop) {
+        throw new Error('Fixer returned invalid top-level structure');
+      }
+      // Coerce numeric strings and re-freeze geometry to element snapshot
+      this.coerceNumbersInPlace(doc);
+      doc.mainState.elements = this.freezeGeometry(elementsOnly.elements, doc.mainState.elements || []);
+    }
+
+    // Final check after fixes
+    const final = this.validateDoc(doc, specFacts);
+    if (!final.valid) {
+      logger.error('Validation failed after fixer loop', { errors: final.errors });
+      throw new Error(`Validation failed after fixes:\n- ${final.errors.join('\n- ')}`);
+    }
+    return doc as any;
   }
 }
 

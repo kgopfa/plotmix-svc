@@ -108,4 +108,60 @@ export class OpenAIClient {
     }
     return this.client;
   }
+
+  // ------------- Convenience wrappers -------------
+  private async withRetry<T>(fn: () => Promise<T>, attempts = 2, baseDelayMs = 150): Promise<T> {
+    let lastErr: unknown;
+    for (let i = 0; i < attempts; i++) {
+      try {
+        return await fn();
+      } catch (err) {
+        lastErr = err;
+        if (i < attempts - 1) {
+          const delay = baseDelayMs * Math.pow(2, i);
+          await new Promise((r) => setTimeout(r, delay));
+        }
+      }
+    }
+    throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+  }
+
+  public async callLLMMessages(
+    messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+    options: { json?: boolean; temperature?: number; modelOverride?: string; attempts?: number } = {}
+  ): Promise<any> {
+    const sdk = this.getSdk();
+    const attempts = options.attempts ?? 2;
+    return this.withRetry(async () => {
+      const body: any = {
+        model: options.modelOverride || this.config.model,
+        messages,
+        temperature: options.temperature ?? 0.2,
+      };
+      if (options.json !== false) {
+        body.response_format = { type: 'json_object' } as const;
+      }
+      const res = await sdk.chat.completions.create(body);
+      const text = res.choices[0]?.message?.content ?? (options.json === false ? '' : '{}');
+      if (options.json === false) return text;
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        throw new Error('Failed to parse JSON from LLM response');
+      }
+    }, attempts);
+  }
+
+  public async callLLMPrompt(
+    prompt: string,
+    options: { json?: boolean; temperature?: number; modelOverride?: string; attempts?: number } = {}
+  ): Promise<any> {
+    return this.callLLMMessages([{ role: 'user', content: prompt }], options);
+  }
 } 
+
+// Standalone helper (clean orchestrator usage)
+export async function callLLM(prompt: string, json: boolean = true, temperature: number = 0.2, attempts: number = 2): Promise<any> {
+  const client = OpenAIClient.getInstance();
+  return client.callLLMPrompt(prompt, { json, temperature, attempts });
+}

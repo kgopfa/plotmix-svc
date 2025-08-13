@@ -177,6 +177,9 @@ function validateText(obj: any): string[] {
   if (obj.lineHeight !== undefined && !isNumber(obj.lineHeight)) errors.push('lineHeight must be a number');
   if (obj.wordWrap !== undefined && !isBoolean(obj.wordWrap)) errors.push('wordWrap must be a boolean');
   if (obj.wordWrapWidth !== undefined && !isNumber(obj.wordWrapWidth)) errors.push('wordWrapWidth must be a number');
+  if (obj.wordWrap === true && isNumber(obj.width) && obj.wordWrapWidth !== obj.width) {
+    errors.push('when wordWrap=true, wordWrapWidth must equal width');
+  }
   if (obj.textStroke !== undefined && (!isString(obj.textStroke) || !isHexColorString(obj.textStroke))) errors.push('textStroke must be a hex color string');
   if (obj.textStrokeWidth !== undefined && !isNumber(obj.textStrokeWidth)) errors.push('textStrokeWidth must be a number');
   if (obj.textStrokeJoin !== undefined && !isString(obj.textStrokeJoin)) errors.push('textStrokeJoin must be a string');

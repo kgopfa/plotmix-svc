@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { ProjectService } from '../services/project.service';
-import { ContentGenService } from '../services/content-gen.service';
+import { OrchestrationService } from '../services/orchestration.service';
 import { logger } from '../utils/logger';
 import { AuthenticatedRequest, CreateProjectWithConversationRequest, ProjectConfigurationResponse, BatchDeleteRequest } from '../types';
 import { enqueueRenderJob } from '../services/render-queue.service';
@@ -65,7 +65,7 @@ export class ProjectController {
         return;
       }
 
-      const result: ProjectConfigurationResponse = await ContentGenService.generateProjectConfiguration(req.user.userId, data);
+      const result: ProjectConfigurationResponse = await OrchestrationService.generateProjectConfiguration(req.user.userId, data);
 
       // Precompute render key and URL (using existing helper: same key format as renderer)
       try {
