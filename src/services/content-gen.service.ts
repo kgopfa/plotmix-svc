@@ -7,7 +7,10 @@ import {
   MESSAGE_TYPES,
   ProjectFeatures,
   ProjectConfigurationResponse,
+  CreateProjectRequest,
 } from '../types';
+import { validateElementsArray } from '../schema/elements';
+import { assignAnimationIdentifiers } from '../schema/animations';
 
 export class ContentGenService {
   static async generateProjectConfiguration(
@@ -24,20 +27,20 @@ export class ContentGenService {
 
     try {
       const openAIResponse = await this.processPromptWithOpenAI(data);
-      
+
       const project = await this.createProjectFromGeneratedResponse(userId, data, openAIResponse);
 
       const conversationId = await this.createConversationForProject(userId, data, project.id, openAIResponse);
-      
+
       await this.createConversationMessages(conversationId, data, openAIResponse);
 
       const user = await this.getUserData(userId);
 
-      logger.info('Project configuration generation completed successfully', { 
-        projectId: project.id, 
-        conversationId, 
-        userId, 
-        mainStateGenerated: !!openAIResponse.mainState 
+      logger.info('Project configuration generation completed successfully', {
+        projectId: project.id,
+        conversationId,
+        userId,
+        mainStateGenerated: !!openAIResponse.mainState
       });
 
       return {
@@ -63,9 +66,8 @@ export class ContentGenService {
     });
 
     try {
-      const { OpenAIClient } = await import('../clients/openai.client');
-      const openAIClient = OpenAIClient.getInstance();
-      
+      const { OpenAIGenerationService } = await import('./openai-generation.service');
+
       const mainStateRequest = {
         prompt: data.prompt,
         conversationHistory: [], // No history for first message
@@ -77,7 +79,7 @@ export class ContentGenService {
         hasFeatures: !!mainStateRequest.projectFeatures,
       });
 
-      const openAIResponse = await openAIClient.generateMainState(mainStateRequest);
+      const openAIResponse = await OpenAIGenerationService.generateMainState(mainStateRequest);
 
       // If OpenAI processing fails, throw an error - don't create project
       if (!openAIResponse.success) {
@@ -110,22 +112,56 @@ export class ContentGenService {
     data: CreateProjectWithConversationRequest,
     openAIResponse: any
   ) {
-      logger.info('Creating project with generated configuration', {
+    logger.info('Creating project with generated configuration', {
       userId,
-        hasMainState: !!openAIResponse.mainState,
+      hasMainState: !!openAIResponse.mainState,
     });
 
     try {
       const { ProjectService } = await import('./project.service');
-      
+
       const projectName = data.name || 'New Project';
       const projectTitle = data.title;
       const projectDescription = `Project created from prompt: ${data.prompt.substring(0, 100)}...`;
 
-      const payload: import('../types').CreateProjectRequest = {
+      // Validate and normalize mainState using schema helpers
+      let normalizedMainState = openAIResponse.mainState || { createdAt: new Date().toISOString() };
+      try {
+        // Validate elements
+        const elemRes = validateElementsArray(normalizedMainState.elements);
+        if (!elemRes.valid || !elemRes.value) {
+          throw new Error(`Invalid elements: ${elemRes.errors.join('; ')}`);
+        }
+
+        // Groups may exist; ensure structure minimally
+        const groups = Array.isArray(normalizedMainState.groups) ? normalizedMainState.groups : [];
+
+        // Assign animation ids and display names consistently with UI
+        const assigned = assignAnimationIdentifiers(elemRes.value, groups, { recomputeDisplayNames: true });
+
+        normalizedMainState = {
+          ...normalizedMainState,
+          elements: assigned.elements,
+          groups: assigned.groups,
+          timeline: {
+            scale: normalizedMainState.timeline?.scale ?? 1,
+            duration: normalizedMainState.timeline?.duration ?? 0,
+            currentTime: normalizedMainState.timeline?.currentTime ?? 0,
+            animationStates: {},
+          },
+        };
+      } catch (schemaError) {
+        // Log validation issues and rethrow to stop project creation
+        logger.error('MainState validation failed', {
+          error: schemaError instanceof Error ? schemaError.message : String(schemaError),
+        });
+        throw schemaError;
+      }
+
+      const payload: CreateProjectRequest = {
         name: projectName,
         source: 'GENERATED',
-        mainState: openAIResponse.mainState || { createdAt: new Date().toISOString() },
+        mainState: normalizedMainState,
         features: data.features || this.getDefaultFeatures(),
       };
 
@@ -233,7 +269,7 @@ export class ContentGenService {
 
       // Create user message with the prompt
       logger.info('Adding user message to conversation', { conversationId, promptLength: data.prompt?.length || 0 });
-      
+
       const userMessage = await prisma.message.create({
         data: {
           content: data.prompt,
@@ -244,7 +280,7 @@ export class ContentGenService {
           options: data.options ? (data.options as any) : null,
         },
       });
-      
+
       logger.info('User message added to conversation', {
         conversationId,
         messageId: userMessage.id,
@@ -257,13 +293,13 @@ export class ContentGenService {
       if (openAIResponse.success) {
         const description = `Generated project from prompt: ${data.prompt.substring(0, 200)}...`;
         logger.info('Creating LLM response message', {
-          conversationId, 
+          conversationId,
           description
         });
-        
+
         // Get system user ID for LLM messages
         const systemUserId = await getSystemUserId();
-        
+
         const llmMessage = await prisma.message.create({
           data: {
             content: description,
@@ -314,7 +350,7 @@ export class ContentGenService {
 
       // Get system user ID for system messages
       const systemUserId = await getSystemUserId();
-      
+
       const message = await prisma.message.create({
         data: {
           content,
@@ -367,10 +403,10 @@ export class ContentGenService {
       }
 
       const metadata = errorCode ? { errorCode } : null;
-      
+
       // Get system user ID for error messages
       const systemUserId = await getSystemUserId();
-      
+
       const message = await prisma.message.create({
         data: {
           content,

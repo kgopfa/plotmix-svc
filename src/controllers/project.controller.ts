@@ -2,7 +2,6 @@ import { Response } from 'express';
 import { ProjectService } from '../services/project.service';
 import { ContentGenService } from '../services/content-gen.service';
 import { logger } from '../utils/logger';
-import { config } from '../config';
 import { AuthenticatedRequest, CreateProjectWithConversationRequest, ProjectConfigurationResponse, BatchDeleteRequest } from '../types';
 import { enqueueRenderJob } from '../services/render-queue.service';
 import { buildRenderObjectKey } from '../services/render-storage.service';
@@ -175,20 +174,11 @@ export class ProjectController {
         return;
       }
 
-      // Log full project payload (with minimal sanitization) only in non-production
-      try {
-        if (config.nodeEnv !== 'production') {
-          const safeProject: any = JSON.parse(JSON.stringify(project));
-          if (safeProject?.owner) {
-            if ('password' in safeProject.owner) safeProject.owner.password = '[REDACTED]';
-          }
-          logger.info('GetProject full payload', {
-            projectId,
-            userId: req.user?.userId,
-            project: safeProject,
-          });
-        }
-      } catch {}
+      logger.info('Project current state', {
+        projectId,
+        userId: req.user?.userId,
+        project: project.mainState,
+      });
 
       res.json({
         success: true,
@@ -345,6 +335,10 @@ export class ProjectController {
   static async applyChange(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       if (!req.user || !req.user.userId) {
+        logger.error('User not authenticated', {
+          userId: req.user?.userId,
+          projectId: req.params['projectId'],
+        });
         res.status(401).json({
           success: false,
           message: 'User not authenticated',
@@ -354,6 +348,10 @@ export class ProjectController {
 
       const { projectId } = req.params;
       if (!projectId) {
+        logger.error('Project ID is required', {
+          userId: req.user?.userId,
+          projectId: req.params['projectId'],
+        });
         res.status(400).json({
           success: false,
           message: 'Project ID is required',
@@ -363,6 +361,10 @@ export class ProjectController {
       const project = await ProjectService.applyProjectChange(projectId, req.user.userId, req.body);
 
       if (!project) {
+        logger.error('Project not found or edit access denied', {
+          userId: req.user?.userId,
+          projectId: req.params['projectId'],
+        });
         res.status(404).json({
           success: false,
           message: 'Project not found or edit access denied',
