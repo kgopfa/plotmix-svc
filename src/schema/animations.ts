@@ -79,8 +79,16 @@ function validateAnimatableProperties(
 
   switch (type) {
     case 'move':
-      if (p['x'] !== undefined && !isNumber(p['x'])) errors.push('properties.x must be a number');
-      if (p['y'] !== undefined && !isNumber(p['y'])) errors.push('properties.y must be a number');
+      if (Array.isArray((p as any)['x'])) {
+        errors.push('properties.x must be a number (received array). Hint: set to the last value in the range.');
+      } else if (p['x'] !== undefined && !isNumber(p['x'])) {
+        errors.push('properties.x must be a number');
+      }
+      if (Array.isArray((p as any)['y'])) {
+        errors.push('properties.y must be a number (received array). Hint: set to the last value in the range.');
+      } else if (p['y'] !== undefined && !isNumber(p['y'])) {
+        errors.push('properties.y must be a number');
+      }
       break;
 
     case 'scale':

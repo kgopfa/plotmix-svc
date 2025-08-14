@@ -3,6 +3,7 @@ import { logger } from '../utils/logger';
 import { validateElementsArray } from '../schema/elements';
 import { validateAnimationArrayWithNaming } from '../schema/animations';
 import { ENGINE_SPEC } from '../specs/engine-spec';
+import { sanitizeMovePropertiesInPlace } from '../utils/sanitize';
 
 export class OpenAIGenerationService {
   // --------- NEW: Multi-step chain helpers ---------
@@ -51,7 +52,7 @@ export class OpenAIGenerationService {
       `layoutPlan,          // { frame:[1920,1080], flow:"ltr", zones:[{id, x,y,w,h, role}] }\n` +
       `objectPlan,          // array of { idHint, type, role, finalBounds:{x,y,w,h}, text? }\n` +
       `motionPlan           // array of { target:idHint, type, start, duration, easing?, properties:{...} }\n\n` +
-      `Constraints:\n- Numbers should be integers where sensible.\n- Keep narrative/objectPlan/motionPlan short and focused (max 15 items total).\n\n` +
+      `Constraints:\n- Numbers should be integers where sensible.\n- Keep narrative/objectPlan/motionPlan short and focused (max 15 items total).\n- Coordinates: canvas origin is at center (0,0); place zones and object finalBounds relative to center.\n\n` +
       `<SPEC_FACTS>\n${JSON.stringify(specFacts)}\n</SPEC_FACTS>\n\n` +
       `<USER_BRIEF>\n${userBrief}\n</USER_BRIEF>`;
     return await this.runWithRetry('SceneOutline', () => this.chatJson([
@@ -70,7 +71,8 @@ export class OpenAIGenerationService {
       `- For "line": include x,y, stroke+strokeWidth, lineOptions.points.start/end; width/height omitted or 0.\n` +
       `- For "path": include x,y and >=2 pathPoints; width/height omitted or 0.\n` +
       `- Every element MUST include "animations": [] (empty for now).\n` +
-      `- Keep ids stable from idHint where provided.\n\n` +
+      `- Keep ids stable from idHint where provided.\n` +
+      `- Coordinates: canvas origin is at center (0,0); x and y are relative to center.\n\n` +
       `Return JSON with exactly { "elements": [...] } and nothing else.\n\n` +
       `<SPEC_FACTS>\n${JSON.stringify(specFacts)}\n</SPEC_FACTS>\n` +
       `<OBJECT_PLAN>\n${JSON.stringify(objectPlan)}\n</OBJECT_PLAN>`;
@@ -90,6 +92,8 @@ export class OpenAIGenerationService {
       `- Stagger related items by 0.05–0.2s when helpful.\n` +
       `- timeline.currentTime should be 0; duration should cover the latest animation end.\n` +
       `- Do not introduce new elements or ids.\n` +
+      `- Coordinates: canvas origin is at center (0,0); groups.x/y are relative to center.\n` +
+      `- For type="move", properties.x and properties.y MUST be single numbers (absolute targets). Do NOT return arrays (e.g., [from, to]) and do NOT use ranges.\n` +
       `- Group "type" must be one of: "text" | "custom" | "polygon".\n` +
       `  Use "text" only if ALL elementIds are text.\n` +
       `  Use "polygon" only when representing a closed connector shape.\n` +
@@ -286,6 +290,7 @@ export class OpenAIGenerationService {
       `Errors:\n${JSON.stringify(errors)}\n\n` +
       `Patch hints (what to change, not how):\n${JSON.stringify(patchHints)}\n\n` +
       `Spec Facts:\n${JSON.stringify(specFacts)}\n\n` +
+      `Allowed shape for move: properties.x?: number, properties.y?: number (no arrays).\n` +
       `Allowed group.type values: "text", "custom", "polygon". If unsure, use "custom".\n` +
       `Return ONLY the corrected full JSON object with top-level keys exactly:\n"name","title","description","mainState".\nNo explanations, no extra keys, no comments.\n\n` +
       `<BROKEN_JSON>\n${JSON.stringify(brokenJson)}\n</BROKEN_JSON>`;
@@ -403,6 +408,8 @@ export class OpenAIGenerationService {
         timeline: composed.timeline ?? { scale: 1, duration: 3, currentTime: 0, animationStates: {} },
       },
     };
+    // Sanitize move arrays -> single values before validation
+    sanitizeMovePropertiesInPlace(doc);
 
     // 5) Validate + Fix loop (minimal edits)
     const MAX_PASSES = 3;
@@ -419,6 +426,8 @@ export class OpenAIGenerationService {
       // Coerce numeric strings and re-freeze geometry to element snapshot
       this.coerceNumbersInPlace(doc);
       doc.mainState.elements = this.freezeGeometry(elementsOnly.elements, doc.mainState.elements || []);
+      // Sanitize move arrays again after fixer
+      sanitizeMovePropertiesInPlace(doc);
     }
 
     // Final check after fixes
