@@ -630,6 +630,52 @@ export class ProjectController {
     }
   }
 
+  // AI Edit endpoint: apply NL prompt to update a project's mainState
+  static async applyAiEdit(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user || !req.user.userId) {
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+        return;
+      }
+      const { projectId } = req.params;
+      const { prompt } = req.body || {};
+      if (!projectId) {
+        res.status(400).json({ success: false, message: 'Project ID is required' });
+        return;
+      }
+      if (typeof prompt !== 'string' || !prompt.trim()) {
+        res.status(400).json({ success: false, message: 'Prompt is required' });
+        return;
+      }
+
+      // Load current project and ensure edit access
+      const project = await ProjectService.getProjectById(projectId, req.user.userId);
+      if (!project) {
+        res.status(404).json({ success: false, message: 'Project not found or access denied' });
+        return;
+      }
+
+      // Generate updated mainState via OpenAI service
+      const { OpenAIGenerationService } = await import('../services/openai-generation.service');
+      const updatedMainState = await OpenAIGenerationService.applyEditToMainState(String(prompt), (project.mainState as any) || {});
+
+      // Persist as a normal project update to bump version and record change
+      const saved = await ProjectService.updateProject(projectId, req.user.userId, { mainState: updatedMainState } as any);
+      if (!saved) {
+        res.status(404).json({ success: false, message: 'Failed to save project update' });
+        return;
+      }
+
+      res.json({ success: true, message: 'AI edit applied', data: { project: saved } });
+    } catch (error) {
+      logger.error('AI edit failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: req.user?.userId,
+        projectId: req.params['projectId'],
+      });
+      res.status(500).json({ success: false, message: 'Failed to apply AI edit' });
+    }
+  }
   static async convertToNative(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       if (!req.user || !req.user.userId) {

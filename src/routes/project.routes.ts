@@ -22,6 +22,8 @@ router.post('/:projectId/rollback/:version', ProjectController.rollbackToVersion
 router.post('/:projectId/rollforward', ProjectController.rollforward);
 router.post('/:projectId/undo', ProjectController.undo);
 router.post('/:projectId/redo', ProjectController.redo);
+// AI Tools: Apply NL prompt to edit project's mainState
+router.post('/:projectId/ai-edit', ProjectController.applyAiEdit);
 router.post('/:projectId/convert-to-native', ProjectController.convertToNative);
 
 // Project Generation
