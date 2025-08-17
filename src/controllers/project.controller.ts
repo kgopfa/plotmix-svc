@@ -2,7 +2,8 @@ import { Response } from 'express';
 import { ProjectService } from '../services/project.service';
 import { OrchestrationService } from '../services/orchestration.service';
 import { logger } from '../utils/logger';
-import { AuthenticatedRequest, CreateProjectWithConversationRequest, ProjectConfigurationResponse, BatchDeleteRequest } from '../types';
+import { AuthenticatedRequest, CreateProjectWithConversationRequest, ProjectConfigurationResponse, BatchDeleteRequest, MESSAGE_TYPES } from '../types';
+import { ConversationService } from '../services/conversation.service';
 import { enqueueRenderJob } from '../services/render-queue.service';
 import { buildRenderObjectKey } from '../services/render-storage.service';
 
@@ -658,6 +659,18 @@ export class ProjectController {
       // Generate updated mainState via OpenAI service
       const { OpenAIGenerationService } = await import('../services/openai-generation.service');
       const updatedMainState = await OpenAIGenerationService.applyEditToMainState(String(prompt), (project.mainState as any) || {});
+
+      // Persist the prompt as a message in the project's conversation (create if missing)
+      try {
+        let conversationId: string | undefined = project.conversation?.id;
+        if (!conversationId) {
+          const conv = await ConversationService.createConversation(req.user.userId, { projectId });
+          conversationId = conv.id;
+        }
+        await ConversationService.addMessage(conversationId!, req.user.userId, { content: String(prompt) }, MESSAGE_TYPES.USER);
+      } catch (e) {
+        logger.warn('Failed to persist AI edit prompt message', { error: e instanceof Error ? e.message : String(e), projectId, userId: req.user.userId });
+      }
 
       // Persist as a normal project update to bump version and record change
       const saved = await ProjectService.updateProject(projectId, req.user.userId, { mainState: updatedMainState } as any);
