@@ -118,6 +118,7 @@ Rules:
 - Keep existing element ids stable; do not modify geometry or properties unless necessary for the request.
 - When adding new elements, generate unique ids (e.g., "el-<short>"), set required fields (id,name,type,x,y,fill,width,height where applicable) and animations: [].
 - Colors must be hex "#RRGGBB" or "none".
+- If asked to add more elements, use similar elements (and their properties) to the existing ones.
 - For text elements include fontFamily from allowlist; default to "Inter".
 - For lines include stroke+strokeWidth and lineOptions.points.start/end.
 - For paths include >=2 pathPoints.
