@@ -9,6 +9,7 @@ export type Snapshot = PrismaSnapshot;
 export type ProjectRole = PrismaProjectRole;
 export type Conversation = PrismaConversation;
 export type Message = PrismaMessage;
+export type DesignerPrompt = import('@prisma/client').DesignerPrompt;
 
 // Message Type Constants
 export const MESSAGE_TYPES = {
@@ -102,6 +103,7 @@ export interface ProjectWithRelations extends Project {
   snapshots: Snapshot[];
   collaborators: ProjectRole[];
   conversation: Conversation | null;
+  designerPrompts?: DesignerPrompt[];
 }
 
 // Conversation Types

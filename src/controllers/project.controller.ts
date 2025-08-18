@@ -2,8 +2,7 @@ import { Response } from 'express';
 import { ProjectService } from '../services/project.service';
 import { OrchestrationService } from '../services/orchestration.service';
 import { logger } from '../utils/logger';
-import { AuthenticatedRequest, CreateProjectWithConversationRequest, ProjectConfigurationResponse, BatchDeleteRequest, MESSAGE_TYPES } from '../types';
-import { ConversationService } from '../services/conversation.service';
+import { AuthenticatedRequest, CreateProjectWithConversationRequest, ProjectConfigurationResponse, BatchDeleteRequest } from '../types';
 import { enqueueRenderJob } from '../services/render-queue.service';
 import { buildRenderObjectKey } from '../services/render-storage.service';
 
@@ -660,26 +659,47 @@ export class ProjectController {
       const { OpenAIGenerationService } = await import('../services/openai-generation.service');
       const updatedMainState = await OpenAIGenerationService.applyEditToMainState(String(prompt), (project.mainState as any) || {});
 
-      // Persist the prompt as a message in the project's conversation (create if missing)
-      try {
-        let conversationId: string | undefined = project.conversation?.id;
-        if (!conversationId) {
-          const conv = await ConversationService.createConversation(req.user.userId, { projectId });
-          conversationId = conv.id;
-        }
-        await ConversationService.addMessage(conversationId!, req.user.userId, { content: String(prompt) }, MESSAGE_TYPES.USER);
-      } catch (e) {
-        logger.warn('Failed to persist AI edit prompt message', { error: e instanceof Error ? e.message : String(e), projectId, userId: req.user.userId });
-      }
-
-      // Persist as a normal project update to bump version and record change
-      const saved = await ProjectService.updateProject(projectId, req.user.userId, { mainState: updatedMainState } as any);
-      if (!saved) {
-        res.status(404).json({ success: false, message: 'Failed to save project update' });
+      // Compute a jsondiffpatch delta between current and updated, then persist via change service for versioning/undo
+      const { DiffPatcher } = await import('jsondiffpatch');
+      const robustPatcher = new DiffPatcher({
+        objectHash: (obj: any) => obj?.id ?? JSON.stringify(obj),
+        arrays: { detectMove: true, includeValueOnMove: false },
+      } as any);
+      const currentState = (project.mainState as any) ?? {};
+      let delta: any = robustPatcher.diff(currentState, updatedMainState) || null;
+      if (!delta) {
+        // No-op; return current project without creating a change
+        res.json({ success: true, message: 'No changes from AI edit', data: { project } });
         return;
       }
 
-      res.json({ success: true, message: 'AI edit applied', data: { project: saved } });
+      // Persist via versioned change pipeline
+      const actionDescription = `AI edit: ${String(prompt).slice(0, 160)}`;
+      const saved = await ProjectService.applyProjectChange(projectId, req.user.userId, {
+        diff: delta,
+        actionDescription,
+      } as any);
+      if (!saved) {
+        res.status(404).json({ success: false, message: 'Project not found or edit access denied' });
+        return;
+      }
+
+      // Persist the prompt in dedicated designer prompts log with resulting version
+      try {
+        const { DesignerPromptService } = await import('../services/designer-prompt.service');
+        await DesignerPromptService.recordPrompt({
+          projectId,
+          userId: req.user.userId,
+          prompt: String(prompt),
+          status: 'applied',
+          resultVersion: saved.version,
+          metadata: null,
+        });
+      } catch (e) {
+        logger.warn('Failed to persist designer prompt', { error: e instanceof Error ? e.message : String(e), projectId, userId: req.user.userId });
+      }
+
+      res.json({ success: true, message: 'AI edit applied (versioned)', data: { project: saved } });
     } catch (error) {
       logger.error('AI edit failed', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -709,6 +729,32 @@ export class ProjectController {
     } catch (error) {
       logger.error('Convert to native failed', { error: error instanceof Error ? error.message : 'Unknown error', userId: req.user?.userId, projectId: req.params['projectId'] });
       res.status(500).json({ success: false, message: 'Failed to convert project' });
+    }
+  }
+
+  // List designer prompts for a project (current user only)
+  static async listDesignerPrompts(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user || !req.user.userId) {
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+        return;
+      }
+      const { projectId } = req.params;
+      if (!projectId) {
+        res.status(400).json({ success: false, message: 'Project ID is required' });
+        return;
+      }
+      const limit = req.query['limit'] ? Math.max(1, Math.min(200, parseInt(String(req.query['limit'])) || 50)) : 50;
+      const { DesignerPromptService } = await import('../services/designer-prompt.service');
+      const prompts = await DesignerPromptService.listPrompts(projectId, req.user.userId, limit);
+      res.json({ success: true, message: 'Designer prompts retrieved', data: { prompts } });
+    } catch (error) {
+      logger.error('List designer prompts failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: req.user?.userId,
+        projectId: req.params['projectId'],
+      });
+      res.status(500).json({ success: false, message: 'Failed to list designer prompts' });
     }
   }
 

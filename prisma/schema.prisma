@@ -20,6 +20,7 @@ model User {
   projectChanges ProjectChange[] @relation("ChangeAuthor")
   projectRoles   ProjectRole[]
   ownedProjects  Project[]       @relation("ProjectOwner")
+  designerPrompts DesignerPrompt[]
 
   @@map("users")
 }
@@ -42,6 +43,7 @@ model Project {
   collaborators ProjectRole[]
   owner         User            @relation("ProjectOwner", fields: [userId], references: [id], onDelete: Cascade)
   snapshots     Snapshot[]
+  designerPrompts DesignerPrompt[]
 
   // Render pipeline fields
   contentVideoUrl   String?
@@ -123,4 +125,22 @@ model ProjectRole {
 
   @@unique([projectId, userId])
   @@map("project_roles")
+}
+
+// Designer assistance prompts per project (separate from conversations)
+model DesignerPrompt {
+  id            String   @id @default(cuid())
+  projectId     String   @map("project_id")
+  userId        String   @map("user_id")
+  prompt        String
+  status        String   @default("applied") // applied | failed | draft
+  resultVersion String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+  @@map("designer_prompts")
 }

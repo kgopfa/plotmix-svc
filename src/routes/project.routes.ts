@@ -25,6 +25,8 @@ router.post('/:projectId/redo', ProjectController.redo);
 // AI Tools: Apply NL prompt to edit project's mainState
 router.post('/:projectId/ai-edit', ProjectController.applyAiEdit);
 router.post('/:projectId/convert-to-native', ProjectController.convertToNative);
+// Designer prompts
+router.get('/:projectId/designer-prompts', ProjectController.listDesignerPrompts);
 
 // Project Generation
 router.post('/generate', ProjectController.generateProjectConfiguration);
