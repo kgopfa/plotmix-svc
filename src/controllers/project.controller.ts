@@ -655,9 +655,19 @@ export class ProjectController {
         return;
       }
 
-      // Generate updated mainState via OpenAI service
+      // Generate updated mainState via OpenAI service. Include brief history context of prior prompts and AI summaries.
+      const { DesignerPromptService } = await import('../services/designer-prompt.service');
+      const recent = await DesignerPromptService.listPrompts(projectId, req.user.userId, 10);
+      const historyContext = recent
+        .map((p) => {
+          const ai = (p as any)?.aiResponse;
+          return `- user: ${p.prompt}${ai ? `\n  ai: ${ai}` : ''}`;
+        })
+        .reverse()
+        .join('\n');
       const { OpenAIGenerationService } = await import('../services/openai-generation.service');
-      const updatedMainState = await OpenAIGenerationService.applyEditToMainState(String(prompt), (project.mainState as any) || {});
+      const editResult = await OpenAIGenerationService.applyEditToMainStateWithSummary(String(prompt), (project.mainState as any) || {}, historyContext);
+      const updatedMainState = editResult.mainState;
 
       // Compute a jsondiffpatch delta between current and updated, then persist via change service for versioning/undo
       const { DiffPatcher } = await import('jsondiffpatch');
@@ -687,10 +697,21 @@ export class ProjectController {
       // Persist the prompt in dedicated designer prompts log with resulting version
       try {
         const { DesignerPromptService } = await import('../services/designer-prompt.service');
+        // Generate a compact summary of the applied change for follow-ups
+        const summary = (() => {
+          if (typeof editResult.summary === 'string' && editResult.summary.trim()) return editResult.summary.trim();
+          try {
+            const ops = Object.keys(delta || {});
+            return `Updated: ${ops.slice(0, 4).join(', ') || 'mainState'}`;
+          } catch {
+            return 'Updated project';
+          }
+        })();
         await DesignerPromptService.recordPrompt({
           projectId,
           userId: req.user.userId,
           prompt: String(prompt),
+          aiResponse: summary,
           status: 'applied',
           resultVersion: saved.version,
           metadata: null,
@@ -755,6 +776,61 @@ export class ProjectController {
         projectId: req.params['projectId'],
       });
       res.status(500).json({ success: false, message: 'Failed to list designer prompts' });
+    }
+  }
+
+  // Delete a single designer prompt (by id) for current user
+  static async deleteDesignerPrompt(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user || !req.user.userId) {
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+        return;
+      }
+      const { projectId, promptId } = req.params as any;
+      if (!projectId || !promptId) {
+        res.status(400).json({ success: false, message: 'Project ID and prompt ID are required' });
+        return;
+      }
+      const { DesignerPromptService } = await import('../services/designer-prompt.service');
+      const ok = await DesignerPromptService.deletePrompt(promptId, projectId, req.user.userId);
+      if (!ok) {
+        res.status(404).json({ success: false, message: 'Prompt not found' });
+        return;
+      }
+      res.json({ success: true, message: 'Prompt deleted' });
+    } catch (error) {
+      logger.error('Delete designer prompt failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: req.user?.userId,
+        projectId: req.params['projectId'],
+        promptId: (req.params as any)['promptId'],
+      });
+      res.status(500).json({ success: false, message: 'Failed to delete designer prompt' });
+    }
+  }
+
+  // Clear all designer prompts for the current user in a project
+  static async clearDesignerPrompts(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user || !req.user.userId) {
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+        return;
+      }
+      const { projectId } = req.params;
+      if (!projectId) {
+        res.status(400).json({ success: false, message: 'Project ID is required' });
+        return;
+      }
+      const { DesignerPromptService } = await import('../services/designer-prompt.service');
+      const count = await DesignerPromptService.clearPrompts(projectId, req.user.userId);
+      res.json({ success: true, message: 'Prompts cleared', data: { count } });
+    } catch (error) {
+      logger.error('Clear designer prompts failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: req.user?.userId,
+        projectId: req.params['projectId'],
+      });
+      res.status(500).json({ success: false, message: 'Failed to clear designer prompts' });
     }
   }
 

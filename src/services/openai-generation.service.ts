@@ -109,7 +109,7 @@ export class OpenAIGenerationService {
   }
 
   // New: Edit the existing mainState using a natural-language prompt
-  private static async runEditMaker(specFacts: any, currentMainState: any, userPrompt: string) {
+  private static async runEditMaker(specFacts: any, currentMainState: any, userPrompt: string, historyContext?: string) {
     const system = 'You are an editor for a canvas animation JSON. Apply the requested change with minimal edits.';
     const user = `You will update an existing mainState according to a user instruction.
 Return ONLY JSON with exactly { "elements": [...], "groups": [...], "timeline": { ... } }.
@@ -136,8 +136,67 @@ ${JSON.stringify(currentMainState)}
 
 <USER_PROMPT>
 ${userPrompt}
-</USER_PROMPT>`;
+</USER_PROMPT>
+
+${historyContext ? `
+<CONTEXT_HISTORY>
+${historyContext}
+</CONTEXT_HISTORY>
+` : ''}`;
     return await this.runWithRetry('EditMaker', () => this.chatJson([
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ], { temperature: 0.2 }));
+  }
+
+  // Variant: also produce a concise, single-sentence summary describing the change
+  private static async runEditMakerWithSummary(
+    specFacts: any,
+    currentMainState: any,
+    userPrompt: string,
+    historyContext?: string
+  ) {
+    const system = 'You are an editor for a canvas animation JSON. Apply the requested change with minimal edits.';
+    const user = `You will update an existing mainState according to a user instruction.
+Return ONLY JSON with exactly { "elements": [...], "groups": [...], "timeline": { ... }, "summary": string }.
+
+Rules:
+- Keep existing element ids stable; do not modify geometry or properties unless necessary for the request.
+- When adding new elements, generate unique ids (e.g., "el-<short>"), set required fields (id,name,type,x,y,fill,width,height where applicable) and animations: [].
+- Colors must be hex "#RRGGBB" or "none".
+- If asked to add more elements, use similar elements (and their properties) to the existing ones.
+- For text elements include fontFamily from allowlist; default to "Inter".
+- For lines include stroke+strokeWidth and lineOptions.points.start/end.
+- For paths include >=2 pathPoints.
+- Maintain or extend groups appropriately; elementIds must reference existing or newly added ids.
+- Timeline: keep currentTime, scale; if new animations are added, extend duration to cover latest end, else keep duration.
+- Easing must be from allowlist; prefer "power2.out" or "none" when unspecified.
+
+Summary requirements (concise, one sentence):
+- Clearly and briefly describe what changed; do not list all details.
+- Prefer patterns like:
+  - "Added <N> <shapeType>(s) positioned at x:<X> y:<Y>" when adding shapes.
+  - "Updated color of <shapeType> <id or label> to <#RRGGBB>" when changing a color.
+- Avoid long explanations; no extra context; keep under 120 characters.
+
+<SPEC_FACTS>
+${JSON.stringify(specFacts)}
+</SPEC_FACTS>
+
+<CURRENT_MAIN_STATE>
+${JSON.stringify(currentMainState)}
+</CURRENT_MAIN_STATE>
+
+<USER_PROMPT>
+${userPrompt}
+</USER_PROMPT>
+
+${historyContext ? `
+<CONTEXT_HISTORY>
+${historyContext}
+</CONTEXT_HISTORY>
+` : ''}`;
+    return await this.runWithRetry('EditMakerWithSummary', () => this.chatJson([
       { role: 'system', content: system },
       { role: 'user', content: user },
     ], { temperature: 0.2 }));
@@ -475,13 +534,13 @@ ${userPrompt}
   }
 
   // Public: apply an edit instruction to an existing mainState and return an updated, validated mainState
-  static async applyEditToMainState(userPrompt: string, currentMainState: any): Promise<{ elements: any[]; groups: any[]; timeline: any }>
+  static async applyEditToMainState(userPrompt: string, currentMainState: any, historyContext?: string): Promise<{ elements: any[]; groups: any[]; timeline: any }>
   {
     const engineSpec = this.getAuthoritativeEngineSpec();
     const specFacts = await this.getSpecFacts(engineSpec);
 
     // Ask the model to minimally update the provided mainState
-    const edited = await this.runEditMaker(specFacts, currentMainState || {}, userPrompt);
+    const edited = await this.runEditMaker(specFacts, currentMainState || {}, userPrompt, historyContext);
 
     // Normalize numeric strings
     this.coerceNumbersInPlace(edited);
@@ -519,6 +578,59 @@ ${userPrompt}
       throw new Error(`AI Edit invalid: ${final.errors.join('; ')}`);
     }
     return doc.mainState;
+  }
+
+  // Public: apply an edit and also produce a concise summary string
+  static async applyEditToMainStateWithSummary(
+    userPrompt: string,
+    currentMainState: any,
+    historyContext?: string
+  ): Promise<{ mainState: { elements: any[]; groups: any[]; timeline: any }, summary: string | null }>
+  {
+    const engineSpec = this.getAuthoritativeEngineSpec();
+    const specFacts = await this.getSpecFacts(engineSpec);
+
+    // Ask the model to minimally update the provided mainState and include a concise summary
+    const edited = await this.runEditMakerWithSummary(specFacts, currentMainState || {}, userPrompt, historyContext);
+
+    // Normalize numeric strings on the edited payload (elements/groups/timeline)
+    this.coerceNumbersInPlace(edited);
+
+    // Build a doc wrapper for validation reusing the strong validator
+    let doc = {
+      name: 'edit',
+      title: 'Edit',
+      description: 'AI edit to existing mainState',
+      mainState: {
+        elements: Array.isArray(edited?.elements) ? edited.elements : Array.isArray((currentMainState || {}).elements) ? (currentMainState as any).elements : [],
+        groups: Array.isArray(edited?.groups) ? edited.groups : Array.isArray((currentMainState || {}).groups) ? (currentMainState as any).groups : [],
+        timeline: edited?.timeline && typeof edited.timeline === 'object'
+          ? edited.timeline
+          : ((currentMainState || {}).timeline || { scale: 1, duration: 3, currentTime: 0, animationStates: {} }),
+      },
+    } as any;
+
+    // Ensure move properties are sanitized pre-validate
+    sanitizeMovePropertiesInPlace(doc);
+
+    // Validate + Fix loop to enforce schema rules
+    const MAX_PASSES = 2;
+    for (let i = 0; i < MAX_PASSES; i++) {
+      const res = this.validateDoc(doc, specFacts);
+      if (res.valid) break;
+      doc = await this.runFixer(specFacts, res.errors, res.patchHints, doc);
+      this.coerceNumbersInPlace(doc);
+      sanitizeMovePropertiesInPlace(doc);
+    }
+
+    const final = this.validateDoc(doc, specFacts);
+    if (!final.valid) {
+      logger.error('AI Edit validation failed (with summary)', { errors: final.errors });
+      throw new Error(`AI Edit invalid: ${final.errors.join('; ')}`);
+    }
+
+    const summary: string | null = typeof edited?.summary === 'string' && edited.summary.trim() ? String(edited.summary).trim() : null;
+    return { mainState: doc.mainState, summary };
   }
 }
 

@@ -133,6 +133,7 @@ model DesignerPrompt {
   projectId     String   @map("project_id")
   userId        String   @map("user_id")
   prompt        String
+  aiResponse    String?
   status        String   @default("applied") // applied | failed | draft
   resultVersion String?
   metadata      Json?

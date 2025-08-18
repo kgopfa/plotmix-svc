@@ -27,6 +27,8 @@ router.post('/:projectId/ai-edit', ProjectController.applyAiEdit);
 router.post('/:projectId/convert-to-native', ProjectController.convertToNative);
 // Designer prompts
 router.get('/:projectId/designer-prompts', ProjectController.listDesignerPrompts);
+router.delete('/:projectId/designer-prompts/:promptId', ProjectController.deleteDesignerPrompt);
+router.delete('/:projectId/designer-prompts', ProjectController.clearDesignerPrompts);
 
 // Project Generation
 router.post('/generate', ProjectController.generateProjectConfiguration);
