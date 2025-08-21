@@ -54,6 +54,22 @@ export interface ProjectConfiguration {
     gridEnabled: boolean;
     gridSize: number;
     showGuides: boolean;
+    // Extended snapping configuration
+    snapping: {
+      grid: {
+        enabled: boolean;
+        visible: boolean;
+        size: number;
+        snapThreshold: number;
+      };
+      elements: {
+        enabled: boolean;
+        snapThreshold: number;
+        showGuides: boolean;
+        enableSpacing: boolean;
+        enableDistribution: boolean;
+      };
+    };
   };
   
   // Animation preferences

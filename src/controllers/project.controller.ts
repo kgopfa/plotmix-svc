@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { ProjectService } from '../services/project.service';
 import { OrchestrationService } from '../services/orchestration.service';
 import { logger } from '../utils/logger';
+import { createDefaultProjectConfiguration } from '../utils/project-config';
 import { AuthenticatedRequest, CreateProjectWithConversationRequest, ProjectConfigurationResponse, BatchDeleteRequest } from '../types';
 import { enqueueRenderJob } from '../services/render-queue.service';
 import { buildRenderObjectKey } from '../services/render-storage.service';
@@ -20,6 +21,7 @@ export class ProjectController {
       const project = await ProjectService.createProject(req.user.userId, {
         name: 'New Project',
         mainState: {},
+        configuration: createDefaultProjectConfiguration(),
         features: {
           attachments: { enabled: false },
           audio: { enabled: false },
@@ -854,6 +856,143 @@ export class ProjectController {
     } catch (error) {
       logger.error('Batch delete projects failed', { error: error instanceof Error ? error.message : 'Unknown error', userId: req.user?.userId });
       res.status(500).json({ success: false, message: 'Failed to batch delete projects' });
+    }
+  }
+
+  static async saveUserPreferences(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user || !req.user.userId) {
+        res.status(401).json({
+          success: false,
+          message: 'User not authenticated',
+        });
+        return;
+      }
+
+      const { preferences } = req.body;
+      
+      if (!preferences) {
+        res.status(400).json({
+          success: false,
+          message: 'Preferences data is required',
+        });
+        return;
+      }
+
+      // Get the user's most recent project to save preferences
+      const userProjects = await ProjectService.getUserProjects(req.user.userId, { page: 1, limit: 1 });
+      
+      if (userProjects.length === 0) {
+        res.status(404).json({
+          success: false,
+          message: 'No projects found to save preferences to',
+        });
+        return;
+      }
+
+      const latestProject = userProjects[0];
+      
+      if (!latestProject) {
+        res.status(404).json({
+          success: false,
+          message: 'No projects found to save preferences to',
+        });
+        return;
+      }
+      
+      // Update the project configuration with new preferences
+      const currentConfig = latestProject.configuration as any;
+      const updatedConfig = {
+        ...currentConfig,
+        editor: {
+          ...currentConfig?.editor,
+          ...preferences.editor,
+        },
+      };
+      
+      await ProjectService.updateProject(latestProject.id, req.user.userId, {
+        configuration: updatedConfig,
+      } as any);
+
+      res.status(200).json({
+        success: true,
+        message: 'User preferences saved successfully',
+      });
+    } catch (error) {
+      logger.error('Failed to save user preferences', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: req.user?.userId,
+      });
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to save user preferences',
+      });
+    }
+  }
+
+  static async generateScript(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user || !req.user.userId) {
+        res.status(401).json({
+          success: false,
+          message: 'User not authenticated',
+        });
+        return;
+      }
+
+      const { projectId } = req.params;
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          message: 'Project ID is required',
+        });
+        return;
+      }
+
+      const { prompt } = req.body;
+
+      if (!prompt || typeof prompt !== 'string') {
+        res.status(400).json({
+          success: false,
+          message: 'Prompt is required and must be a string',
+        });
+        return;
+      }
+
+      // Get the project to access its current state
+      const project = await ProjectService.getProjectById(projectId, req.user.userId);
+      if (!project) {
+        res.status(404).json({
+          success: false,
+          message: 'Project not found',
+        });
+        return;
+      }
+
+      // Generate script using OpenAI
+      const openaiClient = require('../clients/openai.client').OpenAIClient.getInstance();
+      const script = await openaiClient.generateScript(prompt, project.mainState);
+
+      res.status(200).json({
+        success: true,
+        message: 'Script generated successfully',
+        data: {
+          script,
+          projectId,
+        },
+      });
+    } catch (error) {
+      logger.error('Script generation failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: req.user?.userId,
+        projectId: req.params['projectId'],
+      });
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to generate script',
+      });
     }
   }
 } 

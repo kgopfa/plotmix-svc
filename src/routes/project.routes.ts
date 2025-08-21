@@ -30,8 +30,14 @@ router.get('/:projectId/designer-prompts', ProjectController.listDesignerPrompts
 router.delete('/:projectId/designer-prompts/:promptId', ProjectController.deleteDesignerPrompt);
 router.delete('/:projectId/designer-prompts', ProjectController.clearDesignerPrompts);
 
+// Script generation
+router.post('/:projectId/generate-script', ProjectController.generateScript);
+
 // Project Generation
 router.post('/generate', ProjectController.generateProjectConfiguration);
+
+// User preferences
+router.post('/preferences', ProjectController.saveUserPreferences);
 
 // Batch operations
 router.post('/batch/delete', ProjectController.batchDelete);

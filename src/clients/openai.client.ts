@@ -161,7 +161,57 @@ export class OpenAIClient {
   ): Promise<any> {
     return this.callLLMMessages([{ role: 'user', content: prompt }], options);
   }
-} 
+
+  public async generateScript(prompt: string, projectState: any): Promise<string> {
+    const systemPrompt = `You are a JavaScript code generator for a canvas-based design application. 
+Your task is to generate JavaScript code that manipulates a project object containing elements, groups, and timeline data.
+
+The project object has this structure:
+- project.elements: Array of canvas elements with properties like x, y, width, height, fill, etc.
+- project.groups: Array of element groups with properties like elementIds, animations, etc.
+- project.timeline: Object with scale, duration, currentTime, and animationStates
+
+Generate ONLY the JavaScript code that accomplishes the user's request. Do not include explanations, comments, or markdown formatting.
+The code should be ready to execute and should use the 'project' variable to access the data.
+Return only the JavaScript code, nothing else.`;
+
+    const userPrompt = `Project state: ${JSON.stringify(projectState, null, 2)}
+
+User request: ${prompt}
+
+Generate JavaScript code that accomplishes this request:`;
+
+    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ];
+
+    try {
+      const response = await this.callLLMMessages(messages, { 
+        json: false, 
+        temperature: 0.3,
+        attempts: 2 
+      });
+      
+      // Clean up the response to ensure it's just JavaScript code
+      let script = response.trim();
+      
+      // Remove markdown code blocks if present
+      script = script.replace(/```(?:javascript|js)?\n?/gi, '');
+      script = script.replace(/```\n?/gi, '');
+      
+      // Remove any explanatory text before or after the code
+      const codeMatch = script.match(/([\s\S]*)/);
+      if (codeMatch) {
+        script = codeMatch[1].trim();
+      }
+      
+      return script;
+    } catch (error) {
+      throw new Error(`Failed to generate script: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+}
 
 // Standalone helper (clean orchestrator usage)
 export async function callLLM(prompt: string, json: boolean = true, temperature: number = 0.2, attempts: number = 2): Promise<any> {

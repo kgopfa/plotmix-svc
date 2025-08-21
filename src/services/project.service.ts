@@ -1,5 +1,6 @@
 import { prisma } from '../clients/database.client';
 import { logger } from '../utils/logger';
+import { createDefaultProjectConfiguration } from '../utils/project-config';
 import {
   Project,
   CreateProjectRequest,
@@ -18,11 +19,14 @@ export class ProjectService {
     const { features, mainState, configuration, ...restData } = projectData;
     const version = '1.0.0'; // initial version
     
+    // Use default configuration if none provided
+    const finalConfiguration = configuration || createDefaultProjectConfiguration();
+    
     const project = await prisma.project.create({
       data: {
         ...restData,
         mainState,
-        configuration: configuration as any,
+        configuration: finalConfiguration as any,
         userId,
         version,
         features: features ? (features as any) : null,
