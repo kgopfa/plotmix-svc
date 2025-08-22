@@ -35,32 +35,39 @@ User Prompt → Intent Reducer → Router → Scene Planner → Per-scene Fan-ou
 
 ### Per-scene Fan-out Details
 
-Each scene from the Scene Planner goes through a detailed breakdown process:
+Each scene from the Scene Planner goes through a detailed breakdown process in the `PerSceneFanOutOrchestrator`:
 
 **A. Caption → Steps** (tiny LLM call)
-- Break down scene caption into 2-3 atomic steps
-- Each step gets a unique ID and descriptive text
+- Break down scene caption into 2-5 atomic, imperative steps
+- Each step gets a unique ID and descriptive text (≤8 words each)
+- Uses prompt: "Split into 2-5 imperative steps, ≤8 words each. Return JSON only."
 
 **B. Motif Selection** (tiny LLM call)
-- Pick appropriate motif for each step
+- Pick appropriate motif for each step from candidate motifs
 - Motif must be one of the archetypes from Router
+- Uses prompt: "Select best motif per step from candidates. Return JSON only."
 
 **C. Entities & Relations** (tiny LLM call)
-- Identify actors, processes, containers, events, channels
+- Identify actors, processes, containers, events using generic vocabulary
 - Define how entities interact with each other
-- Use generic vocabulary for domain-agnosticism
+- Entity types: `["actor","process","container","event"]`
+- Relation types: `["flows_to","interacts_with","contains","triggers"]`
+- Uses prompt: "Generate entities and relations using specified types. Return JSON only."
 
 **D. Motif Parameters** (tiny LLM call)
 - Customize motif behavior (speed, style, emphasis)
-- Provide fallback defaults when needed
+- Generate only non-default parameter overrides
+- Uses prompt: "Generate non-default parameter overrides. Return JSON only."
 
 **E. Step Transitions** (tiny LLM call)
 - Define how steps flow into each other
-- Specify transition effects between steps
+- Specify transition effects from enum: `["xfade_fast","pan_right","zoom_in_light","caption_hold"]`
+- Uses prompt: "Generate transitions between steps. Return JSON only."
 
 **F. SceneOut Assembly**
 - Combine all components into final scene output
 - Ready for Scene Processor and Layout Compiler
+- Output structure matches `SceneFanOutResult` type
 
 ### 0) Inputs & Assets
 
@@ -267,7 +274,22 @@ type EngineDoc = {
 
 ## Prompt Snippets (Reusable)
 
-Keep messages tiny, JSON‑only, deterministic.
+Keep messages tiny, JSON‑only, deterministic. **Status: ✅ IMPLEMENTED** - All prompts have been optimized for conciseness and include examples.
+
+### Current Prompt Improvements
+
+The pipeline now uses optimized, concise prompts that:
+- Include concrete examples of expected JSON output
+- Remove verbose explanations while maintaining essential constraints
+- Use consistent structure across all stages
+- Focus on specific, actionable instructions
+
+**Examples of optimized prompts:**
+- **Router**: "Classify prompt into 1-2 archetypes and tone. Return JSON only."
+- **Intent Reducer**: "Extract domain and 3-5 core flows. Return JSON only."
+- **Scene Planner**: "Create one scene per core flow. Return JSON only."
+- **Atomic Steps**: "Split into 2-5 imperative steps, ≤8 words each. Return JSON only."
+- **Entities**: "Generate entities and relations using specified types. Return JSON only."
 
 Router (tiny):
 
@@ -340,6 +362,7 @@ Router → Intent Reducer → ScenePlanner → [per‑scene parallel fan‑out (
 
 - Types: `src/orchestration/langgraph/types.ts`
 - Pipeline Runner: `src/orchestration/pipeline-runner.ts` (sequential pipeline with LLM calls)
+- Per-scene Fan-out: `src/orchestration/per-scene-fanout/orchestrator.ts` (detailed scene breakdown)
 - Service: `src/services/pipeline-generation.service.ts` (orchestration and validation)
 
 ### Production Implementation
@@ -429,13 +452,25 @@ Retrieval flow per step:
 }
 ```
 
-## Next Steps
+## Implementation Status
 
-1. Create archetype catalog (8 items) and 5–8 motifs/archetype with `compiler_key`s.
-2. Build Router & Scene Planner nodes (tiny/small prompts).
-3. Implement per‑scene fan‑out nodes + validators; wire caches (motifs + design assets).
-4. Write layout grammars and compiler templates mapping to `ENGINE_SPEC`.
-5. Add caption polish batch step.
+**✅ COMPLETED:**
+- Router & Scene Planner nodes with optimized prompts
+- Per-scene fan-out orchestrator with all 6 breakdown steps
+- Pipeline runner with sequential execution
+- Type definitions and interfaces
+- Prompt optimization (concise + examples)
+
+**🔄 IN PROGRESS:**
+- Motif catalog and retrieval system
+- Design asset retrieval integration
+
+**📋 NEXT STEPS:**
+1. Create archetype catalog (8 items) and 5–8 motifs/archetype with `compiler_key`s
+2. Wire motif caches and retrieval (motifs + design assets)
+3. Write layout grammars and compiler templates mapping to `ENGINE_SPEC`
+4. Add caption polish batch step
+5. Implement parallel execution with LangGraph
 
 ## Concrete Walkthrough Example ("Design Twitter")
 
