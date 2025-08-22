@@ -21,6 +21,7 @@ async function testPipeline() {
     });
     
     logger.info('Test completed successfully');
+    process.exit(0);
     
   } catch (error) {
     logger.error('Pipeline test failed', {
@@ -33,5 +34,8 @@ async function testPipeline() {
 
 // Run the test if this file is executed directly
 if (require.main === module) {
-  testPipeline();
+  testPipeline().catch((error) => {
+    logger.error('Unhandled error in test pipeline', { error });
+    process.exit(1);
+  });
 }

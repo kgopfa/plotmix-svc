@@ -26,7 +26,7 @@ export class PipelineRunner {
       const scenePlanner = await this.runScenePlanner(brief, intentReducer, userText);
       logger.info('Scene Planner completed', { sceneCount: scenePlanner.scenes.length });
 
-      // 4. Per-scene Fan-out - break down each scene into detailed steps
+      // 4. Per-scene Fan-out - break down each scene into detailed steps (parallel)
       const sceneOutputs = await this.runPerSceneFanOut(scenePlanner.scenes, brief, intentReducer);
       logger.info('Per-scene Fan-out completed', { sceneCount: sceneOutputs.length });
 
@@ -166,17 +166,13 @@ export class PipelineRunner {
     }
 
     const perSceneFanOutOrchestrator = PerSceneFanOutOrchestrator.getInstance();
-    const sceneOutputs: SceneOut[] = [];
     
-    for (const scene of scenes) {
-      const sceneResult = await perSceneFanOutOrchestrator.processScene(
-        scene, 
-        brief.archetypes, 
-        brief.tone
-      );
-      sceneOutputs.push(sceneResult);
-    }
+    // Process all scenes in parallel for better performance
+    const scenePromises = scenes.map(scene => 
+      perSceneFanOutOrchestrator.processScene(scene, brief.archetypes, brief.tone)
+    );
     
+    const sceneOutputs = await Promise.all(scenePromises);
     return sceneOutputs;
   }
 

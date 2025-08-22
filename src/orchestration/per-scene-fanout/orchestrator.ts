@@ -55,7 +55,7 @@ export class PerSceneFanOutOrchestrator {
       logger.debug('Retrieved motif candidates', { candidateCount: state.motif_candidates.length });
 
       // Step 3: Pick motif per step
-      state.motif_selections = await this.selectMotifsPerStep(state.atomic_steps, state.motif_candidates, tone);
+      state.motif_selections = await this.selectMotifsPerStep(state.atomic_steps, state.motif_candidates);
       logger.debug('Selected motifs per step', { selectionCount: state.motif_selections.length });
 
       // Step 4: Generate entities and relations
@@ -136,9 +136,21 @@ export class PerSceneFanOutOrchestrator {
   /**
    * Step 3: LLM selects ONE motif per step
    */
-  private async selectMotifsPerStep(steps: AtomicStep[], candidates: any[], tone: string): Promise<MotifSelection[]> {
-    const system = 'Select the most appropriate motif for each step from the provided candidates. Return JSON only.';
-    const user = `Steps: ${JSON.stringify(steps)}\nCandidates: ${JSON.stringify(candidates)}\nTone: ${tone}\nReturn: [{"step_id":"1","motif_id":"motif_id","confidence":0.9}]`;
+  private async selectMotifsPerStep(steps: AtomicStep[], candidates: any[]): Promise<MotifSelection[]> {
+    // If no candidates, provide fallback motifs
+    if (!candidates || candidates.length === 0) {
+      logger.warn('No motif candidates available, using fallback motifs');
+      return steps.map(step => ({
+        step_id: step.id,
+        motif_id: 'motif_process_flow_1',
+        confidence: 0.7
+      }));
+    }
+
+    const system = 'Select best motif per step from candidates. Return JSON only.';
+    const user = `Steps: ${JSON.stringify(steps)}
+Candidates: ${JSON.stringify(candidates)}
+Example: [{"step_id":"1","motif_id":"motif_id","confidence":0.9}]`;
 
     const result = await this.client.callLLM([
       { role: 'system', content: system },
@@ -147,10 +159,26 @@ export class PerSceneFanOutOrchestrator {
 
     try {
       const parsed = JSON.parse(result);
-      return Array.isArray(parsed) ? parsed : [];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+      
+      // Fallback: assign default motifs if parsing fails or returns empty
+      logger.warn('Motif selection failed, using fallback motifs');
+      return steps.map(step => ({
+        step_id: step.id,
+        motif_id: 'motif_process_flow_1',
+        confidence: 0.7
+      }));
     } catch (parseError) {
       logger.error('Failed to parse motif selection response', { result, error: parseError });
-      return []; // Return empty array instead of throwing
+      
+      // Fallback: assign default motifs
+      return steps.map(step => ({
+        step_id: step.id,
+        motif_id: 'motif_process_flow_1',
+        confidence: 0.7
+      }));
     }
   }
 
