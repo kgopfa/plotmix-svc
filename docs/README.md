@@ -12,6 +12,7 @@ This directory contains all documentation for the Plotmix backend service.
 ### Feature Documentation
 - **[Conversation System Requirements](./CONVERSATION_SYSTEM_REQUIREMENTS.md)** - Requirements and implementation plan for the conversation and message system
 - **[Rendering Pipeline](./RENDERING_PIPELINE.md)** - Headless rendering pipeline and security
+- **[Chained Generation Pipeline](./CHAINED_GENERATION_PIPELINE.md)** - Domain-agnostic, fast, parallel scene generation architecture
 
 ## Quick Links
 

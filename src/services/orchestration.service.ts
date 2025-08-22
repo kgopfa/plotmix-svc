@@ -12,6 +12,7 @@ import {
 import { validateElementsArray } from '../schema/elements';
 import { assignAnimationIdentifiers } from '../schema/animations';
 import { OpenAIGenerationService } from './openai-generation.service';
+import { PipelineGenerationService } from './pipeline-generation.service';
 
 export class OrchestrationService {
   static async generateProjectConfiguration(
@@ -27,7 +28,11 @@ export class OrchestrationService {
     });
 
     try {
-      const openAIResponse = await this.processPromptWithOpenAI(data);
+      // Feature flag to choose between legacy and new pipeline
+      const usePipeline = process.env['GEN_CHAINED'] === '1';
+      const openAIResponse = usePipeline
+        ? await this.processPromptWithPipeline(data)
+        : await this.processPromptWithOpenAI(data);
 
       openAIResponse.mainState = this.normalizeAndValidateMainState(openAIResponse.mainState);
 
@@ -43,7 +48,8 @@ export class OrchestrationService {
         projectId: project.id,
         conversationId,
         userId,
-        mainStateGenerated: !!openAIResponse.mainState
+        mainStateGenerated: !!openAIResponse.mainState,
+        pipelineUsed: usePipeline,
       });
 
       return {
@@ -57,6 +63,31 @@ export class OrchestrationService {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
         step: 'generateProjectConfiguration',
+      });
+      throw error;
+    }
+  }
+
+  private static async processPromptWithPipeline(data: CreateProjectWithConversationRequest) {
+    logger.info('Starting pipeline prompt processing', {
+      promptLength: data.prompt?.length || 0,
+      hasFeatures: !!data.features,
+    });
+
+    try {
+      const pipelineResponse = await PipelineGenerationService.generateScene(data.prompt);
+
+      logger.info('Pipeline processing completed successfully', {
+        hasMainState: !!pipelineResponse.mainState,
+        elementCount: pipelineResponse.mainState?.elements?.length || 0,
+      });
+
+      return pipelineResponse;
+    } catch (error) {
+      logger.error('Pipeline prompt processing failed', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        promptLength: data.prompt?.length || 0,
       });
       throw error;
     }
