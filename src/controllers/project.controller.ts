@@ -933,7 +933,14 @@ export class ProjectController {
 
   static async generateScript(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
+      logger.info('Starting script generation request', {
+        userId: req.user?.userId,
+        projectId: req.params['projectId'],
+        promptLength: req.body?.prompt?.length || 0,
+      });
+
       if (!req.user || !req.user.userId) {
+        logger.warn('Script generation failed: User not authenticated');
         res.status(401).json({
           success: false,
           message: 'User not authenticated',
@@ -943,6 +950,7 @@ export class ProjectController {
 
       const { projectId } = req.params;
       if (!projectId) {
+        logger.warn('Script generation failed: Project ID missing');
         res.status(400).json({
           success: false,
           message: 'Project ID is required',
@@ -953,6 +961,10 @@ export class ProjectController {
       const { prompt } = req.body;
 
       if (!prompt || typeof prompt !== 'string') {
+        logger.warn('Script generation failed: Invalid prompt', {
+          promptType: typeof prompt,
+          promptValue: prompt,
+        });
         res.status(400).json({
           success: false,
           message: 'Prompt is required and must be a string',
@@ -960,9 +972,18 @@ export class ProjectController {
         return;
       }
 
+      logger.info('Fetching project data for script generation', {
+        projectId,
+        userId: req.user.userId,
+      });
+
       // Get the project to access its current state
       const project = await ProjectService.getProjectById(projectId, req.user.userId);
       if (!project) {
+        logger.warn('Script generation failed: Project not found', {
+          projectId,
+          userId: req.user.userId,
+        });
         res.status(404).json({
           success: false,
           message: 'Project not found',
@@ -970,9 +991,30 @@ export class ProjectController {
         return;
       }
 
+      logger.info('Project data retrieved successfully', {
+        projectId,
+        projectName: project.name,
+        hasMainState: !!project.mainState,
+        mainStateKeys: project.mainState ? Object.keys(project.mainState) : [],
+      });
+
+      logger.info('Initializing OpenAI client for script generation');
+      
       // Generate script using OpenAI
       const openaiClient = require('../clients/openai.client').OpenAIClient.getInstance();
+      
+      logger.info('Calling OpenAI to generate script', {
+        promptLength: prompt.length,
+        projectStateSize: JSON.stringify(project.mainState).length,
+      });
+
       const script = await openaiClient.generateScript(prompt, project.mainState);
+
+      logger.info('Script generated successfully', {
+        projectId,
+        scriptLength: script.length,
+        scriptPreview: script.substring(0, 100) + (script.length > 100 ? '...' : ''),
+      });
 
       res.status(200).json({
         success: true,
@@ -985,6 +1027,7 @@ export class ProjectController {
     } catch (error) {
       logger.error('Script generation failed', {
         error: error instanceof Error ? error.message : 'Unknown error',
+        errorStack: error instanceof Error ? error.stack : undefined,
         userId: req.user?.userId,
         projectId: req.params['projectId'],
       });
