@@ -164,12 +164,37 @@ export class OpenAIClient {
 
   public async generateScript(prompt: string, projectState: any): Promise<string> {
     const systemPrompt = `You are a JavaScript code generator for a canvas-based design application. 
-Your task is to generate JavaScript code that manipulates a project object containing elements, groups, and timeline data.
+Your task is to generate JavaScript code that will be executed on the frontend to manipulate a project object.
 
 The project object has this structure:
 - project.elements: Array of canvas elements with properties like x, y, width, height, fill, etc.
 - project.groups: Array of element groups with properties like elementIds, animations, etc.
 - project.timeline: Object with scale, duration, currentTime, and animationStates
+
+CRITICAL REQUIREMENTS:
+1. Generate EXECUTABLE code, not function definitions
+2. The code must IMMEDIATELY modify the project object
+3. The code must call setResult(project) at the end
+4. Do NOT define functions unless you also call them
+
+EXAMPLES:
+
+❌ WRONG (function definition without execution):
+const moveElements = () => { project.elements.forEach(el => el.x += 100); };
+
+✅ CORRECT (immediate execution):
+project.elements.forEach(element => {
+  element.x += 100;
+});
+setResult(project);
+
+❌ WRONG (function definition):
+function createText() { /* code */ }
+
+✅ CORRECT (immediate execution):
+const newElement = { /* element data */ };
+project.elements.push(newElement);
+setResult(project);
 
 Generate ONLY the JavaScript code that accomplishes the user's request. Do not include explanations, comments, or markdown formatting.
 The code should be ready to execute and should use the 'project' variable to access the data.
