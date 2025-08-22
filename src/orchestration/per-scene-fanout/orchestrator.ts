@@ -1,0 +1,248 @@
+import { logger } from '../../utils/logger';
+import { PipelineClient } from '../../clients/pipeline.client';
+import { MotifRetrievalService } from './motif-retrieval.service';
+import {
+  PerSceneFanOutState,
+  SceneFanOutResult,
+  AtomicStep,
+  MotifSelection,
+  StepEntities,
+  MotifParams,
+  StepTransition
+} from './types';
+
+export class PerSceneFanOutOrchestrator {
+  private static instance: PerSceneFanOutOrchestrator;
+  private client: PipelineClient;
+  private motifService: MotifRetrievalService;
+
+  private constructor() {
+    this.client = PipelineClient.getInstance();
+    this.motifService = MotifRetrievalService.getInstance();
+  }
+
+  static getInstance(): PerSceneFanOutOrchestrator {
+    if (!PerSceneFanOutOrchestrator.instance) {
+      PerSceneFanOutOrchestrator.instance = new PerSceneFanOutOrchestrator();
+    }
+    return PerSceneFanOutOrchestrator.instance;
+  }
+
+  /**
+   * Main orchestrator for per-scene fan-out process
+   */
+  async processScene(scene: { id: string; caption: string }, archetypes: string[], tone: string): Promise<SceneFanOutResult> {
+    logger.info('Starting per-scene fan-out', { sceneId: scene.id, caption: scene.caption });
+
+    const state: PerSceneFanOutState = {
+      scene_id: scene.id,
+      original_caption: scene.caption,
+      atomic_steps: [],
+      motif_candidates: [],
+      motif_selections: [],
+      step_entities: [],
+      motif_params: [],
+      step_transitions: []
+    };
+
+    try {
+      // Step 1: Caption → Steps
+      state.atomic_steps = await this.generateAtomicSteps(scene.caption, tone);
+      logger.debug('Generated atomic steps', { stepCount: state.atomic_steps.length });
+
+      // Step 2: Retrieve candidate motifs
+      state.motif_candidates = await this.retrieveMotifCandidates(state.atomic_steps, archetypes);
+      logger.debug('Retrieved motif candidates', { candidateCount: state.motif_candidates.length });
+
+      // Step 3: Pick motif per step
+      state.motif_selections = await this.selectMotifsPerStep(state.atomic_steps, state.motif_candidates, tone);
+      logger.debug('Selected motifs per step', { selectionCount: state.motif_selections.length });
+
+      // Step 4: Generate entities and relations
+      state.step_entities = await this.generateEntitiesAndRelations(state.atomic_steps, tone);
+      logger.debug('Generated entities and relations', { entityCount: state.step_entities.length });
+
+      // Step 5: Motif parameters
+      state.motif_params = await this.generateMotifParams(state.motif_selections, tone);
+      logger.debug('Generated motif parameters', { paramCount: state.motif_params.length });
+
+      // Step 6: Step transitions
+      state.step_transitions = await this.generateStepTransitions(state.atomic_steps, tone);
+      logger.debug('Generated step transitions', { transitionCount: state.step_transitions.length });
+
+      // Assemble final result
+      return this.assembleResult(state);
+    } catch (error) {
+      logger.error('Per-scene fan-out failed', { sceneId: scene.id, error });
+      throw new Error(`Per-scene fan-out failed for scene ${scene.id}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Step 1: Split caption into atomic, imperative steps (2-5 max, ≤8 words each)
+   */
+  private async generateAtomicSteps(caption: string, tone: string): Promise<AtomicStep[]> {
+    const system = 'Split the caption into 2-5 atomic, imperative steps. Each step should be ≤8 words and actionable. Return JSON only.';
+    const user = `Caption: "${caption}"\nTone: ${tone}\nReturn: [{"id":"1","text":"step description"},{"id":"2","text":"step description"}]`;
+
+    const result = await this.client.callLLM([
+      { role: 'system', content: system },
+      { role: 'user', content: user }
+    ], 'perSceneFanOut', { json: false, attempts: 2 });
+
+    try {
+      // Try to parse as-is first
+      const parsed = JSON.parse(result);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (parseError) {
+      try {
+        // Try wrapping in array brackets if it's missing them
+        const wrappedResult = `[${result}]`;
+        const parsed = JSON.parse(wrappedResult);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (secondParseError) {
+        logger.error('Failed to parse atomic steps response', { result, error: parseError });
+        return []; // Return empty array as last resort
+      }
+    }
+  }
+
+  /**
+   * Step 2: Retrieve candidate motifs using vector search + metadata filtering
+   */
+  private async retrieveMotifCandidates(steps: AtomicStep[], archetypes: string[]): Promise<any[]> {
+    const allCandidates: any[] = [];
+    
+    for (const step of steps) {
+      // Use the first archetype for now (could be enhanced to match step content)
+      const archetype = archetypes[0];
+      if (!archetype) {
+        throw new Error('No archetypes available for motif retrieval');
+      }
+      
+      const query = `${archetype} ${step.text}`;
+      
+      const candidates = await this.motifService.retrieveMotifCandidates(query, archetype, {
+        maxCandidates: 6,
+        minConfidence: 0.7
+      });
+      
+      allCandidates.push(...candidates);
+    }
+    
+    return allCandidates;
+  }
+
+  /**
+   * Step 3: LLM selects ONE motif per step
+   */
+  private async selectMotifsPerStep(steps: AtomicStep[], candidates: any[], tone: string): Promise<MotifSelection[]> {
+    const system = 'Select the most appropriate motif for each step from the provided candidates. Return JSON only.';
+    const user = `Steps: ${JSON.stringify(steps)}\nCandidates: ${JSON.stringify(candidates)}\nTone: ${tone}\nReturn: [{"step_id":"1","motif_id":"motif_id","confidence":0.9}]`;
+
+    const result = await this.client.callLLM([
+      { role: 'system', content: system },
+      { role: 'user', content: user }
+    ], 'perSceneFanOut', { json: false, attempts: 2 });
+
+    try {
+      const parsed = JSON.parse(result);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (parseError) {
+      logger.error('Failed to parse motif selection response', { result, error: parseError });
+      return []; // Return empty array instead of throwing
+    }
+  }
+
+  /**
+   * Step 4: Generate entities and relations using canonical generic vocabulary
+   */
+  private async generateEntitiesAndRelations(steps: AtomicStep[], tone: string): Promise<StepEntities[]> {
+    const system = 'Generate minimal entities and relations for each step using canonical generic vocabulary. Return JSON only.';
+    const user = `Steps: ${JSON.stringify(steps)}\nTone: ${tone}\nEntity types: ["actor","process","container","event","channel"]\nRelation types: ["flows_to","interacts_with","contains","triggers","produces"]\nReturn: [{"step_id":"1","entities":[],"relations":[]}]`;
+
+    const result = await this.client.callLLM([
+      { role: 'system', content: system },
+      { role: 'user', content: user }
+    ], 'perSceneFanOut', { json: false, attempts: 2 });
+
+    try {
+      const parsed = JSON.parse(result);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (parseError) {
+      logger.error('Failed to parse entities response', { result, error: parseError });
+      return []; // Return empty array instead of throwing
+    }
+  }
+
+  /**
+   * Step 5: Generate motif parameters (only non-default overrides)
+   */
+  private async generateMotifParams(selections: MotifSelection[], tone: string): Promise<MotifParams[]> {
+    const system = 'Generate only non-default parameter overrides for each motif. Return JSON only.';
+    const user = `Motif selections: ${JSON.stringify(selections)}\nTone: ${tone}\nReturn: [{"step_id":"1","params":{},"overrides_only":true}]`;
+
+    const result = await this.client.callLLM([
+      { role: 'system', content: system },
+      { role: 'user', content: user }
+    ], 'perSceneFanOut', { json: false, attempts: 2 });
+
+    try {
+      const parsed = JSON.parse(result);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (parseError) {
+      logger.error('Failed to parse motif params response', { result, error: parseError });
+      return []; // Return empty array instead of throwing
+    }
+  }
+
+  /**
+   * Step 6: Generate step transitions from small enum
+   */
+  private async generateStepTransitions(steps: AtomicStep[], tone: string): Promise<StepTransition[]> {
+    const system = 'Generate transitions between steps using the provided enum. Return JSON only.';
+    const user = `Steps: ${JSON.stringify(steps)}\nTone: ${tone}\nTransitions: ["xfade_fast","pan_right","zoom_in_light","caption_hold"]\nReturn: [{"from":"1","to":"2","transition_id":"xfade_fast"}]`;
+
+    const result = await this.client.callLLM([
+      { role: 'system', content: system },
+      { role: 'user', content: user }
+    ], 'perSceneFanOut', { json: false, attempts: 2 });
+
+    try {
+      const parsed = JSON.parse(result);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (parseError) {
+      logger.error('Failed to parse transitions response', { result, error: parseError });
+      return []; // Return empty array instead of throwing
+    }
+  }
+
+  /**
+   * Assemble final result from all steps
+   */
+  private assembleResult(state: PerSceneFanOutState): SceneFanOutResult {
+    // Ensure atomic_steps is always an array
+    const atomicSteps = Array.isArray(state.atomic_steps) ? state.atomic_steps : [];
+    
+    const steps = atomicSteps.map(step => {
+      const motifSelection = state.motif_selections.find(s => s.step_id === step.id);
+      const stepEntities = state.step_entities.find(e => e.step_id === step.id);
+      const motifParam = state.motif_params.find(p => p.step_id === step.id);
+
+      return {
+        id: step.id,
+        text: step.text,
+        motif_id: motifSelection?.motif_id || 'process_flow',
+        params: motifParam?.params || {},
+        entities: stepEntities?.entities || [],
+        relations: stepEntities?.relations || []
+      };
+    });
+
+    return {
+      scene_id: state.scene_id,
+      steps,
+      transitions: Array.isArray(state.step_transitions) ? state.step_transitions : []
+    };
+  }
+}
