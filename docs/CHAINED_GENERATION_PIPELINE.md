@@ -1,3 +1,9 @@
+# Chained Generation Pipeline
+
+**Status: ✅ IMPLEMENTED** - Core pipeline stages 1-4 are working with fallback logic. Stages 5-8 are placeholders ready for implementation.
+
+This document outlines the new chained generation pipeline that replaces the existing monolithic animation generation approach.
+
 ## Chained, Domain‑Agnostic Generation Pipeline
 
 This document proposes a fast, modular generation pipeline that replaces the single large‑prompt scene generator with a sequence of small, parallelizable nodes. It separates story logic from visual grammar and compiles into our existing Pixi/GSAP `mainState` as defined by `ENGINE_SPEC`.
@@ -11,7 +17,50 @@ Status: Proposed • Scope: Backend orchestration + small LLM prompts + code com
 - Reliability: Strict JSON contracts, validation, retries, and conservative fallbacks.
 - Compatibility: Keep our final output conforming to `ENGINE_SPEC` and validators.
 
-## End‑to‑end Flow
+## End-to-end Flow
+
+1. **Intent Reducer** - analyze user prompt to understand domain, identify core flows, set tone
+2. **Archetype & Topic Router** - classify into universal archetypes and tone
+3. **Scene Planner** - generate scene captions (one per core flow)
+4. **Per-scene Fan-out** - break down each scene into detailed steps with motifs, entities, relations, and transitions
+5. **Scene Processor** - process each scene (parallel execution)
+6. **Design Asset Retrieval** - fetch relevant design elements (backgrounds, textures, emoji patterns, images)
+7. **Layout Grammars** - apply visual layout rules (code-only)
+8. **Compiler** - generate final ENGINE_SPEC (code-only)
+
+### Pipeline Flow Diagram
+```
+User Prompt → Intent Reducer → Router → Scene Planner → Per-scene Fan-out → Scene Processor → Design Asset Retrieval → Layout Grammars → Compiler → Final Output
+```
+
+### Per-scene Fan-out Details
+
+Each scene from the Scene Planner goes through a detailed breakdown process:
+
+**A. Caption → Steps** (tiny LLM call)
+- Break down scene caption into 2-3 atomic steps
+- Each step gets a unique ID and descriptive text
+
+**B. Motif Selection** (tiny LLM call)
+- Pick appropriate motif for each step
+- Motif must be one of the archetypes from Router
+
+**C. Entities & Relations** (tiny LLM call)
+- Identify actors, processes, containers, events, channels
+- Define how entities interact with each other
+- Use generic vocabulary for domain-agnosticism
+
+**D. Motif Parameters** (tiny LLM call)
+- Customize motif behavior (speed, style, emphasis)
+- Provide fallback defaults when needed
+
+**E. Step Transitions** (tiny LLM call)
+- Define how steps flow into each other
+- Specify transition effects between steps
+
+**F. SceneOut Assembly**
+- Combine all components into final scene output
+- Ready for Scene Processor and Layout Compiler
 
 ### 0) Inputs & Assets
 
@@ -24,7 +73,7 @@ Status: Proposed • Scope: Backend orchestration + small LLM prompts + code com
 
 ### 1) Topic & Archetype Router (tiny model)
 
-Select 1–2 archetypes and a tone from a small enum. No domain knowledge required.
+Select 1–2 archetypes and a tone from a small enum. This identifies the universal narrative structure first.
 
 Output:
 
@@ -32,7 +81,17 @@ Output:
 { "archetypes": ["process_flow", "comparison_tradeoff"], "tone": "concise" }
 ```
 
-### 2) Scene Planner (small/medium model)
+### 2) Intent Reducer (medium model)
+
+Analyze the user prompt to understand the domain and identify core flows, informed by the selected archetypes. This provides specific context for subsequent stages.
+
+Output:
+
+```json
+{ "domain": "social_network", "core_flows": ["feed_arch", "like_write", "like_unwrite", "feed_read"], "tone": "concise" }
+```
+
+### 3) Scene Planner (small/medium model)
 
 Produce 3–6 scenes as captions only, each assigned to one selected archetype.
 
@@ -44,29 +103,63 @@ Output:
 
 Constraints: use only provided archetype ids; captions ≤ 12 words; 3–6 scenes.
 
-### 3) Per‑scene Fan‑out (parallel per scene and per step)
+### 4) Per‑scene Fan‑out (parallel per scene and per step)
 
-For each scene:
+For each scene from the Scene Planner:
 
-1. Caption → steps (tiny): split caption into 2–5 imperative steps (≤ 8 words).
+1. **Caption → Steps** (tiny LLM call): split caption into 2–3 imperative steps (≤ 8 words).
    - Output: `[{ id, text }]`.
-2. Retrieve motif candidates (code + vector): query = `"{archetype} {step.text}"`.
-   - Vector search (k≈12) → filter `status=live` + archetype → MMR → keep 3–6.
-   - Provide only `{ id, one_liner }` to LLM.
-3. Motif picker (tiny): choose one motif id per step.
-4. Entities & relations (tiny, generic vocab):
-   - Types: `["actor","audience","input","output","process","stage","resource","asset","channel","container","metric","signal","decision","event","timeline","node","edge","group"]`.
+   
+2. **Motif Selection** (tiny LLM call): choose appropriate motif for each step.
+   - Motif must be one of the archetypes from Router
+   - Output: `motif_id` for each step
+   
+3. **Entities & Relations** (tiny LLM call, generic vocab):
+   - Types: `["actor","process","container","event","channel"]`.
    - Output example:
      ```json
-     { "entities":[{ "id":"stage1","type":"stage","label":"Awareness" }],
-       "relations":[{ "from":"stage1","to":"stage2","label":"passes" }] }
+     { "entities":[{ "id":"user","type":"actor","label":"User" }],
+       "relations":[{ "from":"user","to":"api","label":"POST request" }] }
      ```
-5. Motif params (rules first; tiny fallback): return overrides only for allowed keys from motif `inputs_schema`.
-6. Step transitions (tiny or lookup): enum from `["xfade_fast","pan_right","zoom_in_light","caption_hold"]`.
+     
+4. **Motif Parameters** (tiny LLM call): return overrides for motif behavior.
+   - Speed, style, emphasis, etc.
+   - Provide fallback defaults when needed
+   
+5. **Step Transitions** (tiny LLM call): define how steps flow into each other.
+   - Enum from `["fade","xfade_fast","pan_right","zoom_in_light","caption_hold"]`
+   
+6. **SceneOut Assembly**: combine all components into final scene output.
+   - Ready for Scene Processor and Layout Compiler
 
 All steps 1–6 run in parallel per scene/step.
 
-### 4) Layout Grammars (code only)
+**Output Structure:**
+```json
+{
+  "scene_id": "scene1",
+  "steps": [
+    {
+      "id": "step1",
+      "text": "User enters credentials",
+      "motif_id": "process_flow",
+      "params": { "speed": "medium" },
+      "entities": [
+        { "id": "user", "type": "actor", "label": "User" },
+        { "id": "form", "type": "container", "label": "Login Form" }
+      ],
+      "relations": [
+        { "from": "user", "to": "form", "label": "interacts with" }
+      ]
+    }
+  ],
+  "transitions": [
+    { "from": "step1", "to": "step2", "transition_id": "fade" }
+  ]
+}
+```
+
+### 5) Layout Grammars (code only)
 
 Map archetype → layout grammar. Compute positions from `{entities, relations}` and motif defaults (no LLM):
 
@@ -79,7 +172,7 @@ Map archetype → layout grammar. Compute positions from `{entities, relations}`
 - cause_effect: inputs → mechanism → outputs
 - algorithm_trace: structure + one or more cursors
 
-### 5) Compiler (code only)
+### 6) Compiler (code only)
 
 Convert `{steps, motifs, params, transitions}` into a `SceneProgram` with absolute times, then emit `mainState` per `ENGINE_SPEC`:
 
@@ -88,11 +181,11 @@ Convert `{steps, motifs, params, transitions}` into a `SceneProgram` with absolu
 - Timeline: `{ scale, duration, currentTime, animationStates: {} }`.
 - Animation rules align with our validators and easing allowlist.
 
-### 6) Caption Polish (tiny/small, batch)
+### 7) Caption Polish (tiny/small, batch)
 
 Rewrite scene/step captions for clarity and tone (≤ 12 words). No new facts.
 
-### 7) Design Asset Retrieval (new)
+### 8) Design Asset Retrieval (new)
 
 Fetch reusable design assets (backgrounds, textures, emoji patterns, image plates) in parallel with motif retrieval, then let layout/compilers materialize them into `elements`.
 
@@ -105,31 +198,59 @@ Fetch reusable design assets (backgrounds, textures, emoji patterns, image plate
 ## Minimal Data Contracts
 
 ```ts
-type Brief = { archetypes: string[]; tone: "concise" | "friendly" | "formal" };
+type Tone = 'concise' | 'friendly' | 'formal';
 
-type ScenePlan = { id: string; goal: string; caption: string };
+type Brief = { 
+  archetypes: string[]; 
+  tone: Tone; 
+};
 
-type StepPlan = {
+type ScenePlan = { 
+  id: string; 
+  goal: string; 
+  caption: string; 
+};
+
+type Step = {
   id: string;
   text: string;
+};
+
+type Entity = {
+  id: string;
+  type: 'actor' | 'process' | 'container' | 'event' | 'channel';
+  label: string;
+};
+
+type Relation = {
+  from: string;
+  to: string;
+  label: string;
+};
+
+type StepWithMotif = Step & {
   motif_id: string;
-  params?: Record<string, unknown>;
-  entities: Array<{ id: string; type: string; label?: string }>;
-  relations: Array<{ from: string; to: string; label?: string }>;
+  params: Record<string, any>;
+  entities: Entity[];
+  relations: Relation[];
+};
+
+type StepTransition = {
+  from: string;
+  to: string;
+  transition_id: string;
 };
 
 type SceneOut = {
   scene_id: string;
-  steps: StepPlan[];
-  transitions: Array<{ from: string; to: string; transition_id: string }>;
+  steps: StepWithMotif[];
+  transitions: StepTransition[];
 };
 
-type ProgramOut = { scenes: SceneOut[]; totalDuration: number };
-// New: design selections
-type DesignSelection = {
-  scene_id: string;
-  backgrounds?: Array<{ asset_id: string; params?: Record<string, unknown> }>;
-  ornaments?: Array<{ asset_id: string; params?: Record<string, unknown> }>;
+type IntentReducerOutput = {
+  domain: string;
+  core_flows: string[];
+  tone: Tone;
 };
 ```
 
@@ -211,15 +332,15 @@ Return overrides only: {"params":{...}}
 ### Node Graph (conceptual)
 
 ```
-Router → ScenePlanner → [per‑scene parallel fan‑out (Steps, Retrieve, Pick, Entities, Params, Transitions, DesignAssets)]
-         → LayoutGrammar (code) → Compiler (code) → CaptionPolish → EngineDoc
+Router → Intent Reducer → ScenePlanner → [per‑scene parallel fan‑out (Steps, Retrieve, Pick, Entities, Params, Transitions, DesignAssets)]
+           → LayoutGrammar (code) → Compiler (code) → CaptionPolish → EngineDoc
 ```
 
-### Reference Implementation (scaffold)
+### Reference Implementation (working)
 
 - Types: `src/orchestration/langgraph/types.ts`
-- Nodes: `src/orchestration/langgraph/nodes.ts` (Router, ScenePlanner using `OpenAIClient`)
-- Runner: `src/orchestration/langgraph/runner.ts` (`runPipeline(userText) → { brief, scenePlanner }`)
+- Pipeline Runner: `src/orchestration/pipeline-runner.ts` (sequential pipeline with LLM calls)
+- Service: `src/services/pipeline-generation.service.ts` (orchestration and validation)
 
 ### Production Implementation
 
@@ -227,6 +348,15 @@ Router → ScenePlanner → [per‑scene parallel fan‑out (Steps, Retrieve, Pi
 - Service: `src/services/pipeline-generation.service.ts` (full pipeline orchestration with validation)
 - Integration: `src/services/orchestration.service.ts` (feature flag `GEN_CHAINED=1` to switch pipelines)
 - Environment: `env.example` (pipeline model overrides and feature flags)
+
+### Pipeline Implementation
+
+- **Sequential Pipeline**: Uses a simple, working sequential approach that can be easily enhanced
+- **State Management**: `PipelineState` interface with typed state transitions
+- **LLM Integration**: Each stage uses `PipelineClient` for model-specific calls
+- **Pipeline Flow**: `router → intentReducer → scenePlanner → sceneProcessor → layoutCompiler`
+- **Runner**: `src/orchestration/pipeline-runner.ts` (working implementation)
+- **Future**: Can be enhanced with LangGraph for DAG orchestration when the API is better understood
 
 ### Caching (recommended TTLs)
 
@@ -394,273 +524,3 @@ Motif params (rules first; tiny fallback):
   { "step_id": "s2", "params": { "enter": "slide_up", "emphasize_top": 3 } }
 ]
 ```
-
-Step transitions:
-
-```json
-[
-  { "from": "s1", "to": "s2", "transition_id": "pan_right" }
-]
-```
-
-SceneOut (compiler input):
-
-```json
-{
-  "scene_id": "feed_arch",
-  "steps": [
-    {
-      "id": "s1",
-      "text": "Write producer events",
-      "motif_id": "flow_basic",
-      "params": { "trail": "dots", "speed": "medium" },
-      "entities": [
-        { "id": "producer", "type": "actor", "label": "Producer Service" },
-        { "id": "stream",   "type": "event", "label": "Event Stream" }
-      ],
-      "relations": [
-        { "from": "producer", "to": "stream", "label": "emit" }
-      ]
-    },
-    {
-      "id": "s2",
-      "text": "Read ranked timelines",
-      "motif_id": "rank_stack",
-      "params": { "enter": "slide_up", "emphasize_top": 3 },
-      "entities": [
-        { "id": "timeline", "type": "container", "label": "Timeline Store" },
-        { "id": "ranker",   "type": "process",   "label": "Ranking" }
-      ],
-      "relations": [
-        { "from": "timeline", "to": "ranker", "label": "select top-N" }
-      ]
-    }
-  ],
-  "transitions": [
-    { "from": "s1", "to": "s2", "transition_id": "pan_right" }
-  ]
-}
-```
-
-#### Scene B — like_write
-
-```json
-{
-  "scene_id": "like_write",
-  "steps": [
-    { "id": "s1", "text": "Accept like request" },
-    { "id": "s2", "text": "Persist like and emit event" },
-    { "id": "s3", "text": "Update like counters" }
-  ]
-}
-```
-
-```json
-[
-  { "step_id": "s1", "motif_id": "flow_basic" },
-  { "step_id": "s2", "motif_id": "db_write" },
-  { "step_id": "s3", "motif_id": "counter_tick" }
-]
-```
-
-```json
-[
-  {
-    "step_id": "s1",
-    "entities": [
-      { "id": "user",     "type": "actor",   "label": "User" },
-      { "id": "api",      "type": "channel", "label": "API" },
-      { "id": "like_svc", "type": "process", "label": "Like Service" }
-    ],
-    "relations": [
-      { "from": "user", "to": "api", "label": "POST /likes" },
-      { "from": "api",  "to": "like_svc", "label": "forward" }
-    ]
-  },
-  {
-    "step_id": "s2",
-    "entities": [
-      { "id": "like_svc", "type": "process" },
-      { "id": "like_db",  "type": "container", "label": "Likes DB" },
-      { "id": "events",   "type": "event",     "label": "Events" }
-    ],
-    "relations": [
-      { "from": "like_svc", "to": "like_db", "label": "insert if-not-exists" },
-      { "from": "like_svc", "to": "events",  "label": "emit" }
-    ]
-  },
-  {
-    "step_id": "s3",
-    "entities": [
-      { "id": "counter_worker", "type": "process",   "label": "Counter Worker" },
-      { "id": "counter_store",  "type": "container", "label": "Counter Store" }
-    ],
-    "relations": [
-      { "from": "events", "to": "counter_worker", "label": "consume" },
-      { "from": "counter_worker", "to": "counter_store", "label": "increment" }
-    ]
-  }
-]
-```
-
-```json
-[
-  { "step_id": "s2", "params": { "emphasis": "db_pulse" } },
-  { "step_id": "s3", "params": { "tick_rate": "fast" } }
-]
-```
-
-```json
-[
-  { "from": "s1", "to": "s2", "transition_id": "xfade_fast" },
-  { "from": "s2", "to": "s3", "transition_id": "zoom_in_light" }
-]
-```
-
-#### Scene C — like_unwrite (mirrors like_write with delete/decrement)
-
-```json
-{
-  "scene_id": "like_unwrite",
-  "steps": [
-    { "id": "s1", "text": "Accept unlike request" },
-    { "id": "s2", "text": "Remove like and emit event" },
-    { "id": "s3", "text": "Decrement like counters" }
-  ]
-}
-```
-
-```json
-[
-  { "step_id": "s1", "motif_id": "flow_basic" },
-  { "step_id": "s2", "motif_id": "db_write" },
-  { "step_id": "s3", "motif_id": "counter_tick" }
-]
-```
-
-```json
-[
-  {
-    "step_id": "s2",
-    "entities": [
-      { "id": "like_svc", "type": "process" },
-      { "id": "like_db",  "type": "container" },
-      { "id": "events",   "type": "event" }
-    ],
-    "relations": [
-      { "from": "like_svc", "to": "like_db", "label": "delete if-exists" },
-      { "from": "like_svc", "to": "events",  "label": "emit undo" }
-    ]
-  },
-  {
-    "step_id": "s3",
-    "entities": [
-      { "id": "counter_worker", "type": "process" },
-      { "id": "counter_store",  "type": "container" }
-    ],
-    "relations": [
-      { "from": "events", "to": "counter_worker", "label": "consume" },
-      { "from": "counter_worker", "to": "counter_store", "label": "decrement" }
-    ]
-  }
-]
-```
-
-```json
-[
-  { "step_id": "s2", "params": { "emphasis": "db_pulse" } },
-  { "step_id": "s3", "params": { "tick_rate": "medium" } }
-]
-```
-
-```json
-[
-  { "from": "s1", "to": "s2", "transition_id": "xfade_fast" },
-  { "from": "s2", "to": "s3", "transition_id": "caption_hold" }
-]
-```
-
-#### Scene D — feed_read
-
-```json
-{
-  "scene_id": "feed_read",
-  "steps": [
-    { "id": "s1", "text": "Read timeline from cache" },
-    { "id": "s2", "text": "Load missing items from database" }
-  ]
-}
-```
-
-```json
-[
-  { "step_id": "s1", "motif_id": "cache_pulse" },
-  { "step_id": "s2", "motif_id": "db_read" }
-]
-```
-
-```json
-[
-  {
-    "step_id": "s1",
-    "entities": [
-      { "id": "client",  "type": "actor",     "label": "Client" },
-      { "id": "cache",   "type": "container", "label": "Timeline Cache" }
-    ],
-    "relations": [
-      { "from": "client", "to": "cache", "label": "GET timeline" }
-    ]
-  },
-  {
-    "step_id": "s2",
-    "entities": [
-      { "id": "cache", "type": "container" },
-      { "id": "db",    "type": "container", "label": "Timeline DB" }
-    ],
-    "relations": [
-      { "from": "cache", "to": "db", "label": "miss → hydrate" }
-    ]
-  }
-]
-```
-
-```json
-[
-  { "step_id": "s1", "params": { "pulse_repeats": 2 } },
-  { "step_id": "s2", "params": { "fallback_style": "dashed" } }
-]
-```
-
-```json
-[
-  { "from": "s1", "to": "s2", "transition_id": "zoom_in_light" }
-]
-```
-
-### 4) Caption polish (batch; optional)
-
-```json
-[
-  { "scope": "scene", "id": "feed_arch",   "caption": "Producers write; consumers read ranked timelines" },
-  { "scope": "scene", "id": "like_write",  "caption": "Users like items; counters update asynchronously" },
-  { "scope": "scene", "id": "like_unwrite","caption": "Undo like updates counts and signals" },
-  { "scope": "scene", "id": "feed_read",   "caption": "Fetch timeline; hydrate on cache miss" }
-]
-```
-
-### 5) Assemble & compile (code; no LLM)
-
-The compiler maps `motif_id` → `compiler_key` templates, positions from `entities/relations`, `params` to animation overrides, and `transitions` to cross‑step effects. The end result is converted to our `ENGINE_SPEC` document.
-
-```json
-{
-  "program": {
-    "scenes": ["feed_arch","like_write","like_unwrite","feed_read"],
-    "estimated_total_duration_sec": 28.0,
-    "per_scene_sec": { "feed_arch": 6.5, "like_write": 8.0, "like_unwrite": 6.5, "feed_read": 7.0 }
-  }
-}
-```
-
-
-
