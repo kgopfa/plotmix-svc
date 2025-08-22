@@ -66,13 +66,13 @@ export class PipelineClient {
         },
         router: {
           model: process.env['PIPELINE_ROUTER_MODEL'] || 'gpt-3.5-turbo',
-          temperature: 0.1,
-          maxTokens: 100,
+          temperature: 0.0,
+          maxTokens: 50,
         },
         scenePlanner: {
-          model: process.env['PIPELINE_SCENE_PLANNER_MODEL'] || 'gpt-4',
-          temperature: 0.2,
-          maxTokens: 300,
+          model: process.env['PIPELINE_SCENE_PLANNER_MODEL'] || 'gpt-3.5-turbo',
+          temperature: 0.0,
+          maxTokens: 150,
         },
         sceneProcessor: {
           model: process.env['PIPELINE_SCENE_PROCESSOR_MODEL'] || 'gpt-4',
@@ -85,9 +85,9 @@ export class PipelineClient {
           maxTokens: 1000,
         },
         perSceneFanOut: {
-          model: process.env['PIPELINE_PER_SCENE_FAN_OUT_MODEL'] || 'gpt-4',
-          temperature: 0.1,
-          maxTokens: 1000,
+          model: process.env['PIPELINE_PER_SCENE_FAN_OUT_MODEL'] || 'gpt-3.5-turbo',
+          temperature: 0.0,
+          maxTokens: 200,
         },
       },
     };

@@ -31,7 +31,7 @@ export class PerSceneFanOutOrchestrator {
   /**
    * Main orchestrator for per-scene fan-out process
    */
-  async processScene(scene: { id: string; caption: string }, archetypes: string[], tone: string): Promise<SceneFanOutResult> {
+  async processScene(scene: { id: string; caption: string }, archetypes: string[]): Promise<SceneFanOutResult> {
     logger.info('Starting per-scene fan-out', { sceneId: scene.id, caption: scene.caption });
 
     const state: PerSceneFanOutState = {
@@ -47,7 +47,7 @@ export class PerSceneFanOutOrchestrator {
 
     try {
       // Step 1: Caption → Steps
-      state.atomic_steps = await this.generateAtomicSteps(scene.caption, tone);
+      state.atomic_steps = await this.generateAtomicSteps(scene.caption);
       logger.debug('Generated atomic steps', { stepCount: state.atomic_steps.length });
 
       // Step 2: Retrieve candidate motifs
@@ -59,15 +59,15 @@ export class PerSceneFanOutOrchestrator {
       logger.debug('Selected motifs per step', { selectionCount: state.motif_selections.length });
 
       // Step 4: Generate entities and relations
-      state.step_entities = await this.generateEntitiesAndRelations(state.atomic_steps, tone);
+      state.step_entities = await this.generateEntitiesAndRelations(state.atomic_steps);
       logger.debug('Generated entities and relations', { entityCount: state.step_entities.length });
 
       // Step 5: Motif parameters
-      state.motif_params = await this.generateMotifParams(state.motif_selections, tone);
+      state.motif_params = await this.generateMotifParams(state.motif_selections);
       logger.debug('Generated motif parameters', { paramCount: state.motif_params.length });
 
       // Step 6: Step transitions
-      state.step_transitions = await this.generateStepTransitions(state.atomic_steps, tone);
+      state.step_transitions = await this.generateStepTransitions(state.atomic_steps);
       logger.debug('Generated step transitions', { transitionCount: state.step_transitions.length });
 
       // Assemble final result
@@ -81,9 +81,10 @@ export class PerSceneFanOutOrchestrator {
   /**
    * Step 1: Split caption into atomic, imperative steps (2-5 max, ≤8 words each)
    */
-  private async generateAtomicSteps(caption: string, tone: string): Promise<AtomicStep[]> {
-    const system = 'Split the caption into 2-5 atomic, imperative steps. Each step should be ≤8 words and actionable. Return JSON only.';
-    const user = `Caption: "${caption}"\nTone: ${tone}\nReturn: [{"id":"1","text":"step description"},{"id":"2","text":"step description"}]`;
+  private async generateAtomicSteps(caption: string): Promise<AtomicStep[]> {
+    const system = 'Split into 2-5 imperative steps, ≤8 words each. Return JSON only.';
+    const user = `Caption: "${caption}"
+Example: [{"id":"1","text":"Enter credentials"},{"id":"2","text":"Submit form"}]`;
 
     const result = await this.client.callLLM([
       { role: 'system', content: system },
@@ -91,19 +92,11 @@ export class PerSceneFanOutOrchestrator {
     ], 'perSceneFanOut', { json: false, attempts: 2 });
 
     try {
-      // Try to parse as-is first
       const parsed = JSON.parse(result);
       return Array.isArray(parsed) ? parsed : [];
     } catch (parseError) {
-      try {
-        // Try wrapping in array brackets if it's missing them
-        const wrappedResult = `[${result}]`;
-        const parsed = JSON.parse(wrappedResult);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch (secondParseError) {
-        logger.error('Failed to parse atomic steps response', { result, error: parseError });
-        return []; // Return empty array as last resort
-      }
+      logger.error('Failed to parse atomic steps response', { result, error: parseError });
+      return []; // Return empty array as last resort
     }
   }
 
@@ -185,9 +178,11 @@ Example: [{"step_id":"1","motif_id":"motif_id","confidence":0.9}]`;
   /**
    * Step 4: Generate entities and relations using canonical generic vocabulary
    */
-  private async generateEntitiesAndRelations(steps: AtomicStep[], tone: string): Promise<StepEntities[]> {
-    const system = 'Generate minimal entities and relations for each step using canonical generic vocabulary. Return JSON only.';
-    const user = `Steps: ${JSON.stringify(steps)}\nTone: ${tone}\nEntity types: ["actor","process","container","event","channel"]\nRelation types: ["flows_to","interacts_with","contains","triggers","produces"]\nReturn: [{"step_id":"1","entities":[],"relations":[]}]`;
+  private async generateEntitiesAndRelations(steps: AtomicStep[]): Promise<StepEntities[]> {
+    const system = 'Generate entities and relations using specified types. Return JSON only.';
+    const user = `Steps: ${JSON.stringify(steps)}
+Types: entities=["actor","process","container","event"], relations=["flows_to","interacts_with","contains","triggers"]
+Example: [{"step_id":"1","entities":[{"entity_id":"1","type":"actor","name":"user"}],"relations":[]}]`;
 
     const result = await this.client.callLLM([
       { role: 'system', content: system },
@@ -206,9 +201,10 @@ Example: [{"step_id":"1","motif_id":"motif_id","confidence":0.9}]`;
   /**
    * Step 5: Generate motif parameters (only non-default overrides)
    */
-  private async generateMotifParams(selections: MotifSelection[], tone: string): Promise<MotifParams[]> {
-    const system = 'Generate only non-default parameter overrides for each motif. Return JSON only.';
-    const user = `Motif selections: ${JSON.stringify(selections)}\nTone: ${tone}\nReturn: [{"step_id":"1","params":{},"overrides_only":true}]`;
+  private async generateMotifParams(selections: MotifSelection[]): Promise<MotifParams[]> {
+    const system = 'Generate non-default parameter overrides. Return JSON only.';
+    const user = `Motif selections: ${JSON.stringify(selections)}
+Example: [{"step_id":"1","params":{},"overrides_only":true}]`;
 
     const result = await this.client.callLLM([
       { role: 'system', content: system },
@@ -227,9 +223,11 @@ Example: [{"step_id":"1","motif_id":"motif_id","confidence":0.9}]`;
   /**
    * Step 6: Generate step transitions from small enum
    */
-  private async generateStepTransitions(steps: AtomicStep[], tone: string): Promise<StepTransition[]> {
-    const system = 'Generate transitions between steps using the provided enum. Return JSON only.';
-    const user = `Steps: ${JSON.stringify(steps)}\nTone: ${tone}\nTransitions: ["xfade_fast","pan_right","zoom_in_light","caption_hold"]\nReturn: [{"from":"1","to":"2","transition_id":"xfade_fast"}]`;
+  private async generateStepTransitions(steps: AtomicStep[]): Promise<StepTransition[]> {
+    const system = 'Generate transitions between steps. Return JSON only.';
+    const user = `Steps: ${JSON.stringify(steps)}
+Transitions: ["xfade_fast","pan_right","zoom_in_light","caption_hold"]
+Example: [{"from":"1","to":"2","transition_id":"xfade_fast"}]`;
 
     const result = await this.client.callLLM([
       { role: 'system', content: system },

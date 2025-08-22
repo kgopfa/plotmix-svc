@@ -169,7 +169,7 @@ export class PipelineRunner {
     
     // Process all scenes in parallel for better performance
     const scenePromises = scenes.map(scene => 
-      perSceneFanOutOrchestrator.processScene(scene, brief.archetypes, brief.tone)
+      perSceneFanOutOrchestrator.processScene(scene, brief.archetypes)
     );
     
     const sceneOutputs = await Promise.all(scenePromises);
