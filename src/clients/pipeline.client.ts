@@ -87,7 +87,7 @@ export class PipelineClient {
         perSceneFanOut: {
           model: process.env['PIPELINE_PER_SCENE_FAN_OUT_MODEL'] || 'gpt-3.5-turbo',
           temperature: 0.0,
-          maxTokens: 200,
+          maxTokens: 400,
         },
       },
     };

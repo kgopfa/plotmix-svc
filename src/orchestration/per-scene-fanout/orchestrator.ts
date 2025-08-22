@@ -82,9 +82,9 @@ export class PerSceneFanOutOrchestrator {
    * Step 1: Split caption into atomic, imperative steps (2-5 max, ≤8 words each)
    */
   private async generateAtomicSteps(caption: string): Promise<AtomicStep[]> {
-    const system = 'Split into 2-5 imperative steps, ≤8 words each. Return JSON only.';
+    const system = 'Split into 2-5 imperative steps. Return JSON array only.';
     const user = `Caption: "${caption}"
-Example: [{"id":"1","text":"Enter credentials"},{"id":"2","text":"Submit form"}]`;
+Format: [{"id":"1","text":"Enter credentials"},{"id":"2","text":"Submit form"}]`;
 
     const result = await this.client.callLLM([
       { role: 'system', content: system },
@@ -92,11 +92,22 @@ Example: [{"id":"1","text":"Enter credentials"},{"id":"2","text":"Submit form"}]
     ], 'perSceneFanOut', { json: false, attempts: 2 });
 
     try {
+      // Try to parse as-is first
       const parsed = JSON.parse(result);
       return Array.isArray(parsed) ? parsed : [];
     } catch (parseError) {
-      logger.error('Failed to parse atomic steps response', { result, error: parseError });
-      return []; // Return empty array as last resort
+      try {
+        // Try wrapping in array brackets if it's missing them (common issue)
+        const wrappedResult = `[${result}]`;
+        const parsed = JSON.parse(wrappedResult);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (secondParseError) {
+        logger.error('Failed to parse atomic steps response', { 
+          result: result.substring(0, 200) + (result.length > 200 ? '...' : ''),
+          error: parseError instanceof Error ? parseError.message : String(parseError)
+        });
+        return []; // Return empty array as last resort
+      }
     }
   }
 
@@ -179,10 +190,10 @@ Example: [{"step_id":"1","motif_id":"motif_id","confidence":0.9}]`;
    * Step 4: Generate entities and relations using canonical generic vocabulary
    */
   private async generateEntitiesAndRelations(steps: AtomicStep[]): Promise<StepEntities[]> {
-    const system = 'Generate entities and relations using specified types. Return JSON only.';
+    const system = 'Generate 1-2 entities per step. Return JSON array only.';
     const user = `Steps: ${JSON.stringify(steps)}
-Types: entities=["actor","process","container","event"], relations=["flows_to","interacts_with","contains","triggers"]
-Example: [{"step_id":"1","entities":[{"entity_id":"1","type":"actor","name":"user"}],"relations":[]}]`;
+Types: actor, process, container, event
+Format: [{"step_id":"1","entities":[{"entity_id":"1","type":"actor","name":"user"}],"relations":[]}]`;
 
     const result = await this.client.callLLM([
       { role: 'system', content: system },
@@ -193,7 +204,35 @@ Example: [{"step_id":"1","entities":[{"entity_id":"1","type":"actor","name":"use
       const parsed = JSON.parse(result);
       return Array.isArray(parsed) ? parsed : [];
     } catch (parseError) {
-      logger.error('Failed to parse entities response', { result, error: parseError });
+      // Check if the response was truncated (often ends mid-JSON)
+      if (result.length > 300 && !result.trim().endsWith('}') && !result.trim().endsWith(']')) {
+        logger.warn('Entities response appears truncated, retrying with simpler prompt', { 
+          resultLength: result.length,
+          lastChars: result.slice(-50)
+        });
+        
+        // Retry with a simpler, more concise prompt
+        const simpleSystem = 'Generate minimal entities per step. Return JSON array only.';
+        const simpleUser = `Steps: ${JSON.stringify(steps)}
+Format: [{"step_id":"1","entities":[{"entity_id":"1","type":"actor","name":"user"}],"relations":[]}]`;
+
+        try {
+          const retryResult = await this.client.callLLM([
+            { role: 'system', content: simpleSystem },
+            { role: 'user', content: simpleUser }
+          ], 'perSceneFanOut', { json: false, attempts: 1 });
+          
+          const retryParsed = JSON.parse(retryResult);
+          return Array.isArray(retryParsed) ? retryParsed : [];
+        } catch (retryError) {
+          logger.error('Retry also failed for entities response', { retryError });
+        }
+      }
+      
+      logger.error('Failed to parse entities response', { 
+        result: result.substring(0, 500) + (result.length > 500 ? '...' : ''),
+        error: parseError instanceof Error ? parseError.message : String(parseError)
+      });
       return []; // Return empty array instead of throwing
     }
   }
