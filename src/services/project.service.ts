@@ -51,7 +51,7 @@ export class ProjectService {
       return null;
     }
 
-    return (await prisma.project.findUnique({
+    const project = await prisma.project.findUnique({
       where: { id: projectId },
       include: {
         owner: {
@@ -90,7 +90,30 @@ export class ProjectService {
           }
         },
       },
-    })) as unknown as ProjectWithRelations | null;
+    }) as unknown as ProjectWithRelations | null;
+
+    // TEMPORARY: Log the project structure being retrieved
+    if (project) {
+      logger.info('Retrieved project structure from database', {
+        projectId,
+        userId,
+        mainStateStructure: JSON.stringify(project.mainState, null, 2),
+        mainStateSummary: {
+          hasMainState: !!project.mainState,
+          mainStateType: typeof project.mainState,
+          hasScenes: !!(project.mainState as any)?.scenes,
+          scenesIsArray: Array.isArray((project.mainState as any)?.scenes),
+          scenesCount: (project.mainState as any)?.scenes?.length || 0,
+          firstScene: (project.mainState as any)?.scenes?.[0] ? {
+            hasSceneCanvas: !!(project.mainState as any).scenes[0].sceneCanvas,
+            elementsCount: (project.mainState as any).scenes[0].sceneCanvas?.elements?.length || 0,
+            groupsCount: (project.mainState as any).scenes[0].sceneCanvas?.groups?.length || 0,
+          } : null,
+        }
+      });
+    }
+
+    return project;
   }
 
   static async getUserProjects(
@@ -259,82 +282,148 @@ export class ProjectService {
 
     const diffPatcher = new DiffPatcher();
 
-    // Apply delta to current mainState to compute new state
+    // Get current state - must use new schema format
     const currentState = (project.mainState as any) ?? {};
     const safeDiff = (changeData.diff ?? {}) as any;
 
-    // Access through first scene's canvas
+    // Validate that project uses new schema format
     if (!currentState.scenes || !Array.isArray(currentState.scenes) || currentState.scenes.length === 0) {
       throw new Error('Invalid mainState format: missing scenes array');
     }
     
-    const firstScene = currentState.scenes[0];
-    if (!firstScene || !firstScene.sceneCanvas) {
-      throw new Error('Invalid schema: missing first scene or sceneCanvas');
-    }
+    // Check if the diff is trying to modify the scenes array structure
+    const isModifyingScenesArray = safeDiff.scenes && safeDiff.scenes._t === 'a';
     
-    let baseState = JSON.parse(JSON.stringify(firstScene.sceneCanvas));
-    // Pre-initialize common containers expected by the diff
-    if (safeDiff?.elements && safeDiff.elements._t === 'a' && !Array.isArray(baseState.elements)) {
-      baseState.elements = [];
-    }
-    if (safeDiff?.groups && safeDiff.groups._t === 'a' && !Array.isArray(baseState.groups)) {
-      baseState.groups = [];
-    }
-    if (safeDiff?.timeline && (typeof baseState.timeline !== 'object' || baseState.timeline === null)) {
-      baseState.timeline = {};
-    }
-    if (
-      safeDiff?.timeline?.animationStates &&
-      (typeof baseState.timeline?.animationStates !== 'object' || baseState.timeline.animationStates === null)
-    ) {
-      baseState.timeline.animationStates = {};
-    }
-
     let newState: any;
-    try {
-      newState = diffPatcher.patch(baseState, safeDiff);
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      logger.error('Diff patch failed', {
-        error: errMsg,
-        projectId,
-        userId,
-        changeData,
-      });
-      // jsondiffpatch uses Array#splice for array patches. If the target path is undefined,
-      // patching may throw "Cannot read properties of undefined (reading 'splice')".
-      if (errMsg && errMsg.toLowerCase().includes('splice')) {
-        // Initialize common containers if the diff indicates array/object patches
-        if (safeDiff?.elements && safeDiff.elements._t === 'a' && !Array.isArray(baseState.elements)) {
-          baseState.elements = [];
+    
+    if (isModifyingScenesArray) {
+      // The diff is modifying the scenes array structure, but we need to handle timeline modifications specially
+      // Check if this is a timeline modification that should go to sceneCanvas.timeline
+      const isTimelineModification = safeDiff.scenes['0'] && safeDiff.scenes['0'].timeline;
+      
+      if (isTimelineModification) {
+        // This is a timeline modification, apply it to the sceneCanvas.timeline
+        logger.info('Applying timeline diff to sceneCanvas.timeline', {
+          projectId,
+          userId,
+          diffType: 'timeline_modification'
+        });
+        
+        const firstScene = currentState.scenes[0];
+        if (!firstScene || !firstScene.sceneCanvas) {
+          throw new Error('Invalid schema: missing first scene or sceneCanvas');
         }
-        if (safeDiff?.groups && safeDiff.groups._t === 'a' && !Array.isArray(baseState.groups)) {
-          baseState.groups = [];
+        
+        // Create a modified sceneCanvas with updated timeline
+        const updatedSceneCanvas = { ...firstScene.sceneCanvas };
+        
+        // Apply timeline changes
+        if (safeDiff.scenes['0'].timeline.scale) {
+          updatedSceneCanvas.timeline.scale = safeDiff.scenes['0'].timeline.scale[1]; // Take the new value
         }
-        if (safeDiff?.timeline && (typeof baseState.timeline !== 'object' || baseState.timeline === null)) {
-          baseState.timeline = {};
+        if (safeDiff.scenes['0'].timeline.duration) {
+          updatedSceneCanvas.timeline.duration = safeDiff.scenes['0'].timeline.duration[1]; // Take the new value
         }
-        if (
-          safeDiff?.timeline?.animationStates &&
-          (typeof baseState.timeline?.animationStates !== 'object' || baseState.timeline.animationStates === null)
-        ) {
-          baseState.timeline.animationStates = {};
-        }
+        
+        // Create new state with updated sceneCanvas
+        newState = {
+          ...currentState,
+          scenes: [{
+            ...firstScene,
+            sceneCanvas: updatedSceneCanvas,
+            lastModified: safeDiff.scenes['0'].lastModified ? safeDiff.scenes['0'].lastModified[1] : new Date().toISOString()
+          }]
+        };
+      } else {
+        // This is a different type of scenes array modification, apply it to the entire mainState
+        logger.info('Applying diff to scenes array structure', {
+          projectId,
+          userId,
+          diffType: 'scenes_array_modification'
+        });
+        
         try {
-          newState = diffPatcher.patch(baseState, safeDiff);
-        } catch (err2) {
-          logger.error('Diff patch failed even after initializing containers', {
-            error: err2 instanceof Error ? err2.message : 'Unknown error',
+          newState = diffPatcher.patch(currentState, safeDiff);
+        } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          logger.error('Diff patch failed for scenes array modification', {
+            error: errMsg,
             projectId,
             userId,
-            diff: safeDiff,
-            baseStateKeys: Object.keys(baseState ?? {}),
+            changeData,
           });
-          throw err2;
+          throw err;
         }
-      } else {
-        throw err;
+      }
+    } else {
+      // The diff is modifying sceneCanvas content, apply it to the first scene's canvas
+      const firstScene = currentState.scenes[0];
+      if (!firstScene || !firstScene.sceneCanvas) {
+        throw new Error('Invalid schema: missing first scene or sceneCanvas');
+      }
+      
+      let baseState = JSON.parse(JSON.stringify(firstScene.sceneCanvas));
+      // Pre-initialize common containers expected by the diff
+      if (safeDiff?.elements && safeDiff.elements._t === 'a' && !Array.isArray(baseState.elements)) {
+        baseState.elements = [];
+      }
+      if (safeDiff?.groups && safeDiff.groups._t === 'a' && !Array.isArray(baseState.groups)) {
+        baseState.groups = [];
+      }
+      if (safeDiff?.timeline && (typeof baseState.timeline !== 'object' || baseState.timeline === null)) {
+        baseState.timeline = {};
+      }
+      if (
+        safeDiff?.timeline?.animationStates &&
+        (typeof baseState.timeline?.animationStates !== 'object' || baseState.timeline.animationStates === null)
+      ) {
+        baseState.timeline.animationStates = {};
+      }
+
+      try {
+        newState = diffPatcher.patch(baseState, safeDiff);
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        logger.error('Diff patch failed for sceneCanvas content', {
+          error: errMsg,
+          projectId,
+          userId,
+          changeData,
+        });
+        // jsondiffpatch uses Array#splice for array patches. If the target path is undefined,
+        // patching may throw "Cannot read properties of undefined (reading 'splice')".
+        if (errMsg && errMsg.toLowerCase().includes('splice')) {
+          // Initialize common containers if the diff indicates array/object patches
+          if (safeDiff?.elements && safeDiff.elements._t === 'a' && !Array.isArray(baseState.elements)) {
+            baseState.elements = [];
+          }
+          if (safeDiff?.groups && safeDiff.groups._t === 'a' && !Array.isArray(baseState.groups)) {
+            baseState.groups = [];
+          }
+          if (safeDiff?.timeline && (typeof baseState.timeline !== 'object' || baseState.timeline === null)) {
+            baseState.timeline = {};
+          }
+          if (
+            safeDiff?.timeline?.animationStates &&
+            (typeof baseState.timeline?.animationStates !== 'object' || baseState.timeline.animationStates === null)
+          ) {
+            baseState.timeline.animationStates = {};
+          }
+          try {
+            newState = diffPatcher.patch(baseState, safeDiff);
+          } catch (err2) {
+            logger.error('Diff patch failed even after initializing containers', {
+              error: err2 instanceof Error ? err2.message : 'Unknown error',
+              projectId,
+              userId,
+              diff: safeDiff,
+              baseStateKeys: Object.keys(baseState ?? {}),
+            });
+            throw err2;
+          }
+        } else {
+          throw err;
+        }
       }
     }
 
@@ -360,16 +449,46 @@ export class ProjectService {
       },
     });
 
-    // Update project version and mainState - always maintain deprecated format
-    const updatedScenes = [...currentState.scenes];
-    if (updatedScenes[0]) {
-      updatedScenes[0] = {
-        sceneId: updatedScenes[0].sceneId,
-        sceneName: updatedScenes[0].sceneName,
-        sceneCanvas: newState
+    // Update project version and mainState - always maintain new schema format
+    let finalMainState: any;
+    
+    if (isModifyingScenesArray) {
+      // The diff was applied to the entire mainState or handled specially for timeline
+      finalMainState = newState;
+    } else {
+      // The diff was applied to sceneCanvas content, update the first scene
+      const updatedScenes = [...currentState.scenes];
+      if (updatedScenes[0]) {
+        updatedScenes[0] = {
+          sceneId: updatedScenes[0].sceneId,
+          sceneName: updatedScenes[0].sceneName,
+          sceneCanvas: newState
+        };
+      }
+      finalMainState = { 
+        dimensions: currentState.dimensions,
+        scenes: updatedScenes 
       };
     }
-    const finalMainState = { scenes: updatedScenes };
+
+    // TEMPORARY: Log the structure being saved
+    logger.info('Saving project with mainState structure', {
+      projectId,
+      userId,
+      mainStateStructure: JSON.stringify(finalMainState, null, 2),
+      mainStateSummary: {
+        hasDimensions: !!finalMainState.dimensions,
+        dimensions: finalMainState.dimensions,
+        scenesCount: finalMainState.scenes?.length || 0,
+        firstScene: finalMainState.scenes?.[0] ? {
+          sceneId: finalMainState.scenes[0].sceneId,
+          sceneName: finalMainState.scenes[0].sceneName,
+          elementsCount: finalMainState.scenes[0].sceneCanvas?.elements?.length || 0,
+          groupsCount: finalMainState.scenes[0].sceneCanvas?.groups?.length || 0,
+          timeline: finalMainState.scenes[0].timeline,
+        } : null,
+      }
+    });
 
     const updatedProject = await prisma.project.update({
       where: { id: projectId },

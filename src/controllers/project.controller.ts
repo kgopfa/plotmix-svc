@@ -20,7 +20,28 @@ export class ProjectController {
 
       const project = await ProjectService.createProject(req.user.userId, {
         name: 'New Project',
-        mainState: {},
+        mainState: {
+          dimensions: {
+            width: 1920,
+            height: 1080
+          },
+          scenes: [
+            {
+              sceneId: 'default-scene',
+              sceneName: 'Default Scene',
+              sceneCanvas: {
+                elements: [],
+                groups: [],
+                timeline: {
+                  scale: 1,
+                  duration: 10,
+                  currentTime: 0,
+                  animationStates: {}
+                }
+              }
+            }
+          ]
+        },
         configuration: createDefaultProjectConfiguration(),
         features: {
           attachments: { enabled: false },
