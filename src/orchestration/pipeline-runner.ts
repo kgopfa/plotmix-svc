@@ -51,16 +51,28 @@ export class PipelineRunner {
         intentReducer,
         scenePlanner,
         sceneOutputs,
-        designAssets: [],
+        designAssets: {
+          scene_id: 'default-scene'
+        },
         layoutCompiler,
         finalDoc: {
           name: '1',
           title: sceneOutputs.map(s => s.steps.map(step => step.text).join('; ')).join('; '),
           description: sceneOutputs.map(s => s.steps.map(step => step.text).join('; ')).join('; '),
           mainState: {
-            elements: layoutCompiler.elements,
-            groups: layoutCompiler.groups,
-            timeline: layoutCompiler.timeline
+            dimensions: {
+              width: 1920,
+              height: 1080
+            },
+            scenes: [{
+              sceneId: 'default-scene',
+              sceneName: 'Default Scene',
+              sceneCanvas: {
+                elements: layoutCompiler.elements,
+                groups: layoutCompiler.groups,
+                timeline: layoutCompiler.timeline
+              }
+            }]
           }
         }
       };

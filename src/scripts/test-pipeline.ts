@@ -15,9 +15,9 @@ async function testPipeline() {
       name: result.name,
       title: result.title,
       description: result.description,
-      elementCount: result.mainState.elements.length,
-      groupCount: result.mainState.groups.length,
-      timeline: result.mainState.timeline,
+      elementCount: result.mainState.scenes[0]?.sceneCanvas?.elements?.length || 0,
+      groupCount: result.mainState.scenes[0]?.sceneCanvas?.groups?.length || 0,
+      timeline: result.mainState.scenes[0]?.sceneCanvas?.timeline,
     });
     
     logger.info('Test completed successfully');

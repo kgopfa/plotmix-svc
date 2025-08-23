@@ -646,7 +646,14 @@ export interface PipelineState {
     name: string;
     title: string;
     description: string;
-    mainState: { elements: any[]; groups: any[]; timeline: any };
+    mainState: {
+      dimensions: { width: number; height: number };
+      scenes: Array<{
+        sceneId: string;
+        sceneName: string;
+        sceneCanvas: { elements: any[]; groups: any[]; timeline: any };
+      }>;
+    };
   };
 }
 

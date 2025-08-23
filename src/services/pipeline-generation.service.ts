@@ -12,7 +12,14 @@ export class PipelineGenerationService {
     name: string;
     title: string;
     description: string;
-    mainState: { elements: any[]; groups: any[]; timeline: any };
+    mainState: {
+      dimensions: { width: number; height: number };
+      scenes: Array<{
+        sceneId: string;
+        sceneName: string;
+        sceneCanvas: { elements: any[]; groups: any[]; timeline: any };
+      }>;
+    };
   }> {
     try {
       logger.info('Starting pipeline execution', { promptLength: userBrief.length });
@@ -68,14 +75,24 @@ export class PipelineGenerationService {
         title: pipelineResult.scenePlanner?.scenes?.[0]?.caption ?? 'Scene',
         description: this.generateDescription(pipelineResult.scenePlanner?.scenes || []),
         mainState: {
-          elements: composed.elements || [],
-          groups: composed.groups || [],
-          timeline: composed.timeline || { 
-            scale: 1, 
-            duration: 3, 
-            currentTime: 0, 
-            animationStates: {} 
+          dimensions: {
+            width: 1920,
+            height: 1080
           },
+          scenes: [{
+            sceneId: 'default-scene',
+            sceneName: 'Default Scene',
+            sceneCanvas: {
+              elements: composed.elements || [],
+              groups: composed.groups || [],
+              timeline: composed.timeline || { 
+                scale: 1, 
+                duration: 3, 
+                currentTime: 0, 
+                animationStates: {} 
+              },
+            },
+          }],
         },
       };
 
@@ -96,8 +113,8 @@ export class PipelineGenerationService {
       }
 
       logger.info('Pipeline generation completed successfully', {
-        elementCount: doc.mainState.elements.length,
-        groupCount: doc.mainState.groups.length,
+        elementCount: doc.mainState.scenes[0]?.sceneCanvas?.elements?.length || 0,
+        groupCount: doc.mainState.scenes[0]?.sceneCanvas?.groups?.length || 0,
       });
 
       return doc;
@@ -123,7 +140,12 @@ export class PipelineGenerationService {
     const hasRequiredStructure = doc && 
       typeof doc === 'object' && 
       doc.mainState && 
-      Array.isArray(doc.mainState.elements);
+      doc.mainState.dimensions &&
+      doc.mainState.scenes &&
+      Array.isArray(doc.mainState.scenes) &&
+      doc.mainState.scenes.length > 0 &&
+      doc.mainState.scenes[0]?.sceneCanvas?.elements &&
+      Array.isArray(doc.mainState.scenes[0].sceneCanvas.elements);
     
     return { 
       valid: hasRequiredStructure, 

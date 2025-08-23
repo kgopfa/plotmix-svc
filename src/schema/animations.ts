@@ -1,11 +1,11 @@
 import type {
-  AnimatedCanvasObject,
+  CanvasElement,
   ElementAnimation,
   AnimationType,
   AnimatableProperties,
   GsapEase,
   CanvasGroup,
-} from '../types/project';
+} from '../types/canvas';
 import { logger } from '../utils/logger';
 
 export interface ValidationResult<T> {
@@ -271,7 +271,7 @@ export function computeExpectedDisplayNames(
  */
 export function validateAnimationAgainstElement(
   animation: unknown,
-  element: AnimatedCanvasObject
+  element: CanvasElement
 ): ValidationResult<ElementAnimation> {
   void element; // placeholder for future contextual checks
 
@@ -318,9 +318,9 @@ function isValidDisplayNameForType(type: AnimationType, name: unknown): boolean 
  * - Optionally recomputes display names and/or regenerates IDs.
  */
 export function assignAnimationIdentifiersForElement(
-  element: AnimatedCanvasObject,
+  element: CanvasElement,
   options: { recomputeDisplayNames?: boolean; regenerateIds?: boolean } = {}
-): AnimatedCanvasObject {
+): CanvasElement {
   const { recomputeDisplayNames = false, regenerateIds = false } = options;
   const counts: Partial<Record<AnimationType, number>> = {};
 
@@ -372,10 +372,10 @@ export function assignAnimationIdentifiersForGroup(
  * Bulk assignment for arrays of elements and groups.
  */
 export function assignAnimationIdentifiers(
-  elements: AnimatedCanvasObject[],
+  elements: CanvasElement[],
   groups: CanvasGroup[],
   options: { recomputeDisplayNames?: boolean; regenerateIds?: boolean } = {}
-): { elements: AnimatedCanvasObject[]; groups: CanvasGroup[] } {
+): { elements: CanvasElement[]; groups: CanvasGroup[] } {
   return {
     elements: elements.map((e) => assignAnimationIdentifiersForElement(e, options)),
     groups: groups.map((g) => assignAnimationIdentifiersForGroup(g, options)),
@@ -387,10 +387,10 @@ export function assignAnimationIdentifiers(
 // -------------------------
 
 export type PromptAnimation = Omit<ElementAnimation, 'id' | 'displayName'>;
-export type PromptElement = Omit<AnimatedCanvasObject, 'animations'> & { animations: PromptAnimation[] };
+export type PromptElement = Omit<CanvasElement, 'animations'> & { animations: PromptAnimation[] };
 export type PromptGroup = Omit<CanvasGroup, 'animations'> & { animations: PromptAnimation[] };
 
-export function toPromptElement(element: AnimatedCanvasObject): PromptElement {
+export function toPromptElement(element: CanvasElement): PromptElement {
   return {
     ...(element as any),
     animations: (element.animations || []).map((a) => {

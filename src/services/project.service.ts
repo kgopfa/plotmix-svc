@@ -263,7 +263,17 @@ export class ProjectService {
     const currentState = (project.mainState as any) ?? {};
     const safeDiff = (changeData.diff ?? {}) as any;
 
-    let baseState = JSON.parse(JSON.stringify(currentState));
+    // Access through first scene's canvas
+    if (!currentState.scenes || !Array.isArray(currentState.scenes) || currentState.scenes.length === 0) {
+      throw new Error('Invalid mainState format: missing scenes array');
+    }
+    
+    const firstScene = currentState.scenes[0];
+    if (!firstScene || !firstScene.sceneCanvas) {
+      throw new Error('Invalid schema: missing first scene or sceneCanvas');
+    }
+    
+    let baseState = JSON.parse(JSON.stringify(firstScene.sceneCanvas));
     // Pre-initialize common containers expected by the diff
     if (safeDiff?.elements && safeDiff.elements._t === 'a' && !Array.isArray(baseState.elements)) {
       baseState.elements = [];
@@ -350,12 +360,22 @@ export class ProjectService {
       },
     });
 
-    // Update project version and mainState
+    // Update project version and mainState - always maintain deprecated format
+    const updatedScenes = [...currentState.scenes];
+    if (updatedScenes[0]) {
+      updatedScenes[0] = {
+        sceneId: updatedScenes[0].sceneId,
+        sceneName: updatedScenes[0].sceneName,
+        sceneCanvas: newState
+      };
+    }
+    const finalMainState = { scenes: updatedScenes };
+
     const updatedProject = await prisma.project.update({
       where: { id: projectId },
       data: {
         version: newVersion,
-        mainState: newState as any,
+        mainState: finalMainState as any,
         updatedAt: new Date(),
       },
     });

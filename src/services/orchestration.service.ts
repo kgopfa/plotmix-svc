@@ -79,7 +79,7 @@ export class OrchestrationService {
 
       logger.info('Pipeline processing completed successfully', {
         hasMainState: !!pipelineResponse.mainState,
-        elementCount: pipelineResponse.mainState?.elements?.length || 0,
+        elementCount: pipelineResponse.mainState?.scenes?.[0]?.sceneCanvas?.elements?.length || 0,
       });
 
       return pipelineResponse;
@@ -181,7 +181,17 @@ export class OrchestrationService {
     });
 
     try {
-      const source = raw || {};
+      // Process first scene's canvas
+      if (!raw.scenes || !Array.isArray(raw.scenes) || raw.scenes.length === 0) {
+        throw new Error('Invalid mainState format: missing scenes array');
+      }
+
+      const firstScene = raw.scenes[0];
+      if (!firstScene || !firstScene.sceneCanvas) {
+        throw new Error('Invalid schema: missing first scene or sceneCanvas');
+      }
+
+      const source = firstScene.sceneCanvas;
       const elementsInput = Array.isArray(source.elements) ? source.elements : [];
 
       const elemRes = validateElementsArray(elementsInput);

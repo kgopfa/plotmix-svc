@@ -247,6 +247,9 @@ export interface ProjectHistory {
 // Project Data Structure Types (new separated mainState and configuration approach)
 export * from './project'; 
 
+// Canvas Types for chained generation pipeline
+export * from './canvas';
+
 // Utility types
 export interface BatchDeleteRequest {
   ids: string[];

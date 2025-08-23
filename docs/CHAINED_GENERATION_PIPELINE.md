@@ -469,11 +469,15 @@ Retrieval flow per step:
 
 ## Compiler Mapping to ENGINE_SPEC
 
-- Elements: enforce required fields per type (id, name, type, x, y, fill; width/height for non‑line/non‑path). Colors must be hex or "none". Text must use allowlisted fonts; default "Inter".
-- Lines/paths: include required `lineOptions` or `pathPoints` per spec.
-- Animations: set `displayName` as `<type>-<n>` per element; easing from allowlist; `move.properties` use single numbers (no ranges/arrays).
+- Elements: enforce required fields per type (id, name, type, x, y, fill, width, height, animations). Colors must be hex or "none". Text must use allowlisted fonts; default "Inter".
+- **Updated**: All elements now require width and height (set to 0 for line/path/polygon elements where dimensions are defined by points).
+- **New**: Support for "polygon" element type with polygonOptions.points and isClosed.
+- Lines/paths: include required `lineOptions` or `pathPoints` per spec. Set width/height to 0.
+- **Enhanced**: Groups now support text-specific properties (characters, fontSize, fontFamily, etc.) for text groups.
+- Animations: set `displayName` as `<type>-<n>` per element; easing from allowlist; `move.properties` can include width/height for size animations.
 - Groups: `type` in `text | custom | polygon`; set `isDefaultGroup` appropriately.
-- Timeline: `currentTime=0`; `duration` covers the latest animation end.
+- Timeline: `currentTime=0`; `duration` covers the latest animation end (constrained to 1-120 seconds per scene).
+- **New**: Timeline scale constraints (10-1000 pixels per second) for optimal frontend performance.
 
 ## Ops & Performance
 
@@ -514,6 +518,8 @@ Retrieval flow per step:
 - **JSON parsing robustness** (automatic error recovery and retries)
 - **Test script reliability** (proper exit handling)
 - **🔒 COMPREHENSIVE VALIDATION SYSTEM** - Step-by-step validation for all pipeline stages
+- **🔄 SCHEMA COMPATIBILITY** - ENGINE_SPEC updated to match frontend Pixi + GSAP requirements
+- **📝 TYPESCRIPT TYPES** - Comprehensive canvas types for better type safety and IntelliSense
 
 **🔄 IN PROGRESS:**
 - Motif catalog and retrieval system
@@ -522,7 +528,7 @@ Retrieval flow per step:
 **📋 NEXT STEPS:**
 1. Create archetype catalog (8 items) and 5–8 motifs/archetype with `compiler_key`s
 2. Wire motif caches and retrieval (motifs + design assets)
-3. Write layout grammars and compiler templates mapping to `ENGINE_SPEC`
+3. Write layout grammars and compiler templates mapping to **updated ENGINE_SPEC**
 4. Add caption polish batch step
 5. **Enhance parallel execution** with LangGraph for even better performance
 
@@ -547,6 +553,56 @@ Retrieval flow per step:
 ## 🔒 Comprehensive Validation System
 
 **Status: ✅ IMPLEMENTED** - Every pipeline stage now includes comprehensive validation with automatic retry logic and detailed error reporting.
+
+### Schema Compatibility
+
+**Status: ✅ UPDATED** - The ENGINE_SPEC has been updated to fully match the frontend Pixi + GSAP schema requirements.
+
+**Key Compatibility Updates:**
+- **Element Types**: Added support for "polygon" element type with polygonOptions
+- **Required Fields**: All elements now require width and height (set to 0 for line/path/polygon where dimensions are defined by points)
+- **Timeline Constraints**: Scene duration limited to 1-120 seconds, scale to 10-1000 pixels per second
+- **Group Properties**: Enhanced text groups with character-level properties (characters, fontSize, fontFamily, etc.)
+- **Animation Properties**: Expanded move animations to support width/height changes for size animations
+- **Frontend Alignment**: Schema now produces output that validates against the frontend rendering requirements
+
+**Frontend Schema Compatibility:**
+- ✅ All required fields match frontend expectations
+- ✅ Element types align with PixiJS capabilities  
+- ✅ Animation properties map to GSAP requirements
+- ✅ Timeline constraints respect frontend performance limits
+- ✅ Group structures support advanced text and polygon features
+
+### TypeScript Types
+
+**Status: ✅ IMPLEMENTED** - Comprehensive TypeScript types have been created for all canvas structures.
+
+**New Type Definitions (`src/types/canvas.ts`):**
+- **CanvasElement**: Complete element interface with all properties and animations
+- **CanvasGroup**: Group interface supporting text, custom, and polygon types
+- **Timeline**: Timeline configuration with constraints (1-120s duration, 10-1000px/s scale)
+- **Scene & MainState**: Scene and project state structures
+- **ProjectDocument**: Complete project document interface
+- **Validation Helpers**: Type guards for element types, animation types, and GSAP eases
+
+**Type Safety Benefits:**
+- ✅ **Compile-time validation** of canvas structures
+- ✅ **IntelliSense support** for all canvas properties
+- ✅ **Consistent interfaces** across the entire pipeline
+- ✅ **Runtime validation** helpers for type checking
+- ✅ **Frontend compatibility** ensured through type constraints
+
+**Usage in Pipeline:**
+```typescript
+import { CanvasElement, Timeline, ProjectDocument } from '../types/canvas';
+
+// Now you get full type safety instead of 'any'
+layoutCompiler: {
+  elements: CanvasElement[];  // ✅ Typed instead of any[]
+  groups: CanvasGroup[];      // ✅ Typed instead of any[]
+  timeline: Timeline;         // ✅ Typed instead of any
+}
+```
 
 ### Validation Architecture
 

@@ -1,9 +1,9 @@
 import type {
-  AnimatedCanvasObject,
+  CanvasElement,
   AnimationType,
   ElementAnimation,
   LineOptions,
-} from '../types/project';
+} from '../types/canvas';
 import { validateElementAnimation } from './animations';
 import { logger } from '../utils/logger';
 
@@ -53,7 +53,7 @@ function isColorStringOrNone(v: unknown): boolean {
 // -------------------------
 
 const ELEMENT_TYPES: Set<string> = new Set([
-  'rectangle', 'circle', 'triangle', 'arc', 'line', 'path', 'image', 'text',
+  'rectangle', 'circle', 'triangle', 'arc', 'line', 'path', 'image', 'text', 'polygon',
 ]);
 
 function validateLineOptions(v: unknown): ValidationResult<LineOptions> {
@@ -197,7 +197,7 @@ function validateText(obj: any): string[] {
 // Public validators
 // -------------------------
 
-export function validateAnimatedCanvasObject(obj: unknown): ValidationResult<AnimatedCanvasObject> {
+export function validateAnimatedCanvasObject(obj: unknown): ValidationResult<CanvasElement> {
   const errors: string[] = [];
   if (!obj || typeof obj !== 'object') {
     return { valid: false, errors: ['element must be an object'] };
@@ -274,15 +274,15 @@ export function validateAnimatedCanvasObject(obj: unknown): ValidationResult<Ani
     });
   }
 
-  return { valid: errors.length === 0, errors, value: o as AnimatedCanvasObject };
+  return { valid: errors.length === 0, errors, value: o as CanvasElement };
 }
 
-export function validateElementsArray(elements: unknown): ValidationResult<AnimatedCanvasObject[]> {
+export function validateElementsArray(elements: unknown): ValidationResult<CanvasElement[]> {
   if (!Array.isArray(elements)) {
     return { valid: false, errors: ['elements must be an array'] };
   }
   const errors: string[] = [];
-  const out: AnimatedCanvasObject[] = [];
+  const out: CanvasElement[] = [];
   elements.forEach((el, idx) => {
     const res = validateAnimatedCanvasObject(el);
     if (!res.valid || !res.value) {

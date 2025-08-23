@@ -1,3 +1,10 @@
+import { 
+  CanvasElement, 
+  CanvasGroup, 
+  Timeline, 
+  ProjectDocument 
+} from '../../types/canvas';
+
 export type Tone = 'concise' | 'friendly' | 'formal';
 
 export interface Brief {
@@ -60,18 +67,13 @@ export interface PipelineState {
   intentReducer?: IntentReducerOutput;
   scenePlanner?: { scenes: ScenePlan[] };
   sceneOutputs?: SceneOut[];
-  designAssets?: DesignSelection[];
+  designAssets?: DesignSelection;
   layoutCompiler?: {
-    elements: any[];
-    groups: any[];
-    timeline: any;
+    elements: CanvasElement[];
+    groups: CanvasGroup[];
+    timeline: Timeline;
   };
-  finalDoc?: {
-    name: string;
-    title: string;
-    description: string;
-    mainState: { elements: any[]; groups: any[]; timeline: any };
-  };
+  finalDoc?: ProjectDocument;
 }
 
 export type DesignSelection = {
