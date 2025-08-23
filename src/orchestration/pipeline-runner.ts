@@ -89,8 +89,24 @@ export class PipelineRunner {
       throw new Error('No archetypes available from Router stage');
     }
     
-    const system = 'Reduce the prompt to a single domain and 3–5 core flows. Return JSON only.';
-    const user = `Domain: ["process_flow","lifecycle_cycle","hierarchy_parts","comparison_tradeoff","timeline_sequence","map_topology","cause_effect","algorithm_trace"]\nCore Flows: ["flow1","flow2","flow3"]\nReturn JSON: {"domain":"...","core_flows":[...], "tone":"concise|friendly|formal"}\nPrompt: ${userText}\nArchetypes: ${JSON.stringify(brief.archetypes)}\nTone: ${brief.tone}`;
+    const system = 'Extract domain and core flows from the prompt. Return ONLY valid JSON with exact format.';
+    const user = `REQUIREMENTS:
+- domain: Must be a non-empty descriptive string (e.g., "social_network", "ecommerce", "healthcare")
+- core_flows: Must be an array with 3-5 flow names (descriptive strings)
+- tone: Must match the provided tone exactly
+
+REQUIRED FORMAT:
+{"domain":"descriptive_domain","core_flows":["flow1","flow2","flow3"],"tone":"${brief.tone}"}
+
+EXAMPLE:
+{"domain":"user_authentication","core_flows":["credential_input","verification_process","response_generation"],"tone":"${brief.tone}"}
+
+CONTEXT:
+- User Prompt: ${userText}
+- Selected Archetypes: ${JSON.stringify(brief.archetypes)}
+- Required Tone: ${brief.tone}
+
+Return valid JSON only - no explanation:`;
     
     const result = await this.client.callLLM([
       { role: 'system', content: system },
@@ -145,8 +161,19 @@ export class PipelineRunner {
   }
 
   private static async runRouter(userText: string): Promise<Brief> {
-    const system = 'Classify the prompt into 1–2 archetypes and a tone. Return JSON only.';
-    const user = `Archetypes: ["process_flow","lifecycle_cycle","hierarchy_parts","comparison_tradeoff","timeline_sequence","map_topology","cause_effect","algorithm_trace"]\nReturn JSON: {"archetypes":[...], "tone":"concise|friendly|formal"}\nPrompt: ${userText}\nConstraints: Archetypes must be relevant to the prompt and the tone must be appropriate.`;
+    const system = 'Classify the prompt into 1–2 archetypes and a tone. Return ONLY valid JSON with exact format.';
+    const user = `VALID ARCHETYPES (choose 1-2): ["process_flow","lifecycle_cycle","hierarchy_parts","comparison_tradeoff","timeline_sequence","map_topology","cause_effect","algorithm_trace"]
+VALID TONES (choose 1): ["concise","friendly","formal"]
+
+REQUIRED FORMAT (return exactly this structure):
+{"archetypes":["selected_archetype"],"tone":"selected_tone"}
+
+EXAMPLE:
+{"archetypes":["process_flow","hierarchy_parts"],"tone":"concise"}
+
+USER PROMPT: ${userText}
+
+Return valid JSON only - no explanation:`;
     
     const result = await this.client.callLLM([
       { role: 'system', content: system },
@@ -209,8 +236,31 @@ export class PipelineRunner {
       throw new Error('No core flows available from Intent Reducer stage');
     }
     
-    const system = 'Create one scene per core flow. Each scene should represent a specific flow and use an appropriate archetype. Return JSON only.';
-    const user = `Archetypes: ${JSON.stringify(brief.archetypes)}\nCore Flows: ${JSON.stringify(intentReducer.core_flows)}\nConstraints: Create exactly ${intentReducer.core_flows.length} scenes, one per core flow; each scene.goal ∈ archetypes; captions ≤12 words.\nReturn: {"scenes":[{"id":"...","goal":"...","caption":"..."}]}\nPrompt: ${userText}\nTone: ${brief.tone}`;
+    const system = 'Create scenes for each core flow. Return ONLY valid JSON with exact format.';
+    const user = `REQUIREMENTS:
+- Create exactly ${intentReducer.core_flows.length} scenes (one per core flow)
+- Each scene must have: id (non-empty string), goal (from archetypes), caption (≤12 words)
+- Scene count must be 3-6 scenes total
+- Each goal must be one of the provided archetypes
+
+VALID ARCHETYPES: ${JSON.stringify(brief.archetypes)}
+CORE FLOWS: ${JSON.stringify(intentReducer.core_flows)}
+
+REQUIRED FORMAT:
+{"scenes":[{"id":"scene1","goal":"archetype_name","caption":"short description"}]}
+
+EXAMPLE:
+{"scenes":[{"id":"auth_flow","goal":"process_flow","caption":"User authentication process"},{"id":"data_proc","goal":"hierarchy_parts","caption":"Data processing workflow"}]}
+
+CAPTION RULES:
+- Maximum 12 words per caption
+- Be concise and descriptive
+- Focus on the core concept
+
+USER PROMPT: ${userText}
+TONE: ${brief.tone}
+
+Return valid JSON only - no explanation:`;
     
     const result = await this.client.callLLM([
       { role: 'system', content: system },

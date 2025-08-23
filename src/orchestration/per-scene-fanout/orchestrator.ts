@@ -87,9 +87,21 @@ export class PerSceneFanOutOrchestrator {
    * Step 1: Split caption into atomic, imperative steps (2-5 max, ≤8 words each)
    */
   private async generateAtomicSteps(caption: string): Promise<AtomicStep[]> {
-    const system = 'Split into 2-5 imperative steps. Return JSON array only.';
-    const user = `Caption: "${caption}"
-Format: [{"id":"1","text":"Enter credentials"},{"id":"2","text":"Submit form"}]`;
+    const system = 'Split caption into atomic steps. Return ONLY valid JSON array with exact format.';
+    const user = `REQUIREMENTS:
+- Create 2-5 atomic steps from the caption
+- Each step: id (string), text (≤8 words, imperative style)
+- Return valid JSON array only
+
+REQUIRED FORMAT:
+[{"id":"1","text":"short imperative step"},{"id":"2","text":"another short step"}]
+
+EXAMPLE:
+[{"id":"1","text":"Enter credentials"},{"id":"2","text":"Click submit button"}]
+
+CAPTION: "${caption}"
+
+Return valid JSON array only - no explanation:`;
 
     const result = await this.client.callLLM([
       { role: 'system', content: system },
@@ -257,10 +269,22 @@ Example: [{"step_id":"1","motif_id":"motif_id","confidence":0.9}]`;
    * Step 4: Generate entities and relations using canonical generic vocabulary
    */
   private async generateEntitiesAndRelations(steps: AtomicStep[]): Promise<StepEntities[]> {
-    const system = 'Generate 1-2 entities per step. Return JSON array only.';
-    const user = `Steps: ${JSON.stringify(steps)}
-Types: actor, process, container, event
-Format: [{"step_id":"1","entities":[{"entity_id":"1","type":"actor","name":"user"}],"relations":[]}]`;
+    const system = 'Generate entities and relations for each step. Return ONLY valid JSON array with exact format.';
+    const user = `REQUIREMENTS:
+- Generate entities and relations for each step
+- Entity types: ["actor","process","container","event","channel"]
+- Relation types: ["flows_to","interacts_with","contains","triggers","produces"]
+- Return valid JSON array only
+
+REQUIRED FORMAT:
+[{"step_id":"step_id","entities":[{"id":"entity1","type":"actor","label":"Entity Name","description":"optional"}],"relations":[{"from":"entity1","to":"entity2","label":"relation description","type":"interacts_with"}]}]
+
+EXAMPLE:
+[{"step_id":"1","entities":[{"id":"user","type":"actor","label":"User"},{"id":"form","type":"container","label":"Login Form"}],"relations":[{"from":"user","to":"form","label":"interacts with","type":"interacts_with"}]}]
+
+STEPS: ${JSON.stringify(steps)}
+
+Return valid JSON array only - no explanation:`;
 
     const result = await this.client.callLLM([
       { role: 'system', content: system },
@@ -308,9 +332,21 @@ Format: [{"step_id":"1","entities":[{"entity_id":"1","type":"actor","name":"user
    * Step 5: Generate motif parameters (only non-default overrides)
    */
   private async generateMotifParams(selections: MotifSelection[]): Promise<MotifParams[]> {
-    const system = 'Generate non-default parameter overrides. Return JSON only.';
-    const user = `Motif selections: ${JSON.stringify(selections)}
-Example: [{"step_id":"1","params":{},"overrides_only":true}]`;
+    const system = 'Generate motif parameters for each step. Return ONLY valid JSON array with exact format.';
+    const user = `REQUIREMENTS:
+- Generate motif parameters for each step
+- Include step_id and params object
+- Return valid JSON array only
+
+REQUIRED FORMAT:
+[{"step_id":"step_id","params":{"param_name":"value"},"overrides_only":true}]
+
+EXAMPLE:
+[{"step_id":"1","params":{"speed":"medium","emphasis":"high"},"overrides_only":true}]
+
+MOTIF SELECTIONS: ${JSON.stringify(selections)}
+
+Return valid JSON array only - no explanation:`;
 
     const result = await this.client.callLLM([
       { role: 'system', content: system },
@@ -330,10 +366,23 @@ Example: [{"step_id":"1","params":{},"overrides_only":true}]`;
    * Step 6: Generate step transitions from small enum
    */
   private async generateStepTransitions(steps: AtomicStep[]): Promise<StepTransition[]> {
-    const system = 'Generate transitions between steps. Return JSON only.';
-    const user = `Steps: ${JSON.stringify(steps)}
-Transitions: ["xfade_fast","pan_right","zoom_in_light","caption_hold"]
-Example: [{"from":"1","to":"2","transition_id":"xfade_fast"}]`;
+    const system = 'Generate transitions between steps. Return ONLY valid JSON array with exact format.';
+    const user = `REQUIREMENTS:
+- Generate transitions between consecutive steps
+- Use only valid transition types
+- Return valid JSON array only
+
+VALID TRANSITIONS: ["xfade_fast","pan_right","zoom_in_light","caption_hold"]
+
+REQUIRED FORMAT:
+[{"from":"step_id","to":"step_id","transition_id":"transition_type"}]
+
+EXAMPLE:
+[{"from":"1","to":"2","transition_id":"xfade_fast"},{"from":"2","to":"3","transition_id":"pan_right"}]
+
+STEPS: ${JSON.stringify(steps)}
+
+Return valid JSON array only - no explanation:`;
 
     const result = await this.client.callLLM([
       { role: 'system', content: system },

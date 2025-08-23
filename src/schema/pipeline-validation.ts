@@ -487,64 +487,71 @@ export function validateSceneFanOutResult(obj: unknown): ValidationResult<SceneF
   if (!Array.isArray(sfr.steps)) {
     errors.push('steps must be an array');
   } else {
-    if (sfr.steps.length < 2) {
-      errors.push('steps must have at least 2 items');
+    if (sfr.steps.length < 1) {
+      errors.push('steps must have at least 1 item');
     } else if (sfr.steps.length > 5) {
       errors.push('steps cannot have more than 5 items');
     }
     
     for (let i = 0; i < sfr.steps.length; i++) {
-      const stepRes = validateAtomicStep(sfr.steps[i]);
-      if (!stepRes.valid) {
-        errors.push(`steps[${i}] invalid: ${stepRes.errors.join('; ')}`);
+      const step = sfr.steps[i];
+      
+      // Validate each step structure
+      if (!step || typeof step !== 'object') {
+        errors.push(`steps[${i}] must be an object`);
+        continue;
+      }
+      
+      if (typeof step.id !== 'string' || step.id.trim() === '') {
+        errors.push(`steps[${i}].id must be a non-empty string`);
+      }
+      
+      if (typeof step.text !== 'string' || step.text.trim() === '') {
+        errors.push(`steps[${i}].text must be a non-empty string`);
+      }
+      
+      if (typeof step.motif_id !== 'string' || step.motif_id.trim() === '') {
+        errors.push(`steps[${i}].motif_id must be a non-empty string`);
+      }
+      
+      if (!step.params || typeof step.params !== 'object') {
+        errors.push(`steps[${i}].params must be an object`);
+      }
+      
+      // Validate entities array
+      if (!Array.isArray(step.entities)) {
+        errors.push(`steps[${i}].entities must be an array`);
+      } else {
+        for (let j = 0; j < step.entities.length; j++) {
+          const entityRes = validateEntity(step.entities[j]);
+          if (!entityRes.valid) {
+            errors.push(`steps[${i}].entities[${j}] invalid: ${entityRes.errors.join('; ')}`);
+          }
+        }
+      }
+      
+      // Validate relations array
+      if (!Array.isArray(step.relations)) {
+        errors.push(`steps[${i}].relations must be an array`);
+      } else {
+        for (let j = 0; j < step.relations.length; j++) {
+          const relationRes = validateRelation(step.relations[j]);
+          if (!relationRes.valid) {
+            errors.push(`steps[${i}].relations[${j}] invalid: ${relationRes.errors.join('; ')}`);
+          }
+        }
       }
     }
   }
 
-  // Validate motif_selections array
-  if (!Array.isArray(sfr.motif_selections)) {
-    errors.push('motif_selections must be an array');
+  // Validate transitions array
+  if (!Array.isArray(sfr.transitions)) {
+    errors.push('transitions must be an array');
   } else {
-    for (let i = 0; i < sfr.motif_selections.length; i++) {
-      const msRes = validateMotifSelection(sfr.motif_selections[i]);
-      if (!msRes.valid) {
-        errors.push(`motif_selections[${i}] invalid: ${msRes.errors.join('; ')}`);
-      }
-    }
-  }
-
-  // Validate step_entities array
-  if (!Array.isArray(sfr.step_entities)) {
-    errors.push('step_entities must be an array');
-  } else {
-    for (let i = 0; i < sfr.step_entities.length; i++) {
-      const seRes = validateStepEntities(sfr.step_entities[i]);
-      if (!seRes.valid) {
-        errors.push(`step_entities[${i}] invalid: ${seRes.errors.join('; ')}`);
-      }
-    }
-  }
-
-  // Validate motif_params array
-  if (!Array.isArray(sfr.motif_params)) {
-    errors.push('motif_params must be an array');
-  } else {
-    for (let i = 0; i < sfr.motif_params.length; i++) {
-      const mpRes = validateMotifParams(sfr.motif_params[i]);
-      if (!mpRes.valid) {
-        errors.push(`motif_params[${i}] invalid: ${mpRes.errors.join('; ')}`);
-      }
-    }
-  }
-
-  // Validate step_transitions array
-  if (!Array.isArray(sfr.step_transitions)) {
-    errors.push('step_transitions must be an array');
-  } else {
-    for (let i = 0; i < sfr.step_transitions.length; i++) {
-      const stRes = validateStepTransition(sfr.step_transitions[i]);
+    for (let i = 0; i < sfr.transitions.length; i++) {
+      const stRes = validateStepTransition(sfr.transitions[i]);
       if (!stRes.valid) {
-        errors.push(`step_transitions[${i}] invalid: ${stRes.errors.join('; ')}`);
+        errors.push(`transitions[${i}] invalid: ${stRes.errors.join('; ')}`);
       }
     }
   }
