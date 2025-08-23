@@ -15,6 +15,198 @@ import {
 import { DiffPatcher } from 'jsondiffpatch';
 
 export class ProjectService {
+  // Utility function for safe diff application
+  private static safeDiffPatch(baseState: any, diff: any, diffPatcher: any): any {
+    try {
+      // First attempt: try to apply the diff directly
+      return diffPatcher.patch(baseState, diff);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      
+      // If the error is about setting properties on undefined, we need to pre-initialize the structure
+      if (errMsg.includes('Cannot set properties of undefined') || errMsg.includes('Cannot read properties of undefined')) {
+        logger.info('Diff patch failed due to undefined objects, attempting to pre-initialize structure', {
+          error: errMsg
+        });
+        
+        // Create a deep copy and pre-initialize the structure
+        const safeBaseState = this.preInitializeStructure(baseState, diff);
+        
+        // Try again with the pre-initialized structure
+        try {
+          return diffPatcher.patch(safeBaseState, diff);
+        } catch (retryErr) {
+          const retryErrMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+          logger.error('Diff patch failed even after pre-initialization', {
+            originalError: errMsg,
+            retryError: retryErrMsg
+          });
+          throw retryErr;
+        }
+      }
+      
+      // Re-throw the original error if it's not about undefined objects
+      throw err;
+    }
+  }
+  
+  // Pre-initialize the structure based on the diff
+  private static preInitializeStructure(baseState: any, diff: any): any {
+    const safeState = JSON.parse(JSON.stringify(baseState));
+    
+    logger.info('Pre-initializing structure for safe diff application', {
+      diffKeys: Object.keys(diff || {}),
+      hasScenesDiff: !!(diff.scenes && diff.scenes._t === 'a'),
+      baseStateHasScenes: !!(safeState.scenes && Array.isArray(safeState.scenes))
+    });
+    
+    // Handle scenes array modifications
+    if (diff.scenes && diff.scenes._t === 'a') {
+      // Ensure scenes array exists
+      if (!safeState.scenes || !Array.isArray(safeState.scenes)) {
+        safeState.scenes = [];
+        logger.info('Initialized missing scenes array');
+      }
+      
+      // Handle scene modifications
+      const sceneKeys = Object.keys(diff.scenes).filter(key => key !== '_t');
+      logger.info('Processing scene modifications', { sceneKeys });
+      
+      for (const sceneKey of sceneKeys) {
+        const sceneIndex = parseInt(sceneKey);
+        const sceneDiff = diff.scenes[sceneKey];
+        
+        // Ensure the scene exists
+        if (!safeState.scenes[sceneIndex]) {
+          safeState.scenes[sceneIndex] = {
+            sceneId: `scene-${sceneIndex}`,
+            sceneName: `Scene ${sceneIndex}`,
+            sceneCanvas: {
+              elements: [],
+              groups: [],
+              timeline: {
+                duration: 10,
+                scale: 1,
+                animationStates: {}
+              }
+            }
+          };
+          logger.info(`Initialized missing scene at index ${sceneIndex}`);
+        }
+        
+        // Handle canvas modifications within the scene
+        if (sceneDiff.canvas) {
+          logger.info(`Processing canvas diff for scene ${sceneIndex}`, {
+            canvasKeys: Object.keys(sceneDiff.canvas)
+          });
+          
+          // Migrate from old schema (canvas) to new schema (sceneCanvas)
+          if (!safeState.scenes[sceneIndex].sceneCanvas) {
+            safeState.scenes[sceneIndex].sceneCanvas = {
+              elements: [],
+              groups: [],
+              timeline: {
+                duration: 10,
+                scale: 1,
+                animationStates: {}
+              }
+            };
+            logger.info(`Initialized sceneCanvas for scene ${sceneIndex}`);
+          }
+          
+          // Handle elements array
+          if (sceneDiff.canvas.elements && sceneDiff.canvas.elements._t === 'a') {
+            if (!Array.isArray(safeState.scenes[sceneIndex].sceneCanvas.elements)) {
+              safeState.scenes[sceneIndex].sceneCanvas.elements = [];
+              logger.info(`Initialized elements array for scene ${sceneIndex}`);
+            }
+          }
+          
+          // Handle groups array
+          if (sceneDiff.canvas.groups && sceneDiff.canvas.groups._t === 'a') {
+            if (!Array.isArray(safeState.scenes[sceneIndex].sceneCanvas.groups)) {
+              safeState.scenes[sceneIndex].sceneCanvas.groups = [];
+              logger.info(`Initialized groups array for scene ${sceneIndex}`);
+            }
+          }
+          
+          // Handle timeline
+          if (sceneDiff.canvas.timeline) {
+            if (!safeState.scenes[sceneIndex].sceneCanvas.timeline) {
+              safeState.scenes[sceneIndex].sceneCanvas.timeline = {
+                duration: 10,
+                scale: 1,
+                animationStates: {}
+              };
+              logger.info(`Initialized timeline for scene ${sceneIndex}`);
+            }
+          }
+        }
+        
+        // Handle direct sceneCanvas modifications
+        if (sceneDiff.sceneCanvas) {
+          logger.info(`Processing sceneCanvas diff for scene ${sceneIndex}`, {
+            sceneCanvasKeys: Object.keys(sceneDiff.sceneCanvas)
+          });
+          
+          if (!safeState.scenes[sceneIndex].sceneCanvas) {
+            safeState.scenes[sceneIndex].sceneCanvas = {
+              elements: [],
+              groups: [],
+              timeline: {
+                duration: 10,
+                scale: 1,
+                animationStates: {}
+              }
+            };
+            logger.info(`Initialized sceneCanvas for scene ${sceneIndex}`);
+          }
+          
+          // Handle elements array
+          if (sceneDiff.sceneCanvas.elements && sceneDiff.sceneCanvas.elements._t === 'a') {
+            if (!Array.isArray(safeState.scenes[sceneIndex].sceneCanvas.elements)) {
+              safeState.scenes[sceneIndex].sceneCanvas.elements = [];
+              logger.info(`Initialized elements array for scene ${sceneIndex}`);
+            }
+          }
+          
+          // Handle groups array
+          if (sceneDiff.sceneCanvas.groups && sceneDiff.sceneCanvas.groups._t === 'a') {
+            if (!Array.isArray(safeState.scenes[sceneIndex].sceneCanvas.groups)) {
+              safeState.scenes[sceneIndex].sceneCanvas.groups = [];
+              logger.info(`Initialized groups array for scene ${sceneIndex}`);
+            }
+          }
+          
+          // Handle timeline
+          if (sceneDiff.sceneCanvas.timeline) {
+            if (!safeState.scenes[sceneIndex].sceneCanvas.timeline) {
+              safeState.scenes[sceneIndex].sceneCanvas.timeline = {
+                duration: 10,
+                scale: 1,
+                animationStates: {}
+              };
+              logger.info(`Initialized timeline for scene ${sceneIndex}`);
+            }
+          }
+        }
+      }
+    }
+    
+    logger.info('Structure pre-initialization completed', {
+      finalStateStructure: {
+        hasScenes: !!safeState.scenes,
+        scenesLength: safeState.scenes?.length || 0,
+        firstScene: safeState.scenes?.[0] ? {
+          hasSceneCanvas: !!safeState.scenes[0].sceneCanvas,
+          sceneCanvasKeys: Object.keys(safeState.scenes[0].sceneCanvas || {})
+        } : null
+      }
+    });
+    
+    return safeState;
+  }
+
   static async createProject(userId: string, projectData: CreateProjectRequest): Promise<Project> {
     const { features, mainState, configuration, ...restData } = projectData;
     const version = '1.0.0'; // initial version
@@ -342,8 +534,61 @@ export class ProjectService {
           diffType: 'scenes_array_modification'
         });
         
+        // Ensure the base state has the expected structure before applying the diff
+        let baseStateForPatch = { ...currentState };
+        
+        // Pre-initialize scenes array if it doesn't exist or is malformed
+        if (!baseStateForPatch.scenes || !Array.isArray(baseStateForPatch.scenes)) {
+          baseStateForPatch.scenes = [];
+        }
+        
+        // Ensure the first scene exists and has the expected structure
+        if (!baseStateForPatch.scenes[0]) {
+          baseStateForPatch.scenes[0] = {
+            sceneId: 'default-scene',
+            sceneName: 'Default Scene',
+            sceneCanvas: {
+              elements: [],
+              groups: [],
+              timeline: {
+                duration: 10,
+                scale: 1,
+                animationStates: {}
+              }
+            }
+          };
+        }
+        
+        // Ensure sceneCanvas exists and has required properties
+        if (!baseStateForPatch.scenes[0].sceneCanvas) {
+          baseStateForPatch.scenes[0].sceneCanvas = {
+            elements: [],
+            groups: [],
+            timeline: {
+              duration: 10,
+              scale: 1,
+              animationStates: {}
+            }
+          };
+        }
+        
+        // Ensure required arrays exist
+        if (!Array.isArray(baseStateForPatch.scenes[0].sceneCanvas.elements)) {
+          baseStateForPatch.scenes[0].sceneCanvas.elements = [];
+        }
+        if (!Array.isArray(baseStateForPatch.scenes[0].sceneCanvas.groups)) {
+          baseStateForPatch.scenes[0].sceneCanvas.groups = [];
+        }
+        if (!baseStateForPatch.scenes[0].sceneCanvas.timeline) {
+          baseStateForPatch.scenes[0].sceneCanvas.timeline = {
+            duration: 10,
+            scale: 1,
+            animationStates: {}
+          };
+        }
+        
         try {
-          newState = diffPatcher.patch(currentState, safeDiff);
+          newState = this.safeDiffPatch(baseStateForPatch, safeDiff, diffPatcher);
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : String(err);
           logger.error('Diff patch failed for scenes array modification', {
@@ -351,6 +596,12 @@ export class ProjectService {
             projectId,
             userId,
             changeData,
+            baseStateStructure: {
+              hasScenes: !!baseStateForPatch.scenes,
+              scenesLength: baseStateForPatch.scenes?.length,
+              firstSceneHasCanvas: !!baseStateForPatch.scenes?.[0]?.sceneCanvas,
+              firstSceneCanvasKeys: Object.keys(baseStateForPatch.scenes?.[0]?.sceneCanvas || {})
+            }
           });
           throw err;
         }
@@ -381,7 +632,7 @@ export class ProjectService {
       }
 
       try {
-        newState = diffPatcher.patch(baseState, safeDiff);
+        newState = this.safeDiffPatch(baseState, safeDiff, diffPatcher);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
         logger.error('Diff patch failed for sceneCanvas content', {
@@ -409,8 +660,9 @@ export class ProjectService {
           ) {
             baseState.timeline.animationStates = {};
           }
+
           try {
-            newState = diffPatcher.patch(baseState, safeDiff);
+            newState = this.safeDiffPatch(baseState, safeDiff, diffPatcher);
           } catch (err2) {
             logger.error('Diff patch failed even after initializing containers', {
               error: err2 instanceof Error ? err2.message : 'Unknown error',
