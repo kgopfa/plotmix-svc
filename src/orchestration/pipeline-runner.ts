@@ -2,6 +2,13 @@ import { logger } from '../utils/logger';
 import { PipelineClient } from '../clients/pipeline.client';
 import { PerSceneFanOutOrchestrator } from './per-scene-fanout';
 import { Brief, IntentReducerOutput, ScenePlan, SceneOut, PipelineState } from './langgraph/types';
+import {
+  validateRouterOutput,
+  validateIntentReducerOutput,
+  validateScenePlannerOutput,
+  logValidationResult,
+  createValidationSummary
+} from '../schema/pipeline-validation';
 
 export class PipelineRunner {
   private static client = PipelineClient.getInstance();
@@ -91,8 +98,9 @@ export class PipelineRunner {
     ], 'intentReducer', { json: false, attempts: 2 });
 
     // Try to parse the result as JSON even if response_format wasn't used
+    let parsed: any;
     try {
-      return JSON.parse(result) as IntentReducerOutput;
+      parsed = JSON.parse(result);
     } catch (parseError) {
       logger.error('Failed to parse intent reducer response as JSON', { 
         result, 
@@ -100,6 +108,40 @@ export class PipelineRunner {
       });
       throw new Error(`Intent Reducer failed to generate valid JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
     }
+
+    // Validate the parsed result
+    const validation = validateIntentReducerOutput(parsed);
+    logValidationResult('Intent Reducer', validation);
+    
+    if (!validation.valid) {
+      // Try to retry with validation error summary
+      logger.warn('Intent Reducer validation failed, attempting retry with error summary', {
+        errors: validation.errors,
+        patchHints: validation.patchHints
+      });
+      
+      const retryUser = `${user}\n\n${createValidationSummary(validation)}`;
+      const retryResult = await this.client.callLLM([
+        { role: 'system', content: system },
+        { role: 'user', content: retryUser },
+      ], 'intentReducer', { json: false, attempts: 1 });
+      
+      try {
+        const retryParsed = JSON.parse(retryResult);
+        const retryValidation = validateIntentReducerOutput(retryParsed);
+        logValidationResult('Intent Reducer (retry)', retryValidation);
+        
+        if (retryValidation.valid && retryValidation.value) {
+          return retryValidation.value;
+        }
+      } catch (retryParseError) {
+        logger.error('Intent Reducer retry also failed to parse', { retryResult, error: retryParseError });
+      }
+      
+      throw new Error(`Intent Reducer stage failed validation after retry: ${validation.errors.join('; ')}`);
+    }
+
+    return validation.value!;
   }
 
   private static async runRouter(userText: string): Promise<Brief> {
@@ -112,8 +154,9 @@ export class PipelineRunner {
     ], 'router', { json: false, attempts: 2 });
 
     // Try to parse the result as JSON even if response_format wasn't used
+    let parsed: any;
     try {
-      return JSON.parse(result);
+      parsed = JSON.parse(result);
     } catch (parseError) {
       logger.error('Failed to parse router response as JSON', { 
         result, 
@@ -121,6 +164,40 @@ export class PipelineRunner {
       });
       throw new Error(`Router failed to generate valid JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
     }
+
+    // Validate the parsed result
+    const validation = validateRouterOutput(parsed);
+    logValidationResult('Router', validation);
+    
+    if (!validation.valid) {
+      // Try to retry with validation error summary
+      logger.warn('Router validation failed, attempting retry with error summary', {
+        errors: validation.errors,
+        patchHints: validation.patchHints
+      });
+      
+      const retryUser = `${user}\n\n${createValidationSummary(validation)}`;
+      const retryResult = await this.client.callLLM([
+        { role: 'system', content: system },
+        { role: 'user', content: retryUser },
+      ], 'router', { json: false, attempts: 1 });
+      
+      try {
+        const retryParsed = JSON.parse(retryResult);
+        const retryValidation = validateRouterOutput(retryParsed);
+        logValidationResult('Router (retry)', retryValidation);
+        
+        if (retryValidation.valid && retryValidation.value) {
+          return retryValidation.value;
+        }
+      } catch (retryParseError) {
+        logger.error('Router retry also failed to parse', { retryResult, error: retryParseError });
+      }
+      
+      throw new Error(`Router stage failed validation after retry: ${validation.errors.join('; ')}`);
+    }
+
+    return validation.value!;
   }
 
   private static async runScenePlanner(brief: Brief, intentReducer: IntentReducerOutput, userText: string): Promise<{ scenes: ScenePlan[] }> {
@@ -141,8 +218,9 @@ export class PipelineRunner {
     ], 'scenePlanner', { json: false, attempts: 2 });
 
     // Try to parse the result as JSON even if response_format wasn't used
+    let parsed: any;
     try {
-      return JSON.parse(result);
+      parsed = JSON.parse(result);
     } catch (parseError) {
       logger.error('Failed to parse scene planner response as JSON', { 
         result, 
@@ -150,6 +228,40 @@ export class PipelineRunner {
       });
       throw new Error(`Scene Planner failed to generate valid JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
     }
+
+    // Validate the parsed result
+    const validation = validateScenePlannerOutput(parsed);
+    logValidationResult('Scene Planner', validation);
+    
+    if (!validation.valid) {
+      // Try to retry with validation error summary
+      logger.warn('Scene Planner validation failed, attempting retry with error summary', {
+        errors: validation.errors,
+        patchHints: validation.patchHints
+      });
+      
+      const retryUser = `${user}\n\n${createValidationSummary(validation)}`;
+      const retryResult = await this.client.callLLM([
+        { role: 'system', content: system },
+        { role: 'user', content: retryUser },
+      ], 'scenePlanner', { json: false, attempts: 1 });
+      
+      try {
+        const retryParsed = JSON.parse(retryResult);
+        const retryValidation = validateScenePlannerOutput(retryParsed);
+        logValidationResult('Scene Planner (retry)', retryValidation);
+        
+        if (retryValidation.valid && retryValidation.value) {
+          return retryValidation.value;
+        }
+      } catch (retryParseError) {
+        logger.error('Scene Planner retry also failed to parse', { retryResult, error: retryParseError });
+      }
+      
+      throw new Error(`Scene Planner stage failed validation after retry: ${validation.errors.join('; ')}`);
+    }
+
+    return validation.value!;
   }
 
   private static async runPerSceneFanOut(scenes: ScenePlan[], brief: Brief, intentReducer: IntentReducerOutput): Promise<SceneOut[]> {

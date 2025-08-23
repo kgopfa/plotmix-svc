@@ -10,6 +10,11 @@ import {
   MotifParams,
   StepTransition
 } from './types';
+import {
+  validateAtomicStep,
+  validateSceneFanOutResult,
+  logValidationResult
+} from '../../schema/pipeline-validation';
 
 export class PerSceneFanOutOrchestrator {
   private static instance: PerSceneFanOutOrchestrator;
@@ -91,24 +96,86 @@ Format: [{"id":"1","text":"Enter credentials"},{"id":"2","text":"Submit form"}]`
       { role: 'user', content: user }
     ], 'perSceneFanOut', { json: false, attempts: 2 });
 
+    let parsed: any;
     try {
       // Try to parse as-is first
-      const parsed = JSON.parse(result);
-      return Array.isArray(parsed) ? parsed : [];
+      parsed = JSON.parse(result);
+      if (!Array.isArray(parsed)) {
+        throw new Error('Response is not an array');
+      }
     } catch (parseError) {
       try {
         // Try wrapping in array brackets if it's missing them (common issue)
         const wrappedResult = `[${result}]`;
-        const parsed = JSON.parse(wrappedResult);
-        return Array.isArray(parsed) ? parsed : [];
+        parsed = JSON.parse(wrappedResult);
+        if (!Array.isArray(parsed)) {
+          throw new Error('Wrapped response is not an array');
+        }
       } catch (secondParseError) {
         logger.error('Failed to parse atomic steps response', { 
           result: result.substring(0, 200) + (result.length > 200 ? '...' : ''),
           error: parseError instanceof Error ? parseError.message : String(parseError)
         });
-        return []; // Return empty array as last resort
+        throw new Error(`Failed to parse atomic steps: Invalid JSON response`);
       }
     }
+
+    // Validate each step
+    const validatedSteps: AtomicStep[] = [];
+    const errors: string[] = [];
+    
+    for (let i = 0; i < parsed.length; i++) {
+      const stepValidation = validateAtomicStep(parsed[i]);
+      if (stepValidation.valid && stepValidation.value) {
+        validatedSteps.push(stepValidation.value);
+      } else {
+        errors.push(`Step ${i}: ${stepValidation.errors.join('; ')}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      logger.warn('Some atomic steps failed validation', { errors });
+      
+      // Try to retry with validation error summary
+      const retryUser = `${user}\n\nValidation failed: ${errors.join('; ')}`;
+      const retryResult = await this.client.callLLM([
+        { role: 'system', content: system },
+        { role: 'user', content: retryUser }
+      ], 'perSceneFanOut', { json: false, attempts: 1 });
+
+      try {
+        const retryParsed = JSON.parse(retryResult);
+        if (Array.isArray(retryParsed)) {
+          const retryValidatedSteps: AtomicStep[] = [];
+          const retryErrors: string[] = [];
+          
+          for (let i = 0; i < retryParsed.length; i++) {
+            const stepValidation = validateAtomicStep(retryParsed[i]);
+            if (stepValidation.valid && stepValidation.value) {
+              retryValidatedSteps.push(stepValidation.value);
+            } else {
+              retryErrors.push(`Step ${i}: ${stepValidation.errors.join('; ')}`);
+            }
+          }
+          
+          if (retryValidatedSteps.length > 0) {
+            logger.info('Retry successful for atomic steps', { 
+              originalErrors: errors.length, 
+              retryErrors: retryErrors.length,
+              finalValidSteps: retryValidatedSteps.length 
+            });
+            return retryValidatedSteps;
+          }
+        }
+      } catch (retryParseError) {
+        logger.error('Retry also failed for atomic steps', { retryResult, error: retryParseError });
+      }
+      
+      // If we still have errors, throw with details
+      throw new Error(`Atomic steps validation failed: ${errors.join('; ')}`);
+    }
+
+    return validatedSteps;
   }
 
   /**
@@ -304,10 +371,60 @@ Example: [{"from":"1","to":"2","transition_id":"xfade_fast"}]`;
       };
     });
 
-    return {
+    const result = {
       scene_id: state.scene_id,
       steps,
       transitions: Array.isArray(state.step_transitions) ? state.step_transitions : []
     };
+
+    // Validate the final assembled result
+    const validation = validateSceneFanOutResult(result);
+    logValidationResult('Scene Fan-Out Result', validation);
+    
+    if (!validation.valid) {
+      logger.warn('Final scene fan-out result validation failed', {
+        errors: validation.errors,
+        patchHints: validation.patchHints
+      });
+      
+      // Try to fix common issues automatically
+      const fixedResult = this.attemptAutoFix(result);
+      const fixedValidation = validateSceneFanOutResult(fixedResult);
+      
+      if (fixedValidation.valid && fixedValidation.value) {
+        logger.info('Auto-fix successful for scene fan-out result');
+        return fixedValidation.value;
+      }
+      
+      // If auto-fix fails, log the errors but return the result anyway
+      // This allows the pipeline to continue with potentially invalid data
+      logger.error('Auto-fix failed for scene fan-out result, returning original with validation errors');
+    }
+
+    return result;
+  }
+
+  /**
+   * Attempt to automatically fix common validation issues
+   */
+  private attemptAutoFix(result: any): any {
+    const fixed = { ...result };
+    
+    // Fix missing scene_id
+    if (!fixed.scene_id || typeof fixed.scene_id !== 'string') {
+      fixed.scene_id = 'scene_1';
+    }
+    
+    // Fix missing or invalid steps
+    if (!Array.isArray(fixed.steps)) {
+      fixed.steps = [];
+    }
+    
+    // Fix missing or invalid transitions
+    if (!Array.isArray(fixed.transitions)) {
+      fixed.transitions = [];
+    }
+    
+    return fixed;
   }
 }

@@ -513,6 +513,7 @@ Retrieval flow per step:
 - **Performance optimization** (faster models, reduced tokens, parallel processing)
 - **JSON parsing robustness** (automatic error recovery and retries)
 - **Test script reliability** (proper exit handling)
+- **🔒 COMPREHENSIVE VALIDATION SYSTEM** - Step-by-step validation for all pipeline stages
 
 **🔄 IN PROGRESS:**
 - Motif catalog and retrieval system
@@ -542,6 +543,125 @@ Retrieval flow per step:
 - **Model Selection**: Faster models for simpler tasks, powerful models for complex reasoning
 - **Token Optimization**: Reduced overhead while maintaining output quality
 - **Error Recovery**: Automatic retry and fallback mechanisms
+
+## 🔒 Comprehensive Validation System
+
+**Status: ✅ IMPLEMENTED** - Every pipeline stage now includes comprehensive validation with automatic retry logic and detailed error reporting.
+
+### Validation Architecture
+
+The chained generation pipeline now includes a robust validation system that validates each stage's output before proceeding to the next stage:
+
+**1. Router Stage Validation**
+- Validates archetypes against allowed list (8 valid archetypes)
+- Ensures tone is one of: 'concise', 'friendly', 'formal'
+- Enforces array length constraints (1-2 archetypes)
+- Provides detailed error messages and patch hints
+
+**2. Intent Reducer Stage Validation**
+- Validates domain is non-empty string
+- Ensures core_flows array has 3-5 items
+- Validates tone consistency
+- Provides contextual error messages
+
+**3. Scene Planner Stage Validation**
+- Validates scene structure (id, goal, caption)
+- Enforces caption length limit (≤12 words)
+- Ensures minimum scene count (3-6 scenes)
+- Validates goal matches archetype from router
+
+**4. Per-Scene Fan-out Validation**
+- **Atomic Steps**: Validates step structure and text length (≤8 words)
+- **Motif Selection**: Ensures step_id and motif_id are valid
+- **Entities & Relations**: Validates entity types and relation structure
+- **Motif Parameters**: Ensures params object structure
+- **Step Transitions**: Validates transition_id against allowed enum
+- **Final Assembly**: Comprehensive validation of complete scene output
+
+**5. Layout Compiler Validation**
+- Validates elements and groups arrays
+- Ensures timeline structure with required numeric fields
+- Validates animationStates object
+
+**6. Pipeline State Validation**
+- Comprehensive validation of entire pipeline state
+- Cross-references validation results from all stages
+- Provides complete error summary
+
+### Validation Features
+
+**🔍 Detailed Error Reporting**
+- Specific error messages for each validation failure
+- Patch hints to guide LLM corrections
+- Contextual error information (array indices, field names)
+
+**🔄 Automatic Retry Logic**
+- Failed validation triggers automatic retry with error summary
+- Simplified prompts for retry attempts
+- Graceful fallback to default values when retries fail
+
+**📊 Comprehensive Logging**
+- Validation results logged at appropriate levels (debug, warn, error)
+- Performance metrics for validation operations
+- Detailed error context for debugging
+
+**🛡️ Graceful Degradation**
+- Pipeline continues with validation warnings when possible
+- Automatic fixing of common validation issues
+- Fallback values ensure pipeline completion
+
+### Validation Schema
+
+```typescript
+interface ValidationResult<T> {
+  valid: boolean;
+  errors: string[];
+  value?: T;
+  patchHints?: string[];
+}
+```
+
+**Example Validation Output:**
+```typescript
+{
+  valid: false,
+  errors: [
+    'archetypes[0] must be one of: process_flow, lifecycle_cycle, ...',
+    'tone must be one of: concise, friendly, formal'
+  ],
+  patchHints: [
+    'Replace "invalid_archetype" with a valid archetype from the allowed list',
+    'Replace "invalid_tone" with a valid tone from the allowed list'
+  ]
+}
+```
+
+### Testing the Validation System
+
+A comprehensive test script is available at `src/scripts/test-pipeline-validation.ts` that demonstrates:
+
+- All validation functions with valid and invalid inputs
+- Error message generation and patch hint creation
+- Validation result logging and error summaries
+- Complete pipeline validation workflow
+
+**Run the tests:**
+```bash
+pnpm ts-node src/scripts/test-pipeline-validation.ts
+```
+
+### Integration with Pipeline
+
+The validation system is seamlessly integrated into the pipeline:
+
+1. **Router Stage**: Validates output before proceeding to Intent Reducer
+2. **Intent Reducer**: Validates output before proceeding to Scene Planner
+3. **Scene Planner**: Validates output before proceeding to Per-Scene Fan-out
+4. **Per-Scene Fan-out**: Validates each step individually and final assembly
+5. **Layout Compiler**: Validates output before final document assembly
+6. **Final Document**: Comprehensive validation with graceful degradation
+
+This ensures that each stage produces valid output before the next stage begins, significantly improving pipeline reliability and reducing downstream errors.
 
 ## Lessons Learned & Best Practices
 
