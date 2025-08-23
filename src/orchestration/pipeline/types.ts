@@ -82,7 +82,7 @@ export type DesignSelection = {
   ornaments?: Array<{ asset_id: string; params?: Record<string, unknown> }>;
 };
 
-// Node function types for LangGraph
+// Node function types for pipeline execution
 export type RouterNode = (state: PipelineState) => Promise<Partial<PipelineState>>;
 export type ScenePlannerNode = (state: PipelineState) => Promise<Partial<PipelineState>>;
 export type SceneProcessorNode = (state: PipelineState) => Promise<Partial<PipelineState>>;

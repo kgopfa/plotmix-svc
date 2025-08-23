@@ -1,7 +1,7 @@
 import { logger } from '../utils/logger';
 import { PipelineClient } from '../clients/pipeline.client';
 import { PerSceneFanOutOrchestrator } from './per-scene-fanout';
-import { Brief, IntentReducerOutput, ScenePlan, SceneOut, PipelineState } from './langgraph/types';
+import { Brief, IntentReducerOutput, ScenePlan, SceneOut, PipelineState } from './pipeline/types';
 import {
   validateRouterOutput,
   validateIntentReducerOutput,

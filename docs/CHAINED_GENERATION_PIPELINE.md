@@ -387,7 +387,7 @@ Router → Intent Reducer → ScenePlanner → [per‑scene parallel fan‑out (
 
 ### Reference Implementation (working)
 
-- Types: `src/orchestration/langgraph/types.ts`
+- Types: `src/orchestration/pipeline/types.ts`
 - Pipeline Runner: `src/orchestration/pipeline-runner.ts` (**parallel pipeline** with LLM calls)
 - Per-scene Fan-out: `src/orchestration/per-scene-fanout/orchestrator.ts` (detailed scene breakdown with **robust JSON parsing**)
 - Service: `src/services/pipeline-generation.service.ts` (orchestration and validation)
@@ -429,7 +429,7 @@ Router → Intent Reducer → ScenePlanner → [per‑scene parallel fan‑out (
 - **LLM Integration**: Each stage uses `PipelineClient` for model-specific calls
 - **Pipeline Flow**: `router → intentReducer → scenePlanner → sceneProcessor → layoutCompiler`
 - **Runner**: `src/orchestration/pipeline-runner.ts` (working implementation)
-- **Future**: Can be enhanced with LangGraph for DAG orchestration when the API is better understood
+- **Future**: Can be enhanced with graph-based orchestration for DAG execution when needed
 
 ### Caching (recommended TTLs)
 
@@ -481,7 +481,7 @@ Retrieval flow per step:
 
 ## Ops & Performance
 
-- Orchestrator: LangGraph or equivalent directed graph runner; parallelize per scene and step.
+- Orchestrator: Sequential or parallel pipeline runner; parallelize per scene and step.
 - Bound latency to the slowest tiny call; most calls are cacheable and small.
 - Use structured logging and request correlation ids [[memory:5078939]].
 - Rate limits: keep tiny models; prefer JSON mode.
@@ -530,7 +530,7 @@ Retrieval flow per step:
 2. Wire motif caches and retrieval (motifs + design assets)
 3. Write layout grammars and compiler templates mapping to **updated ENGINE_SPEC**
 4. Add caption polish batch step
-5. **Enhance parallel execution** with LangGraph for even better performance
+5. **Enhance parallel execution** with graph-based orchestration for even better performance
 
 ## Current Performance Metrics
 

@@ -79,7 +79,7 @@ The internal canvas structure remains the same:
 3. **Pipeline Validation** (`src/schema/pipeline-validation.ts`)
    - Updated validation schema to expect new structure
 
-4. **LangGraph Types** (`src/orchestration/langgraph/types.ts`)
+4. **Pipeline Types** (`src/orchestration/pipeline/types.ts`)
    - Updated mainState type definition
 
 5. **Pipeline Generation Service** (`src/services/pipeline-generation.service.ts`)
