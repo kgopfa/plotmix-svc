@@ -120,20 +120,704 @@ We prioritize **reliability and quality** over raw speed. The 48% performance im
 - The current architecture provides the best balance of creativity, reliability, and maintainability
 - Performance improvements come from optimization, not architectural changes
 
+## Stage Responsibilities & Contracts
+
+This section defines the exact responsibilities, input/output contracts, and validation requirements for each pipeline stage.
+
+### Pipeline Stage Overview
+
+```
+1. Router (LLM) → archetypes, tone
+2. Intent Reducer (LLM) → domain, core_flows  
+3. Scene Planner (LLM) → scene captions
+4. Per-scene Fan-out (LLM) → steps, motifs, entities, relations, transitions, assets
+5. Scene Processor → Assemble scene data from LLM output
+6. Design Asset Integration → Combine retrieved assets with scene data
+7. Layout Grammars → Apply positioning rules to entities/relations
+8. Compiler → Generate final ENGINE_SPEC.mainState
+```
+
+**Key Principle**: Stages 1-4 produce the **creative plan**, stages 5-8 **procedurally execute** it into a schema-valid `ENGINE_SPEC.mainState`.
+
+### Stage 1: Router (LLM)
+
+**Responsibility**: Classify user prompt into narrative archetypes and tone.
+
+**Input**: 
+- `userPrompt: string` - Raw user input (e.g., "Design twitter", "Explain binary search")
+
+**Output Contract**:
+```typescript
+{
+  archetypes: string[]; // 1-2 valid archetype IDs
+  tone: 'concise' | 'friendly' | 'formal';
+}
+```
+
+**Validation Rules**:
+- `archetypes.length` ∈ [1, 2]
+- Each `archetype` must be one of: `["process_flow", "lifecycle_cycle", "hierarchy_parts", "comparison_tradeoff", "timeline_sequence", "map_topology", "cause_effect", "algorithm_trace"]`
+- `tone` must be one of: `["concise", "friendly", "formal"]`
+
+**What NOT to do**:
+- Generate content beyond archetype classification
+- Invent new archetypes
+- Make visual or layout decisions
+
+### Stage 2: Intent Reducer (LLM)
+
+**Responsibility**: Analyze user prompt to understand domain and identify core flows.
+
+**Input**:
+- `userPrompt: string` - Raw user input
+- `routerOutput: RouterOutput` - Output from Stage 1
+
+**Output Contract**:
+```typescript
+{
+  domain: string; // Non-empty business domain
+  core_flows: string[]; // 3-5 core processes/concepts
+  tone: 'concise' | 'friendly' | 'formal'; // Must match router
+}
+```
+
+**Validation Rules**:
+- `domain` must be non-empty string
+- `core_flows.length` ∈ [3, 5]
+- `tone` must match `routerOutput.tone`
+- Each `core_flow` should be descriptive but concise
+
+**What NOT to do**:
+- Generate visual elements or layouts
+- Create detailed scene descriptions
+- Make technical implementation decisions
+
+### Stage 3: Scene Planner (LLM)
+
+**Responsibility**: Generate scene captions based on core flows and archetypes.
+
+**Input**:
+- `intentOutput: IntentReducerOutput` - Output from Stage 2
+- `routerOutput: RouterOutput` - Output from Stage 1
+
+**Output Contract**:
+```typescript
+{
+  scenes: Array<{
+    id: string; // Unique scene identifier
+    goal: string; // Must match one archetype from router
+    caption: string; // ≤12 words, descriptive
+  }>;
+}
+```
+
+**Validation Rules**:
+- `scenes.length` ∈ [3, 6]
+- Each `scene.goal` must be one archetype from `routerOutput.archetypes`
+- Each `scene.caption` ≤ 12 words
+- Each `scene.id` must be unique
+
+**What NOT to do**:
+- Generate detailed step breakdowns
+- Create visual layouts or positioning
+- Define entities or relationships
+
+### Stage 4: Per-scene Fan-out (LLM)
+
+**Responsibility**: Break down each scene into detailed steps with motifs, entities, relations, and transitions.
+
+**Input**:
+- `scene: ScenePlan` - Individual scene from Stage 3
+- `archetypes: string[]` - Available archetypes from Stage 1
+
+**Output Contract**:
+```typescript
+{
+  scene_id: string;
+  steps: Array<{
+    id: string;
+    text: string; // ≤8 words, imperative style
+    motif_id: string; // Selected motif identifier
+    params: Record<string, any>; // Motif parameter overrides
+    entities: Array<{
+      id: string;
+      type: 'actor' | 'process' | 'container' | 'event' | 'channel';
+      label: string;
+    }>;
+    relations: Array<{
+      from: string;
+      to: string;
+      label: string;
+      type: string;
+    }>;
+  }>;
+  transitions: Array<{
+    from: string; // step.id
+    to: string; // step.id
+    transition_id: string; // Valid transition type
+  }>;
+}
+```
+
+**Validation Rules**:
+- Each `step.text` ≤ 8 words
+- Each `step.motif_id` must reference a valid motif
+- Each `step.entities` must have valid entity types
+- Each `step.relations` must reference valid entity IDs
+- `transition_id` must be one of: `["xfade_fast", "pan_right", "zoom_in_light", "caption_hold"]`
+
+**What NOT to do**:
+- Generate visual positioning or coordinates
+- Create actual animation keyframes
+- Define styling or colors
+- Generate final ENGINE_SPEC elements
+
+**Important Clarification**: This stage produces **motif IDs + params**, not actual visual elements. Elements are created later by Layout Grammars and Motif compilers.
+
+### Stage 5: Scene Processor (Procedural)
+
+**Responsibility**: Assemble and normalize scene data from LLM output.
+
+**Input**:
+- `fanOutResults: SceneFanOutResult[]` - Output from all Stage 4 executions
+- `intentOutput: IntentReducerOutput` - Output from Stage 2
+- `routerOutput: RouterOutput` - Output from Stage 1
+
+**Output Contract**:
+```typescript
+{
+  steps: Array<{
+    id: string;
+    caption: string;
+    motif_id: string;
+    params: Record<string, any>; // Merged defaults + overrides
+    entities: Entity[];
+    relations: Relation[];
+  }>;
+  transitions: Transition[];
+  theme: ThemePack; // Selected based on tone
+  seed: string; // PRNG seed per step: "project:scene:step"
+  assets: {
+    candidatesByStep: Record<string, DesignAsset[]>; // Available assets per step
+  };
+}
+```
+
+**Validation Rules**:
+- All IDs must be normalized and stable
+- Motif defaults must be merged with LLM parameter overrides
+- Theme must be selected based on tone from router
+- PRNG seed must be deterministic per step
+
+**What NOT to do**:
+- Generate new content or entities
+- Make creative decisions
+- Create visual layouts or positioning
+
+### Stage 6: Design Asset Integration (Procedural)
+
+**Responsibility**: Bind retrieved assets to scene entities and record skin hints.
+
+**Input**:
+- `sceneExecPlan: SceneExecPlan` - Output from Stage 5
+- `designAssets: DesignAsset[]` - Retrieved assets from Stage 4
+
+**Output Contract**:
+```typescript
+{
+  steps: Array<{
+    // ... existing step data
+    boundAssets: Array<{
+      entityId: string;
+      assetId: string;
+      role: string; // e.g., "actor.card", "process.node"
+      skinHints: Record<string, any>;
+    }>;
+  }>;
+  skinRegistry: Record<string, SkinSpec>; // Role → skin mapping
+}
+```
+
+**Validation Rules**:
+- Each bound asset must have `status: 'live'`
+- Asset size must fit entity constraints
+- Role assignments must be valid
+- Skin hints must be complete
+
+**What NOT to do**:
+- Generate new assets or content
+- Make positioning decisions
+- Create animation keyframes
+
+### Stage 7: Layout Grammars (Procedural)
+
+**Responsibility**: Generate positioning and routing for all visual elements.
+
+**Input**:
+- `sceneExecPlan: SceneExecPlan` - Output from Stage 5
+- `assetIntegration: AssetIntegrationResult` - Output from Stage 6
+- `theme: ThemePack` - Theme from Stage 5
+
+**Output Contract**:
+```typescript
+{
+  elements: Array<{
+    id: string;
+    type: 'rectangle' | 'circle' | 'text' | 'line' | 'polygon';
+    x: number; y: number; width: number; height: number;
+    // ... other element properties
+  }>;
+  groups: Array<{
+    id: string;
+    type: 'text' | 'custom' | 'polygon';
+    // ... group properties
+  }>;
+  edges: Array<{
+    from: string; to: string;
+    lineOptions: { start: Point; end: Point; controlPoint?: Point };
+  }>;
+}
+```
+
+**Validation Rules**:
+- All positions must snap to grid (16px increments)
+- No element overlaps
+- Edges must route cleanly with collision detection
+- Labels must avoid overlaps (flip above/below as needed)
+- No hardcoded styling - pull via style resolver
+
+**What NOT to do**:
+- Generate content or entities
+- Create animation keyframes
+- Apply styling or colors
+- Make creative decisions
+
+### Stage 8: Compiler (Procedural)
+
+**Responsibility**: Generate final ENGINE_SPEC with animations and timeline.
+
+**Input**:
+- `layoutResult: LayoutResult` - Output from Stage 7
+- `sceneExecPlan: SceneExecPlan` - Output from Stage 5
+- `assetIntegration: AssetIntegrationResult` - Output from Stage 6
+
+**Output Contract**:
+```typescript
+{
+  dimensions: { width: number; height: number };
+  scenes: Array<{
+    sceneId: string;
+    sceneName: string;
+    sceneCanvas: {
+      elements: CanvasElement[]; // Each with animations[] array
+      groups: CanvasGroup[]; // Each with animations[] array
+      timeline: {
+        scale: number; // ∈ [10, 1000]
+        duration: number; // ∈ [1, 120]
+        currentTime: number; // Always 0
+        animationStates: Record<string, any>; // For fast scrubbing
+      };
+    };
+  }>;
+}
+```
+
+**Validation Rules**:
+- `timeline.duration` ∈ [1, 120] seconds
+- `timeline.scale` ∈ [10, 1000] pixels per second
+- All elements must have required fields (width, height, etc.)
+- Lines must include `lineOptions` or `pathPoints`
+- Text must have `fontSize`, `fontFamily`
+- Colors must be hex or "none"
+- Animations must attach to individual elements/groups
+- All easing values must be from allowlist
+
+**What NOT to do**:
+- Generate new content or entities
+- Make creative decisions
+- Create positioning or layouts
+
+## Procedural Generation Integration
+
+This section documents how procedural generation is incorporated into the pipeline to complement the LLM-based creative planning stages.
+
+### Hybrid Architecture: LLM Planning + Procedural Execution
+
+Our pipeline uses a **hybrid approach** that combines the strengths of both LLM and procedural generation:
+
+```
+LLM Stages (1-4): Creative Planning & Content Generation
+    ↓
+Procedural Stages (5-8): Technical Execution & Schema Generation
+```
+
+**Why This Hybrid Approach?**
+
+1. **LLM Strengths**: Content understanding, creative generation, domain expertise
+2. **Procedural Strengths**: Consistency, performance, technical constraints, validation
+3. **Combined Benefits**: Creative flexibility + technical reliability
+
+### Procedural Generation Components
+
+#### 1. **Design Tokens & Theme System**
+
+**Purpose**: Centralized styling and theming without hardcoded values.
+
+```typescript
+export const TOKENS = {
+  grid: { snap: 16, laneGap: 180, labelGap: 12 },
+  radii: { sharp: 0, soft: 6, card: 10, pill: 999 },
+  stroke: { hair: 1, ui: 2, strong: 3 },
+  type: { font: "Inter", base: 14, min: 12, lh: 1.2 },
+  ease: { enter: "power2.out", move: "power1.inOut", emphasis: "back.out(1.4)" },
+  dur: { fast: 0.2, base: 0.3, move: 0.9 },
+  color: { text: "#0F172A", line: "#64748B", card: "#F1F5F9", bg: "#FFFFFF" }
+};
+
+export type ThemePack = {
+  id: string;
+  palette: Partial<typeof TOKENS.color>;
+  motion: { speedFactor: number; stagger: number; profile: "calm" | "neutral" | "energetic" };
+  density: "airy" | "normal" | "compact";
+  ornaments: Array<"dots" | "gradient" | "none">;
+};
+```
+
+**Integration**: Themes are selected procedurally in Stage 5 based on tone from Stage 1.
+
+#### 2. **Style Resolver**
+
+**Purpose**: Centralized styling that prevents hardcoded visual properties.
+
+```typescript
+export function resolveStyle({
+  role, theme, tokens, skin, overrides
+}: {
+  role: string;
+  theme: ThemePack;
+  tokens: typeof TOKENS;
+  skin?: SkinSpec;
+  overrides?: Record<string, any>;
+}) {
+  const p = { ...TOKENS.color, ...(theme.palette || {}) };
+  const base: Record<string, any> = {
+    "actor.card": { fill: p.card, stroke: p.line, strokeWidth: tokens.stroke.ui, cornerRadius: tokens.radii.card },
+    "process.node": { fill: p.card, stroke: p.line, strokeWidth: tokens.stroke.ui, cornerRadius: tokens.radii.soft },
+    "edge.flow": { fill: "none", stroke: p.line, strokeWidth: tokens.stroke.ui },
+    "label.caption": { fill: p.text, stroke: "none", fontSize: tokens.type.base, fontFamily: tokens.type.font }
+  };
+  
+  return { ...(base[role] ?? base["container.card"]), ...(skin || {}), ...(overrides || {}) };
+}
+```
+
+**Integration**: Applied procedurally in Stage 7 after layout generation.
+
+#### 3. **Layout Grammar Engine**
+
+**Purpose**: Deterministic positioning algorithms based on archetype and content.
+
+```typescript
+export class LayoutGrammarEngine {
+  generateLayout(archetype: string, entities: Entity[], relations: Relation[]): LayoutResult {
+    switch (archetype) {
+      case 'process_flow':
+        return this.layoutProcessFlow(entities, relations);
+      case 'timeline_sequence':
+        return this.layoutTimeline(entities, relations);
+      case 'comparison_tradeoff':
+        return this.layoutComparison(entities, relations);
+      default:
+        return this.layoutDefault(entities, relations);
+    }
+  }
+  
+  private layoutProcessFlow(entities: Entity[], relations: Relation[]): LayoutResult {
+    // Deterministic horizontal layout algorithm
+    const lanes = this.createHorizontalLanes(entities.length);
+    const positions = this.positionEntities(entities, lanes);
+    const edges = this.routeEdges(relations, positions);
+    
+    return {
+      elements: this.createElements(entities, positions),
+      groups: this.createGroups(entities, positions),
+      edges: this.createEdges(relations, edges)
+    };
+  }
+}
+```
+
+**Integration**: Executed procedurally in Stage 7 to generate element positioning.
+
+#### 4. **Gesture Catalog & Animation Compiler**
+
+**Purpose**: Rule-based animation generation from predefined gestures.
+
+```typescript
+export interface IntroGesture {
+  id: string;
+  category: 'intro' | 'transition' | 'emphasis';
+  compiler_key: string;
+  defaults: Record<string, any>;
+  constraints: { cooldown: number; maxElements: number };
+  weight: number;
+}
+
+export const INTRO_GESTURES: IntroGesture[] = [
+  {
+    id: "intro.slide_left",
+    category: "intro",
+    compiler_key: "INTRO_SLIDE_LEFT_V1",
+    defaults: { distance_ratio: 0.6, with_fade: true },
+    constraints: { cooldown: 1, maxElements: 64 },
+    weight: 1.0
+  },
+  {
+    id: "intro.fade_in",
+    category: "intro", 
+    compiler_key: "INTRO_FADE_IN_V1",
+    defaults: { duration_scale: 1.0 },
+    constraints: { cooldown: 0, maxElements: 100 },
+    weight: 1.2
+  }
+];
+```
+
+**Integration**: Gestures are selected procedurally in Stage 8 based on theme and content.
+
+#### 5. **Animation Compiler Functions**
+
+**Purpose**: Procedural generation of animation keyframes from gesture definitions.
+
+```typescript
+export function INTRO_SLIDE_LEFT_V1(ctx: {
+  now: number;
+  targetIds: string[];
+  frame: { width: number; height: number };
+  theme: ThemePack;
+  params?: { distance_ratio?: number; with_fade?: boolean };
+}) {
+  const distance = (ctx.params?.distance_ratio ?? 0.6) * ctx.frame.width;
+  const dur = TOKENS.dur.move * (ctx.theme.motion.speedFactor ?? 1);
+  const stag = ctx.theme.motion.stagger ?? 0.08;
+
+  return ctx.targetIds.flatMap((id, i) => ([
+    // Pre-position off-screen
+    { id: `a-${id}-pre`, displayName: "Pre Pos", type: "move",
+      startTime: ctx.now, duration: 0.001, properties: { x: -distance, y: 0 } },
+    // Slide to final position
+    { id: `a-${id}-in`, displayName: "Intro Slide L", type: "move",
+      startTime: ctx.now + i * stag + 0.02, duration: dur,
+      properties: { x: 0, y: 0 }, easing: TOKENS.ease.move },
+    // Optional fade
+    ...(ctx.params?.with_fade ?? true ? [{
+      id: `a-${id}-fade`, displayName: "Intro Fade", type: "fade",
+      startTime: ctx.now + i * stag + 0.02, duration: TOKENS.dur.base,
+      properties: { alpha: 1 }, easing: TOKENS.ease.enter
+    }] : [])
+  ]));
+}
+```
+
+**Integration**: Executed procedurally in Stage 8 to generate element animations.
+
+### How Procedural Generation Integrates with LLM Output
+
+#### **Stage 4 → Stage 5: Content to Execution Plan**
+
+```typescript
+// LLM Output (Stage 4)
+const fanOutResult = {
+  steps: [
+    {
+      id: "step1",
+      text: "User enters credentials",
+      motif_id: "process_flow_basic",
+      params: { speed: "medium" },
+      entities: [
+        { id: "user", type: "actor", label: "User" },
+        { id: "form", type: "container", label: "Login Form" }
+      ],
+      relations: [
+        { from: "user", to: "form", label: "interacts with" }
+      ]
+    }
+  ],
+  transitions: [
+    { from: "step1", to: "step2", transition_id: "xfade_fast" }
+  ]
+};
+
+// Procedural Processing (Stage 5)
+const sceneExecPlan = {
+  steps: fanOutResult.steps.map(step => ({
+    ...step,
+    params: mergeMotifDefaults(step.motif_id, step.params), // Procedural
+    theme: selectThemeByTone(routerOutput.tone), // Procedural
+    seed: generateDeterministicSeed(projectId, sceneId, step.id) // Procedural
+  }))
+};
+```
+
+#### **Stage 5 → Stage 7: Execution Plan to Layout**
+
+```typescript
+// Procedural Layout Generation (Stage 7)
+const layoutResult = layoutGrammarEngine.generateLayout(
+  sceneExecPlan.archetype,
+  sceneExecPlan.steps.flatMap(s => s.entities),
+  sceneExecPlan.steps.flatMap(s => s.relations)
+);
+
+// Output: Elements with deterministic positioning
+const elements = layoutResult.elements.map(element => ({
+  ...element,
+  // Styling applied procedurally via style resolver
+  ...resolveStyle({
+    role: determineRole(element, sceneExecPlan),
+    theme: sceneExecPlan.theme,
+    tokens: TOKENS
+  })
+}));
+```
+
+#### **Stage 7 → Stage 8: Layout to Final Schema**
+
+```typescript
+// Procedural Animation Generation (Stage 8)
+const animations = sceneExecPlan.steps.flatMap(step => {
+  const stepElements = getElementsForStep(step.id, layoutResult.elements);
+  
+  // Generate intro animations procedurally
+  const introGesture = selectIntroGesture({
+    theme: sceneExecPlan.theme,
+    targetCount: stepElements.length,
+    history: getGestureHistory(sceneExecPlan.scene_id)
+  });
+  
+  // Compile gesture to animations
+  const gestureCompiler = getGestureCompiler(introGesture.compiler_key);
+  return gestureCompiler({
+    now: calculateStartTime(step),
+    targetIds: stepElements.map(e => e.id),
+    frame: { width: 1280, height: 720 },
+    theme: sceneExecPlan.theme,
+    params: step.params
+  });
+});
+
+// Attach animations to elements
+const finalElements = layoutResult.elements.map(element => ({
+  ...element,
+  animations: animations.filter(a => a.targetId === element.id)
+}));
+```
+
+### Procedural Generation Benefits
+
+#### 1. **Consistency & Reliability**
+- **Deterministic results** for same inputs
+- **No LLM hallucinations** in visual execution
+- **Predictable performance** and timing
+
+#### 2. **Performance & Scalability**
+- **Fast execution** (no API calls in stages 5-8)
+- **Efficient caching** of layout and animation algorithms
+- **Parallel processing** of multiple scenes
+
+#### 3. **Technical Constraints**
+- **Schema compliance** enforced at compile time
+- **Performance budgets** respected automatically
+- **Validation rules** applied consistently
+
+#### 4. **Maintainability**
+- **Clear separation** of concerns
+- **Testable algorithms** for layout and animation
+- **Version-controlled** gesture definitions
+
+### Procedural Generation Constraints
+
+#### 1. **No Creative Invention**
+- Procedural stages cannot generate new content
+- Cannot invent new entities or relationships
+- Cannot create new narrative elements
+
+#### 2. **Rule-Based Execution**
+- All decisions must follow predefined rules
+- No machine learning or AI in execution stages
+- Deterministic algorithms only
+
+#### 3. **Schema Compliance**
+- Must produce valid ENGINE_SPEC output
+- Must respect all technical constraints
+- Must handle edge cases gracefully
+
+### Integration Points with Existing Code
+
+#### 1. **Motif System Integration**
+```typescript
+// Your existing motif retrieval (Stage 4)
+const motifCandidates = await motifService.retrieveMotifCandidates(query, archetype);
+
+// Procedural motif compilation (Stage 8)
+const motifCompiler = getMotifCompiler(motifId);
+const elementAnimations = motifCompiler.compile({
+  entities: step.entities,
+  params: step.params,
+  theme: sceneExecPlan.theme
+});
+```
+
+#### 2. **Design Asset Integration**
+```typescript
+// Your existing asset retrieval (Stage 4)
+const assets = await assetService.retrieveDesignAssets(query, archetype, tone);
+
+// Procedural asset binding (Stage 6)
+const boundAssets = bindAssetsToEntities(assets, step.entities, theme);
+```
+
+#### 3. **Validation System Integration**
+```typescript
+// Your existing validation (all stages)
+const validation = validateSceneFanOutResult(result);
+
+// Procedural validation (stages 5-8)
+const layoutValidation = validateLayoutResult(layoutResult);
+const animationValidation = validateAnimations(animations);
+```
+
+### Future Enhancements
+
+#### 1. **Advanced Layout Algorithms**
+- Force-directed graph layouts for complex networks
+- Adaptive spacing based on content density
+- Collision detection and resolution
+
+#### 2. **Enhanced Animation System**
+- Physics-based motion simulation
+- Advanced easing functions
+- Performance-optimized animation compilation
+
+#### 3. **Theme System Expansion**
+- Dynamic theme generation based on content
+- User preference learning
+- Accessibility-focused theme variants
+
 ## End-to-end Flow
 
-1. **Intent Reducer** - analyze user prompt to understand domain, identify core flows, set tone
-2. **Archetype & Topic Router** - classify into universal archetypes and tone
+1. **Router** - classify prompt into archetypes and tone
+2. **Intent Reducer** - derive domain and core_flows from the prompt
 3. **Scene Planner** - generate scene captions (one per core flow)
-4. **Per-scene Fan-out** - break down each scene into detailed steps with motifs, entities, relations, and transitions
-5. **Scene Processor** - process each scene (parallel execution)
-6. **Design Asset Retrieval** - fetch relevant design elements (backgrounds, textures, emoji patterns, images)
-7. **Layout Grammars** - apply visual layout rules (code-only)
-8. **Compiler** - generate final ENGINE_SPEC (code-only)
+4. **Per-scene Fan-out** - produce steps, motif ids + params, entities/relations, transitions, candidate assets
+5. **Scene Processor** - procedural assembly (normalize ids, merge motif defaults + overrides, select theme, seed PRNG)
+6. **Design Asset Integration** - bind retrieved assets/skins to roles for entities/steps
+7. **Layout Grammars** - procedural positioning & edge routing (code-only)
+8. **Compiler** - procedural gestures/animations + timeline → final ENGINE_SPEC
 
 ### Pipeline Flow Diagram
 ```
-User Prompt → Intent Reducer → Router → Scene Planner → Per-scene Fan-out → Scene Processor → Design Asset Retrieval → Layout Grammars → Compiler → Final Output
+User Prompt → Router → Intent Reducer → Scene Planner → Per-scene Fan-out → Scene Processor → Design Asset Integration → Layout Grammars → Compiler → Final Output
 ```
 
 ### Per-scene Fan-out Details
@@ -269,40 +953,45 @@ All steps 1–6 run in parallel per scene/step.
 }
 ```
 
-### 5) Layout Grammars (code only)
+### 5) Scene Processor (procedural)
 
-Map archetype → layout grammar. Compute positions from `{entities, relations}` and motif defaults (no LLM):
+- Normalize ids across `scene/step/entity`.
+- Merge motif defaults + LLM param overrides.
+- Select theme/skin based on tone.
+- Seed PRNG per step `project:scene:step`.
+- Produce `SceneExecPlan` for execution.
 
-- process_flow: horizontal lanes, left→right
-- lifecycle_cycle: circular ring with phase marker
-- hierarchy_parts: parent container + nested boxes
-- comparison_tradeoff: two columns, pros/cons badges
-- timeline_sequence: time axis + events
-- map_topology: grouped regions or force grid
-- cause_effect: inputs → mechanism → outputs
-- algorithm_trace: structure + one or more cursors
+### 6) Design Asset Integration (procedural)
 
-### 6) Compiler (code only)
+- From candidate assets, pick 1–N live assets per step.
+- Bind assets to roles (e.g., `actor.card`, `process.node`) and record skin hints.
 
-Convert `{steps, motifs, params, transitions}` into a `SceneProgram` with absolute times, then emit `mainState` per `ENGINE_SPEC`:
+### 7) Layout Grammars (procedural)
 
-- Elements: Pixi primitives and text with required fields.
-- Groups: `text | custom | polygon` with animations.
-- Timeline: `{ scale, duration, currentTime, animationStates: {} }`.
-- Animation rules align with our validators and easing allowlist.
+- Place nodes (snap-to-grid), route edges with ports + bezier control points; retry on collisions.
+- Place labels with overlap avoidance.
+- Output elements with full geometry (styling via resolver, not hard-coded).
 
-### 7) Caption Polish (tiny/small, batch)
+### 8) Compiler (procedural)
 
-Rewrite scene/step captions for clarity and tone (≤ 12 words). No new facts.
+- Resolve intro/transition gestures to per-element/group animations.
+- Resolve motif gestures to animation tracks.
+- Apply easing allowlist, motion budgets, reduced-motion fallback.
+- Emit schema-valid `ENGINE_SPEC.sceneCanvas` with elements[], groups[], and timeline.
 
-### 8) Design Asset Retrieval (new)
+### Optional: Caption Polish (tiny/small, batch)
 
-Fetch reusable design assets (backgrounds, textures, emoji patterns, image plates) in parallel with motif retrieval, then let layout/compilers materialize them into `elements`.
+- Rewrite scene/step captions for clarity and tone (≤ 12 words). No new facts.
+
+### Design Asset Retrieval & Binding
+
+- Retrieval/selection may occur during Fan-out (Stage 4) as candidates.
+- Binding/skinning occurs during Stage 6 (procedural) when assigning assets to roles.
 
 - Assets catalog (source of truth): `{ id, kind, tags, one_liner, inputs_schema, defaults, status, version, embedding }` where `kind ∈ ["background","texture","ornament","image","pattern"]`.
 - Retrieval query per scene (or step): `"{archetype} {tone} {caption}"`.
 - In‑process ANN index for assets (separate from motifs) → filter `status=live` → MMR → keep top N (e.g., 1–2 backgrounds + up to 3 ornaments).
-- Resolve full assets via Redis (same pattern as motifs): `asset:v{version}:{id}`.
+- Resolve full assets via Redis: `asset:v{version}:{id}`.
 - Compiler mapping: each asset has a `compiler_key_asset` to produce decorative elements compliant with `ENGINE_SPEC` (e.g., dotted grid, gradient plate, emoji tiling, watermark image).
 
 ## Minimal Data Contracts
