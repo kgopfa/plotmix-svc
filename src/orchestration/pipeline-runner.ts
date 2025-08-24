@@ -9,6 +9,7 @@ import {
   logValidationResult,
   createValidationSummary
 } from '../schema/pipeline-validation';
+import { createProceduralCompiler } from './procedural';
 
 export class PipelineRunner {
   private static client = PipelineClient.getInstance();
@@ -37,12 +38,12 @@ export class PipelineRunner {
       const sceneOutputs = await this.runPerSceneFanOut(scenePlanner.scenes, brief, intentReducer);
       logger.info('Per-scene Fan-out completed', { sceneCount: sceneOutputs.length });
 
-      // 5. Scene Processor - process each scene (placeholder for now)
-      const sceneProcessor = await this.runSceneProcessor(sceneOutputs);
+      // 5. Scene Processor - process each scene using procedural generation
+      const sceneProcessor = await this.runSceneProcessor(sceneOutputs, brief);
       logger.info('Scene Processor completed', { processedScenes: sceneProcessor.processedScenes });
 
-      // 6. Layout Compiler - compile final layout (placeholder for now)
-      const layoutCompiler = await this.runLayoutCompiler(sceneProcessor.processedScenes);
+      // 6. Layout Compiler - compile final layout using procedural generation
+      const layoutCompiler = await this.runLayoutCompiler(sceneProcessor.processedScenes, brief);
       logger.info('Layout Compiler completed');
 
       const result: PipelineState = {
@@ -350,27 +351,120 @@ Return valid JSON only - no explanation:`;
     return sceneOutputs;
   }
 
-  private static async runSceneProcessor(sceneOutputs: SceneOut[]): Promise<{ processedScenes: SceneOut[] }> {
-    // This is a placeholder for the full scene processing
-    // In the full implementation, this would run all the per-scene nodes in parallel
-    logger.info('Processing scenes', { sceneCount: sceneOutputs.length });
+  private static async runSceneProcessor(sceneOutputs: SceneOut[], brief: Brief): Promise<{ processedScenes: SceneOut[] }> {
+    // Process scenes using procedural generation
+    logger.info('Processing scenes with procedural generation', { sceneCount: sceneOutputs.length });
     
-    return { processedScenes: sceneOutputs };
+    try {
+      // Get tone from the brief
+      const tone = brief.tone || 'concise';
+      
+      // Process each scene to add procedural enhancements
+      const processedScenes = sceneOutputs.map(scene => {
+        // For now, return the scene as-is but with procedural metadata
+        // In the future, this could include:
+        // - Asset binding
+        // - Theme selection
+        // - Scene-level processing
+        return {
+          ...scene,
+          // Add procedural metadata
+          _procedural: {
+            theme: tone,
+            seed: `scene:${scene.scene_id}`,
+            archetype: this.determineSceneArchetype(scene)
+          }
+        };
+      });
+      
+      logger.info('Scene processing completed', { processedCount: processedScenes.length });
+      return { processedScenes };
+      
+    } catch (error) {
+      logger.error('Scene processing failed', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      
+      // Fallback to original scenes
+      return { processedScenes: sceneOutputs };
+    }
   }
 
-  private static async runLayoutCompiler(sceneOutputs: SceneOut[]): Promise<{
+  private static determineSceneArchetype(scene: SceneOut): string {
+    // Determine archetype based on scene content
+    // This is a simple heuristic - could be enhanced with more sophisticated logic
+    if (scene.steps.some(step => step.text.toLowerCase().includes('flow') || step.text.toLowerCase().includes('process'))) {
+      return 'process_flow';
+    }
+    if (scene.steps.some(step => step.text.toLowerCase().includes('compare') || step.text.toLowerCase().includes('vs'))) {
+      return 'comparison_tradeoff';
+    }
+    if (scene.steps.some(step => step.text.toLowerCase().includes('timeline') || step.text.toLowerCase().includes('sequence'))) {
+      return 'timeline_sequence';
+    }
+    if (scene.steps.some(step => step.text.toLowerCase().includes('hierarchy') || step.text.toLowerCase().includes('tree'))) {
+      return 'hierarchy_parts';
+    }
+    if (scene.steps.some(step => step.text.toLowerCase().includes('map') || step.text.toLowerCase().includes('topology'))) {
+      return 'map_topology';
+    }
+    if (scene.steps.some(step => step.text.toLowerCase().includes('cause') || step.text.toLowerCase().includes('effect'))) {
+      return 'cause_effect';
+    }
+    if (scene.steps.some(step => step.text.toLowerCase().includes('algorithm') || step.text.toLowerCase().includes('trace'))) {
+      return 'algorithm_trace';
+    }
+    if (scene.steps.some(step => step.text.toLowerCase().includes('lifecycle') || step.text.toLowerCase().includes('cycle'))) {
+      return 'lifecycle_cycle';
+    }
+    
+    // Default to process_flow
+    return 'process_flow';
+  }
+
+  private static async runLayoutCompiler(sceneOutputs: SceneOut[], brief: Brief): Promise<{
     elements: any[];
     groups: any[];
     timeline: any;
   }> {
-    // This is a placeholder for the layout grammar and compiler
-    // In the full implementation, this would map archetypes to layouts and compile to ENGINE_SPEC
-    logger.info('Running layout compiler', { sceneCount: sceneOutputs.length });
+    // Use procedural generation to compile scenes to ENGINE_SPEC
+    logger.info('Running procedural layout compiler', { sceneCount: sceneOutputs.length });
     
-    return {
-      elements: [],
-      groups: [],
-      timeline: { scale: 1, duration: 3, currentTime: 0, animationStates: {} },
-    };
+    try {
+      // Get tone from the brief
+      const tone = brief.tone || 'concise';
+      
+      // Create procedural compiler
+      const compiler = createProceduralCompiler(tone);
+      
+      // Compile all scenes
+      const result = await compiler.compileScenes(sceneOutputs, 'default-project', tone);
+      
+      logger.info('Procedural compilation completed', {
+        elementCount: result.elements.length,
+        groupCount: result.groups.length,
+        timelineDuration: result.timeline.duration
+      });
+      
+      return {
+        elements: result.elements,
+        groups: result.groups,
+        timeline: result.timeline,
+      };
+      
+    } catch (error) {
+      logger.error('Procedural compilation failed', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      
+      // Fallback to placeholder
+      return {
+        elements: [],
+        groups: [],
+        timeline: { scale: 1, duration: 3, currentTime: 0, animationStates: {} },
+      };
+    }
   }
 }

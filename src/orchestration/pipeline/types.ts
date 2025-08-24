@@ -53,6 +53,11 @@ export interface SceneOut {
   scene_id: string;
   steps: StepWithMotif[];
   transitions: StepTransition[];
+  _procedural?: {
+    theme: string;
+    seed: string;
+    archetype: string;
+  };
 }
 
 export interface IntentReducerOutput {
