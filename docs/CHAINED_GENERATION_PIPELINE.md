@@ -17,6 +17,109 @@ Status: Proposed • Scope: Backend orchestration + small LLM prompts + code com
 - Reliability: Strict JSON contracts, validation, retries, and conservative fallbacks.
 - Compatibility: Keep our final output conforming to `ENGINE_SPEC` and validators.
 
+## Design Philosophy & Architecture Decisions
+
+### Why Multiple Small LLM Calls Instead of One Large Call?
+
+**The Problem with Single Comprehensive Prompts:**
+When users provide abstract prompts like "Design twitter" or "Explain binary search", a single LLM call would require the AI to:
+- Invent domain-specific concepts from thin air
+- Generate entities and relationships without context
+- Make creative decisions about what the user actually wants
+- Handle multiple levels of abstraction simultaneously
+
+This approach leads to:
+- **High risk of hallucination** - LLM invents inappropriate content
+- **Inconsistent results** - Same prompt produces different outputs
+- **Poor error handling** - Single point of failure for complex decisions
+- **Difficult debugging** - Hard to identify where things went wrong
+
+**Why Our Pipeline Architecture Solves This:**
+
+1. **Controlled Creativity**: Each stage builds on validated output from previous stages, providing safety rails for creative decisions
+2. **Gradual Refinement**: Ambiguous prompts are clarified step-by-step rather than requiring instant understanding
+3. **Focused Responsibility**: Each LLM call has a single, constrained task rather than multiple complex decisions
+4. **Better Error Recovery**: If one stage fails, others can still work; easier to debug and retry specific stages
+
+### Pipeline Stage Design Rationale
+
+**Router Stage (Archetype Classification):**
+- **Why**: Provides narrative structure constraints before any creative generation
+- **Benefit**: Prevents the LLM from inventing inappropriate visual approaches
+- **Example**: "Design twitter" → `process_flow` ensures we generate sequential steps, not random visual elements
+
+**Intent Reducer (Domain & Core Flows):**
+- **Why**: Expands on the archetype context to identify specific business concepts
+- **Benefit**: Creates a foundation for scene generation without requiring creative invention
+- **Example**: Given `process_flow`, identify "feed_arch", "like_write" as core social networking flows
+
+**Scene Planner (Scene Captions):**
+- **Why**: Generates scene descriptions within the established domain and archetype context
+- **Benefit**: Each scene builds on validated concepts rather than starting from scratch
+- **Example**: "Producers write; consumers read ranked timelines" builds on established feed_arch concept
+
+**Per-Scene Fan-out (Detailed Breakdown):**
+- **Why**: Breaks down each scene into atomic steps with entities and relationships
+- **Benefit**: Maintains consistency across scenes while allowing for detailed exploration
+- **Example**: Each step inherits context from its parent scene, ensuring coherent storytelling
+
+### Why Not Procedural Generation for Everything?
+
+**What We Keep LLM-Based:**
+- Content understanding and expansion
+- Creative scene generation
+- Entity and relationship identification
+- Narrative flow and storytelling
+
+**What We Make Procedural:**
+- Layout positioning and spacing (deterministic algorithms)
+- Animation timing and easing (mathematical calculations)
+- Styling and theming (rule-based systems)
+- Technical constraints and validation (safety checks)
+
+**The Balance:**
+Our approach recognizes that **content generation requires creativity** (LLM) while **visual execution requires consistency** (procedural). This hybrid approach gives us the best of both worlds.
+
+### Performance vs. Reliability Trade-offs
+
+**Multiple Small Calls:**
+- ✅ **Higher reliability** - controlled creativity, better error handling
+- ✅ **Easier debugging** - granular failure points, specific retry logic
+- ✅ **Better caching** - cache results at different stages
+- ❌ **Higher latency** - multiple API calls, sequential dependencies
+- ❌ **Higher cost** - more API calls, potential token overhead
+
+**Single Large Call:**
+- ✅ **Lower latency** - single API call, faster response
+- ✅ **Lower cost** - fewer API calls, potential token savings
+- ❌ **Lower reliability** - single point of failure, harder error recovery
+- ❌ **Harder debugging** - complex failure scenarios, difficult retry logic
+
+**Our Choice:**
+We prioritize **reliability and quality** over raw speed. The 48% performance improvement we achieved comes from optimizing the existing pipeline structure, not from fundamentally changing the architecture.
+
+### Common Misconceptions Addressed
+
+**"Why not just use one big prompt?"**
+- Single prompts require the LLM to make too many creative decisions simultaneously
+- High risk of hallucination and inconsistent results
+- Difficult to provide appropriate constraints for abstract user requests
+
+**"Can't we make everything procedural?"**
+- Procedural generation works for visual and technical decisions
+- Content generation requires creativity and understanding that's hard to proceduralize
+- Our hybrid approach leverages the strengths of both approaches
+
+**"Isn't this over-engineered?"**
+- The complexity addresses real problems with monolithic generation
+- Each stage serves a specific purpose in the creative process
+- The architecture enables better error handling, debugging, and optimization
+
+**"Why not use a different approach entirely?"**
+- We evaluated alternatives including single-prompt and fully-procedural approaches
+- The current architecture provides the best balance of creativity, reliability, and maintainability
+- Performance improvements come from optimization, not architectural changes
+
 ## End-to-end Flow
 
 1. **Intent Reducer** - analyze user prompt to understand domain, identify core flows, set tone
