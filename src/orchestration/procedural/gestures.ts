@@ -398,40 +398,297 @@ export function INTRO_BUBBLE_IN_V1(ctx: GestureContext): ElementAnimation[] {
 
 export function INTRO_ORBIT_IN_V1(ctx: GestureContext): ElementAnimation[] {
   const dur = TOKENS.dur.move * 1.1 * (ctx.theme.motion.speedFactor ?? 1);
-  const stag = ctx.theme.motion.stagger ?? 0.1;
-  const arcDegrees = ctx.params?.['arc_degrees'] ?? 25;
-  const spin = ctx.params?.['spin'] ?? 0.3;
+  const stag = Math.max(0.06, ctx.theme.motion.stagger ?? 0.1);
+  const radius = (ctx.params?.['orbit_radius'] ?? 0.3) * Math.min(ctx.frame.width, ctx.frame.height);
 
   return ctx.targetIds.flatMap((id, i) => ([
+    // Pre-position off-screen
     {
-      id: `a-${id}-pre-orbit`,
-      displayName: "Pre Orbit",
+      id: `a-${id}-pre`,
+      displayName: "Pre Pos",
       type: "move" as const,
-      startTime: ctx.now + i * stag,
+      startTime: ctx.now,
       duration: 0.001,
-      properties: { 
-        x: Math.cos(arcDegrees * Math.PI / 180) * 200, 
-        y: Math.sin(arcDegrees * Math.PI / 180) * 200 
-      },
+      properties: { x: 0, y: -radius },
       easing: "none"
     },
+    // Orbit in
     {
-      id: `a-${id}-in-orbit`,
+      id: `a-${id}-orbit`,
       displayName: "Orbit In",
       type: "move" as const,
-      startTime: ctx.now + i * stag + 0.001,
+      startTime: ctx.now + i * stag,
       duration: dur,
       properties: { x: 0, y: 0 },
       easing: TOKENS.ease.move as GsapEase
     },
+    // Optional fade
+    ...(ctx.params?.['with_fade'] ?? true ? [{
+      id: `a-${id}-fade`,
+      displayName: "Orbit Fade",
+      type: "fade" as const,
+      startTime: ctx.now + i * stag,
+      duration: dur * 0.8,
+      properties: { alpha: 1 },
+      easing: TOKENS.ease.enter as GsapEase
+    }] : [])
+  ]));
+}
+
+// ===== EMPHASIS GESTURES =====
+
+/**
+ * Emphasis pulse animation - scales element up and down to draw attention
+ */
+export function EMPHASIS_PULSE_V1(ctx: GestureContext): ElementAnimation[] {
+  const emphasisLevel = ctx.params?.['emphasis'] || 'medium';
+  const pulseConfig = TOKENS.emphasis.pulse[emphasisLevel as keyof typeof TOKENS.emphasis.pulse] || TOKENS.emphasis.pulse.noticeable;
+  
+  if (pulseConfig.cycles === 0) return [];
+  
+  const baseDuration = TOKENS.dur.emphasis.medium;
+  const totalDuration = baseDuration * pulseConfig.cycles;
+  const cycleDuration = totalDuration / pulseConfig.cycles;
+  
+  return ctx.targetIds.flatMap((id, i) => {
+    const animations: ElementAnimation[] = [];
+    
+    for (let cycle = 0; cycle < pulseConfig.cycles; cycle++) {
+      const startTime = ctx.now + i * 0.1 + cycle * cycleDuration;
+      
+      // Scale up
+      animations.push({
+        id: `a-${id}-pulse-up-${cycle}`,
+        displayName: `Pulse Up ${cycle + 1}`,
+        type: "scale" as const,
+        startTime,
+        duration: cycleDuration * 0.4,
+        properties: { 
+          scaleX: 1 + pulseConfig.intensity, 
+          scaleY: 1 + pulseConfig.intensity 
+        },
+        easing: TOKENS.ease.pulse as GsapEase
+      });
+      
+      // Scale down
+      animations.push({
+        id: `a-${id}-pulse-down-${cycle}`,
+        displayName: `Pulse Down ${cycle + 1}`,
+        type: "scale" as const,
+        startTime: startTime + cycleDuration * 0.4,
+        duration: cycleDuration * 0.6,
+        properties: { scaleX: 1, scaleY: 1 },
+        easing: TOKENS.ease.pulse as GsapEase
+      });
+    }
+    
+    return animations;
+  });
+}
+
+/**
+ * Emphasis bounce animation - bounces element with decreasing intensity
+ */
+export function EMPHASIS_BOUNCE_V1(ctx: GestureContext): ElementAnimation[] {
+  const emphasisLevel = ctx.params?.['emphasis'] || 'medium';
+  const scaleConfig = TOKENS.emphasis.scale[emphasisLevel as keyof typeof TOKENS.emphasis.scale] || TOKENS.emphasis.scale.moderate;
+  
+  const baseDuration = TOKENS.dur.emphasis.medium;
+  const bounceDuration = baseDuration * 0.8;
+  
+  return ctx.targetIds.flatMap((id, i) => ([
+    // Initial bounce up
     {
-      id: `a-${id}-spin`,
-      displayName: "Orbit Spin",
-      type: "rotate" as const,
-      startTime: ctx.now + i * stag + 0.001,
-      duration: dur,
-      properties: { rotation: spin * 360 },
-      easing: TOKENS.ease.move as GsapEase
+      id: `a-${id}-bounce-up`,
+      displayName: "Bounce Up",
+      type: "scale" as const,
+      startTime: ctx.now + i * 0.1,
+      duration: bounceDuration * 0.4,
+      properties: { 
+        scaleX: scaleConfig.max, 
+        scaleY: scaleConfig.max 
+      },
+      easing: TOKENS.ease.bounce as GsapEase
+    },
+    // Bounce down
+    {
+      id: `a-${id}-bounce-down`,
+      displayName: "Bounce Down",
+      type: "scale" as const,
+      startTime: ctx.now + i * 0.1 + bounceDuration * 0.4,
+      duration: bounceDuration * 0.3,
+      properties: { 
+        scaleX: scaleConfig.min, 
+        scaleY: scaleConfig.min 
+      },
+      easing: TOKENS.ease.bounce as GsapEase
+    },
+    // Settle to normal
+    {
+      id: `a-${id}-bounce-settle`,
+      displayName: "Bounce Settle",
+      type: "scale" as const,
+      startTime: ctx.now + i * 0.1 + bounceDuration * 0.7,
+      duration: bounceDuration * 0.3,
+      properties: { scaleX: 1, scaleY: 1 },
+      easing: TOKENS.ease.emphasis as GsapEase
+    }
+  ]));
+}
+
+/**
+ * Emphasis glow animation - fades shadow in and out
+ */
+export function EMPHASIS_GLOW_V1(ctx: GestureContext): ElementAnimation[] {
+  const emphasisLevel = ctx.params?.['emphasis'] || 'medium';
+  const glowConfig = TOKENS.emphasis.glow[emphasisLevel as keyof typeof TOKENS.emphasis.glow] || TOKENS.emphasis.glow.medium;
+  
+  if (glowConfig.blur === 0) return [];
+  
+  const baseDuration = TOKENS.dur.emphasis.medium;
+  const glowDuration = baseDuration * 1.2;
+  
+  return ctx.targetIds.flatMap((id, i) => ([
+    // Glow in
+    {
+      id: `a-${id}-glow-in`,
+      displayName: "Glow In",
+      type: "fade" as const,
+      startTime: ctx.now + i * 0.1,
+      duration: glowDuration * 0.5,
+      properties: { alpha: 1 },
+      easing: TOKENS.ease.enter as GsapEase
+    },
+    // Glow out
+    {
+      id: `a-${id}-glow-out`,
+      displayName: "Glow Out",
+      type: "fade" as const,
+      startTime: ctx.now + i * 0.1 + glowDuration * 0.5,
+      duration: glowDuration * 0.5,
+      properties: { alpha: 0.8 },
+      easing: TOKENS.ease.enter as GsapEase
+    }
+  ]));
+}
+
+/**
+ * Emphasis scale animation - scales element up and holds
+ */
+export function EMPHASIS_SCALE_V1(ctx: GestureContext): ElementAnimation[] {
+  const emphasisLevel = ctx.params?.['emphasis'] || 'medium';
+  const scaleConfig = TOKENS.emphasis.scale[emphasisLevel as keyof typeof TOKENS.emphasis.scale] || TOKENS.emphasis.scale.moderate;
+  
+  const baseDuration = TOKENS.dur.emphasis.medium;
+  const scaleDuration = baseDuration * 0.6;
+  const holdDuration = baseDuration * 0.4;
+  
+  return ctx.targetIds.flatMap((id, i) => ([
+    // Scale up
+    {
+      id: `a-${id}-scale-up`,
+      displayName: "Scale Up",
+      type: "scale" as const,
+      startTime: ctx.now + i * 0.1,
+      duration: scaleDuration,
+      properties: { 
+        scaleX: scaleConfig.max, 
+        scaleY: scaleConfig.max 
+      },
+      easing: TOKENS.ease.emphasis as GsapEase
+    },
+    // Hold at scale
+    {
+      id: `a-${id}-scale-hold`,
+      displayName: "Scale Hold",
+      type: "scale" as const,
+      startTime: ctx.now + i * 0.1 + scaleDuration,
+      duration: holdDuration,
+      properties: { 
+        scaleX: scaleConfig.max, 
+        scaleY: scaleConfig.max 
+      },
+      easing: "none"
+    },
+    // Scale back down
+    {
+      id: `a-${id}-scale-down`,
+      displayName: "Scale Down",
+      type: "scale" as const,
+      startTime: ctx.now + i * 0.1 + scaleDuration + holdDuration,
+      duration: scaleDuration,
+      properties: { scaleX: 1, scaleY: 1 },
+      easing: TOKENS.ease.emphasis as GsapEase
+    }
+  ]));
+}
+
+/**
+ * Emphasis color flash animation - briefly changes color to draw attention
+ */
+export function EMPHASIS_COLOR_FLASH_V1(ctx: GestureContext): ElementAnimation[] {
+  const baseDuration = TOKENS.dur.emphasis.medium;
+  const flashDuration = baseDuration * 0.3;
+  
+  return ctx.targetIds.flatMap((id, i) => ([
+    // Flash color
+    {
+      id: `a-${id}-color-flash`,
+      displayName: "Color Flash",
+      type: "color" as const,
+      startTime: ctx.now + i * 0.1,
+      duration: flashDuration,
+      properties: { fillColor: "#FF6B6B" }, // Bright red flash
+      easing: "none"
+    },
+    // Return to original
+    {
+      id: `a-${id}-color-return`,
+      displayName: "Color Return",
+      type: "color" as const,
+      startTime: ctx.now + i * 0.1 + flashDuration,
+      duration: flashDuration,
+      properties: { fillColor: "#4F46E5" }, // Return to primary
+      easing: "none"
+    }
+  ]));
+}
+
+/**
+ * Emphasis stagger animation - applies staggered emphasis to multiple elements
+ */
+export function EMPHASIS_STAGGER_V1(ctx: GestureContext): ElementAnimation[] {
+  const emphasisLevel = ctx.params?.['emphasis'] || 'medium';
+  const staggerConfig = TOKENS.emphasis.stagger[emphasisLevel as keyof typeof TOKENS.emphasis.stagger] || TOKENS.emphasis.stagger.moderate;
+  
+  if (staggerConfig === 0) return [];
+  
+  const baseDuration = TOKENS.dur.emphasis.medium;
+  const scaleConfig = TOKENS.emphasis.scale[emphasisLevel as keyof typeof TOKENS.emphasis.scale] || TOKENS.emphasis.scale.moderate;
+  
+  return ctx.targetIds.flatMap((id, i) => ([
+    // Scale up with stagger
+    {
+      id: `a-${id}-stagger-up`,
+      displayName: "Stagger Up",
+      type: "scale" as const,
+      startTime: ctx.now + i * staggerConfig,
+      duration: baseDuration * 0.5,
+      properties: { 
+        scaleX: scaleConfig.max, 
+        scaleY: scaleConfig.max 
+      },
+      easing: TOKENS.ease.emphasis as GsapEase
+    },
+    // Scale back down
+    {
+      id: `a-${id}-stagger-down`,
+      displayName: "Stagger Down",
+      type: "scale" as const,
+      startTime: ctx.now + i * staggerConfig + baseDuration * 0.5,
+      duration: baseDuration * 0.5,
+      properties: { scaleX: 1, scaleY: 1 },
+      easing: TOKENS.ease.emphasis as GsapEase
     }
   ]));
 }

@@ -332,17 +332,31 @@ Format: [{"step_id":"1","entities":[{"entity_id":"1","type":"actor","name":"user
    * Step 5: Generate motif parameters (only non-default overrides)
    */
   private async generateMotifParams(selections: MotifSelection[]): Promise<MotifParams[]> {
-    const system = 'Generate motif parameters for each step. Return ONLY valid JSON array with exact format.';
+    const system = 'Generate motif parameters for each step with emphasis controls. Return ONLY valid JSON array with exact format.';
     const user = `REQUIREMENTS:
-- Generate motif parameters for each step
-- Include step_id and params object
+- Generate motif parameters for each step with emphasis controls
+- Include step_id and params object with emphasis settings
 - Return valid JSON array only
 
-REQUIRED FORMAT:
-[{"step_id":"step_id","params":{"param_name":"value"},"overrides_only":true}]
+EMPHASIS CONTROLS:
+- emphasis: "low" | "medium" | "high" (overall emphasis level)
+- emphasisType: "scale" | "color" | "glow" | "pulse" | "bounce" | "none" (emphasis method)
+- emphasisDuration: "short" | "medium" | "long" (emphasis timing)
+- scale: "subtle" | "moderate" | "dramatic" (scaling intensity)
+- color: "accent" | "primary" | "warning" | "success" | "custom" (emphasis color)
+- customColor: "#RRGGBB" (hex color for custom emphasis)
+- glow: "none" | "soft" | "medium" | "strong" (glow effect)
+- pulse: "none" | "gentle" | "noticeable" | "attention-grabbing" (pulse intensity)
+- speed: "slow" | "medium" | "fast" (animation speed)
+- stagger: "none" | "minimal" | "moderate" | "pronounced" (stagger timing)
 
-EXAMPLE:
-[{"step_id":"1","params":{"speed":"medium","emphasis":"high"},"overrides_only":true}]
+REQUIRED FORMAT:
+[{"step_id":"step_id","params":{"emphasis":"high","emphasisType":"scale","scale":"moderate"},"overrides_only":true}]
+
+EXAMPLES:
+[{"step_id":"1","params":{"emphasis":"high","emphasisType":"scale","scale":"moderate","color":"accent"},"overrides_only":true}]
+[{"step_id":"2","params":{"emphasis":"medium","emphasisType":"color","color":"primary","glow":"soft"},"overrides_only":true}]
+[{"step_id":"3","params":{"emphasis":"low","emphasisType":"pulse","pulse":"gentle","speed":"slow"},"overrides_only":true}]
 
 MOTIF SELECTIONS: ${JSON.stringify(selections)}
 

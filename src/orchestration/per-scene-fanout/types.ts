@@ -43,8 +43,39 @@ export interface StepEntities {
 // Step 5: Motif Parameters
 export interface MotifParams {
   step_id: string;
-  params: Record<string, any>;
+  params: {
+    // Basic emphasis controls
+    emphasis?: 'low' | 'medium' | 'high';
+    emphasisType?: 'scale' | 'color' | 'glow' | 'pulse' | 'bounce' | 'none';
+    emphasisDuration?: 'short' | 'medium' | 'long';
+    
+    // Specific emphasis parameters
+    scale?: 'subtle' | 'moderate' | 'dramatic';
+    color?: 'accent' | 'primary' | 'warning' | 'success' | 'custom';
+    customColor?: string; // hex color for custom emphasis
+    glow?: 'none' | 'soft' | 'medium' | 'strong';
+    pulse?: 'none' | 'gentle' | 'noticeable' | 'attention-grabbing';
+    
+    // Animation timing
+    speed?: 'slow' | 'medium' | 'fast';
+    stagger?: 'none' | 'minimal' | 'moderate' | 'pronounced';
+    
+    // Legacy support - keep existing params
+    [key: string]: any;
+  };
   overrides_only: boolean; // true if only non-default values
+}
+
+// Enhanced emphasis configuration
+export interface EmphasisConfig {
+  level: 'low' | 'medium' | 'high';
+  type: 'scale' | 'color' | 'glow' | 'pulse' | 'bounce' | 'none';
+  duration: 'short' | 'medium' | 'long';
+  scale: 'subtle' | 'moderate' | 'dramatic';
+  color: 'accent' | 'primary' | 'warning' | 'success' | 'custom';
+  customColor?: string;
+  glow: 'none' | 'soft' | 'medium' | 'strong';
+  pulse: 'none' | 'gentle' | 'noticeable' | 'attention-grabbing';
 }
 
 // Step 6: Step Transitions

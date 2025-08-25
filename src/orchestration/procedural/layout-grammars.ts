@@ -40,9 +40,64 @@ export class LayoutGrammarEngine {
   private theme: ThemePack;
   private tokens: typeof TOKENS;
 
-  constructor(theme: ThemePack) {
+  constructor(theme: ThemePack, canvasDimensions?: { width?: number; height?: number }) {
     this.theme = theme;
     this.tokens = TOKENS;
+    
+    // Allow dynamic canvas size configuration
+    if (canvasDimensions) {
+      if (canvasDimensions.width) {
+        this.tokens.canvas.width = canvasDimensions.width;
+      }
+      if (canvasDimensions.height) {
+        this.tokens.canvas.height = canvasDimensions.height;
+      }
+      // Recalculate aspect ratio
+      this.tokens.canvas.aspectRatio = this.tokens.canvas.width / this.tokens.canvas.height;
+    }
+  }
+
+  // Method to update canvas dimensions dynamically
+  updateCanvasDimensions(width: number, height: number): void {
+    this.tokens.canvas.width = width;
+    this.tokens.canvas.height = height;
+    this.tokens.canvas.aspectRatio = width / height;
+  }
+
+  // Get current canvas dimensions
+  getCanvasDimensions(): { width: number; height: number; aspectRatio: number } {
+    return { ...this.tokens.canvas };
+  }
+
+  // Get coordinate system information
+  getCoordinateSystemInfo(): {
+    center: { x: number; y: number };
+    bounds: { left: number; right: number; top: number; bottom: number };
+    quadrants: {
+      topLeft: { x: number; y: number };
+      topRight: { x: number; y: number };
+      bottomLeft: { x: number; y: number };
+      bottomRight: { x: number; y: number };
+    };
+    description: string;
+  } {
+    const center = { x: 0, y: 0 };
+    const left = -this.tokens.canvas.width / 2;
+    const right = this.tokens.canvas.width / 2;
+    const top = -this.tokens.canvas.height / 2;
+    const bottom = this.tokens.canvas.height / 2;
+    
+    return {
+      center,
+      bounds: { left, right, top, bottom },
+      quadrants: {
+        topLeft: { x: left, y: top },
+        topRight: { x: right, y: top },
+        bottomLeft: { x: left, y: bottom },
+        bottomRight: { x: right, y: bottom }
+      },
+      description: `Center origin (0,0) with positive Y pointing up. Canvas bounds: (${left}, ${top}) to (${right}, ${bottom})`
+    };
   }
 
   // Main layout generation method
@@ -151,7 +206,7 @@ export class LayoutGrammarEngine {
 
   // Default layout - fallback grid arrangement
   private layoutDefault(entities: Entity[], relations: Relation[]): LayoutResult {
-    const positions = this.createGridLayout(entities);
+    const positions = this.createDefaultLayout(entities);
     const elements = this.createElements(entities, positions);
     const groups = this.createGroups();
     const edges = this.routeEdges(relations, positions);
@@ -159,25 +214,46 @@ export class LayoutGrammarEngine {
     return { elements, groups, edges };
   }
 
+  // Helper method to snap coordinates to grid in center coordinate system
+  private snapToCenterGrid(value: number): number {
+    return Math.round(value / this.tokens.grid.snap) * this.tokens.grid.snap;
+  }
+
+  // Helper method to get element dimensions from theme
+  private getElementDimensions(entityType: string): { width: number; height: number } {
+    // Get size from theme, fallback to default tokens
+    const themeSize = this.theme.elementSizes?.[entityType as keyof typeof this.theme.elementSizes];
+    if (themeSize) {
+      return themeSize;
+    }
+    
+    // Fallback to default tokens
+    return this.tokens.elementSizes[entityType as keyof typeof this.tokens.elementSizes] || 
+           { width: 120, height: 80 };
+  }
+
   // Horizontal lane creation for process flows
   private createHorizontalLanes(entities: Entity[]): EntityPosition[] {
     const positions: EntityPosition[] = [];
-    const laneCount = Math.min(entities.length, 5); // Max 5 lanes
-    const laneWidth = (1280 - 2 * this.tokens.grid.margin) / laneCount;
+    const laneCount = Math.min(entities.length, 4); // Max 4 lanes
+    const laneWidth = (this.tokens.canvas.width - 2 * this.tokens.grid.margin) / laneCount;
     
     entities.forEach((entity, index) => {
       const lane = index % laneCount;
-      const row = Math.floor(index / laneCount);
+      const col = Math.floor(index / laneCount);
       
-      const x = this.snapToGrid(this.tokens.grid.margin + lane * laneWidth + laneWidth / 2);
-      const y = this.snapToGrid(this.tokens.grid.margin + row * this.tokens.grid.laneGap + this.tokens.grid.laneGap / 2);
+      // Calculate in center coordinate system and output directly
+      const x = this.snapToCenterGrid((col * this.tokens.grid.laneGap) - (this.tokens.canvas.width / 2) + (this.tokens.grid.laneGap / 2));
+      const y = this.snapToCenterGrid((this.tokens.canvas.height / 2) - (lane * laneWidth) - (laneWidth / 2));
+      
+      const dimensions = this.getElementDimensions(entity.type);
       
       positions.push({
         id: entity.id,
         x,
         y,
-        width: 120,
-        height: 80,
+        width: dimensions.width,
+        height: dimensions.height,
         role: this.determineRole(entity.type)
       });
     });
@@ -189,21 +265,24 @@ export class LayoutGrammarEngine {
   private createVerticalLanes(entities: Entity[]): EntityPosition[] {
     const positions: EntityPosition[] = [];
     const laneCount = Math.min(entities.length, 4); // Max 4 lanes
-    const laneHeight = (720 - 2 * this.tokens.grid.margin) / laneCount;
+    const laneHeight = (this.tokens.canvas.height - 2 * this.tokens.grid.margin) / laneCount;
     
     entities.forEach((entity, index) => {
       const lane = index % laneCount;
       const col = Math.floor(index / laneCount);
       
-      const x = this.snapToGrid(this.tokens.grid.margin + col * this.tokens.grid.laneGap + this.tokens.grid.laneGap / 2);
-      const y = this.snapToGrid(this.tokens.grid.margin + lane * laneHeight + laneHeight / 2);
+      // Calculate in center coordinate system and output directly
+      const x = this.snapToCenterGrid((col * this.tokens.grid.laneGap) - (this.tokens.canvas.width / 2) + (this.tokens.grid.laneGap / 2));
+      const y = this.snapToCenterGrid((this.tokens.canvas.height / 2) - (lane * laneHeight) - (laneHeight / 2));
+      
+      const dimensions = this.getElementDimensions(entity.type);
       
       positions.push({
         id: entity.id,
         x,
         y,
-        width: 120,
-        height: 80,
+        width: dimensions.width,
+        height: dimensions.height,
         role: this.determineRole(entity.type)
       });
     });
@@ -217,18 +296,21 @@ export class LayoutGrammarEngine {
     const levels = this.buildHierarchyLevels(entities, relations);
     
     levels.forEach((levelEntities, levelIndex) => {
-      const levelWidth = (1280 - 2 * this.tokens.grid.margin) / Math.max(levelEntities.length, 1);
+      const levelWidth = (this.tokens.canvas.width - 2 * this.tokens.grid.margin) / Math.max(levelEntities.length, 1);
       
       levelEntities.forEach((entity, entityIndex) => {
-        const x = this.snapToGrid(this.tokens.grid.margin + entityIndex * levelWidth + levelWidth / 2);
-        const y = this.snapToGrid(this.tokens.grid.margin + levelIndex * this.tokens.grid.laneGap);
+        // Calculate in center coordinate system and output directly
+        const x = this.snapToCenterGrid((entityIndex * levelWidth) - (this.tokens.canvas.width / 2) + (levelWidth / 2));
+        const y = this.snapToCenterGrid((this.tokens.canvas.height / 2) - (levelIndex * this.tokens.grid.laneGap));
+        
+        const dimensions = this.getElementDimensions(entity.type);
         
         positions.push({
           id: entity.id,
           x,
           y,
-          width: 120,
-          height: 80,
+          width: dimensions.width,
+          height: dimensions.height,
           role: this.determineRole(entity.type)
         });
       });
@@ -240,28 +322,29 @@ export class LayoutGrammarEngine {
   // Comparison layout for side-by-side analysis
   private createComparisonLayout(entities: Entity[]): EntityPosition[] {
     const positions: EntityPosition[] = [];
-    const centerX = 1280 / 2;
-    const leftStart = this.tokens.grid.margin;
+    const centerX = 0; // Center of canvas in center coordinate system
+    const leftStart = -this.tokens.canvas.width / 2 + this.tokens.grid.margin;
     const rightStart = centerX + this.tokens.grid.margin;
-    const laneWidth = (centerX - 2 * this.tokens.grid.margin) / 2;
+    const laneWidth = (this.tokens.canvas.width / 2) - this.tokens.grid.margin;
     
     entities.forEach((entity, index) => {
       const isLeft = index % 2 === 0;
       const row = Math.floor(index / 2);
       
-      const x = this.snapToGrid(
-        isLeft 
-          ? leftStart + laneWidth / 2 
-          : rightStart + laneWidth / 2
-      );
-      const y = this.snapToGrid(this.tokens.grid.margin + row * this.tokens.grid.laneGap);
+      // Calculate in center coordinate system and output directly
+      const x = this.snapToCenterGrid(isLeft 
+        ? leftStart + laneWidth / 2 
+        : rightStart + laneWidth / 2);
+      const y = this.snapToCenterGrid((this.tokens.canvas.height / 2) - (row * this.tokens.grid.laneGap));
+      
+      const dimensions = this.getElementDimensions(entity.type);
       
       positions.push({
         id: entity.id,
         x,
         y,
-        width: 120,
-        height: 80,
+        width: dimensions.width,
+        height: dimensions.height,
         role: this.determineRole(entity.type)
       });
     });
@@ -272,21 +355,23 @@ export class LayoutGrammarEngine {
   // Topology layout for network structures
   private createTopologyLayout(entities: Entity[]): EntityPosition[] {
     const positions: EntityPosition[] = [];
-    const centerX = 1280 / 2;
-    const centerY = 720 / 2;
-    const radius = Math.min(1280, 720) / 3;
+    const centerX = 0; // Center of canvas in center coordinate system
+    const centerY = 0; // Center of canvas in center coordinate system
+    const radius = Math.min(this.tokens.canvas.width, this.tokens.canvas.height) / 3;
     
     entities.forEach((entity, index) => {
       const angle = (index / entities.length) * 2 * Math.PI;
-      const x = this.snapToGrid(centerX + Math.cos(angle) * radius);
-      const y = this.snapToGrid(centerY + Math.sin(angle) * radius);
+      const x = this.snapToCenterGrid(centerX + radius * Math.cos(angle));
+      const y = this.snapToCenterGrid(centerY + radius * Math.sin(angle));
+      
+      const dimensions = this.getElementDimensions(entity.type);
       
       positions.push({
         id: entity.id,
         x,
         y,
-        width: 120,
-        height: 80,
+        width: dimensions.width,
+        height: dimensions.height,
         role: this.determineRole(entity.type)
       });
     });
@@ -297,35 +382,43 @@ export class LayoutGrammarEngine {
   // Cause-effect layout emphasizing causality
   private createCauseEffectLayout(entities: Entity[]): EntityPosition[] {
     const positions: EntityPosition[] = [];
+    
+    // Separate entities by type
     const causeEntities = entities.filter(e => e.type === 'event' || e.type === 'process');
-    const effectEntities = entities.filter(e => e.type === 'container' || e.type === 'actor');
+    const effectEntities = entities.filter(e => e.type === 'event' || e.type === 'process');
     
     // Position cause entities on the left
     causeEntities.forEach((entity, index) => {
-      const x = this.snapToGrid(this.tokens.grid.margin + index * this.tokens.grid.laneGap);
-      const y = this.snapToGrid(this.tokens.grid.margin + this.tokens.grid.laneGap);
+      // Calculate in center coordinate system and output directly
+      const x = this.snapToCenterGrid(-this.tokens.canvas.width / 2 + this.tokens.grid.margin + index * this.tokens.grid.laneGap);
+      const y = this.snapToCenterGrid(0); // Center vertically
+      
+      const dimensions = this.getElementDimensions(entity.type);
       
       positions.push({
         id: entity.id,
         x,
         y,
-        width: 120,
-        height: 80,
+        width: dimensions.width,
+        height: dimensions.height,
         role: this.determineRole(entity.type)
       });
     });
     
     // Position effect entities on the right
     effectEntities.forEach((entity, index) => {
-      const x = this.snapToGrid(1280 - this.tokens.grid.margin - index * this.tokens.grid.laneGap);
-      const y = this.snapToGrid(this.tokens.grid.margin + this.tokens.grid.laneGap);
+      // Calculate in center coordinate system and output directly
+      const x = this.snapToCenterGrid(this.tokens.canvas.width / 2 - this.tokens.grid.margin - index * this.tokens.grid.laneGap);
+      const y = this.snapToCenterGrid(0); // Center vertically
+      
+      const dimensions = this.getElementDimensions(entity.type);
       
       positions.push({
         id: entity.id,
         x,
         y,
-        width: 120,
-        height: 80,
+        width: dimensions.width,
+        height: dimensions.height,
         role: this.determineRole(entity.type)
       });
     });
@@ -333,43 +426,24 @@ export class LayoutGrammarEngine {
     return positions;
   }
 
-  // Algorithm trace layout for step-by-step execution
+  // Algorithm trace layout for step-by-step processes
   private createAlgorithmTraceLayout(entities: Entity[]): EntityPosition[] {
     const positions: EntityPosition[] = [];
-    const stepEntities = entities.filter(e => e.type === 'process');
-    const dataEntities = entities.filter(e => e.type === 'container' || e.type === 'event');
     
     // Position step entities in a vertical flow
-    stepEntities.forEach((entity, index) => {
-      const x = this.snapToGrid(1280 / 2);
-      const y = this.snapToGrid(this.tokens.grid.margin + index * this.tokens.grid.laneGap);
+    entities.forEach((entity, index) => {
+      // Calculate in center coordinate system and output directly
+      const x = this.snapToCenterGrid(0); // Center horizontally
+      const y = this.snapToCenterGrid((this.tokens.canvas.height / 2) - (index * this.tokens.grid.laneGap));
+      
+      const dimensions = this.getElementDimensions(entity.type);
       
       positions.push({
         id: entity.id,
         x,
         y,
-        width: 120,
-        height: 80,
-        role: this.determineRole(entity.type)
-      });
-    });
-    
-    // Position data entities to the sides
-    dataEntities.forEach((entity, index) => {
-      const isLeft = index % 2 === 0;
-      const x = this.snapToGrid(
-        isLeft 
-          ? this.tokens.grid.margin + this.tokens.grid.laneGap
-          : 1280 - this.tokens.grid.margin - this.tokens.grid.laneGap
-      );
-      const y = this.snapToGrid(this.tokens.grid.margin + Math.floor(index / 2) * this.tokens.grid.laneGap);
-      
-      positions.push({
-        id: entity.id,
-        x,
-        y,
-        width: 120,
-        height: 80,
+        width: dimensions.width,
+        height: dimensions.height,
         role: this.determineRole(entity.type)
       });
     });
@@ -377,24 +451,26 @@ export class LayoutGrammarEngine {
     return positions;
   }
 
-  // Lifecycle layout for circular progression
+  // Lifecycle layout for circular processes
   private createLifecycleLayout(entities: Entity[]): EntityPosition[] {
     const positions: EntityPosition[] = [];
-    const centerX = 1280 / 2;
-    const centerY = 720 / 2;
-    const radius = Math.min(1280, 720) / 4;
+    const centerX = 0; // Center of canvas in center coordinate system
+    const centerY = 0; // Center of canvas in center coordinate system
+    const radius = Math.min(this.tokens.canvas.width, this.tokens.canvas.height) / 4;
     
     entities.forEach((entity, index) => {
-      const angle = (index / entities.length) * 2 * Math.PI - Math.PI / 2; // Start from top
-      const x = this.snapToGrid(centerX + Math.cos(angle) * radius);
-      const y = this.snapToGrid(centerY + Math.sin(angle) * radius);
+      const angle = (index / entities.length) * 2 * Math.PI;
+      const x = this.snapToCenterGrid(centerX + radius * Math.cos(angle));
+      const y = this.snapToCenterGrid(centerY + radius * Math.sin(angle));
+      
+      const dimensions = this.getElementDimensions(entity.type);
       
       positions.push({
         id: entity.id,
         x,
         y,
-        width: 120,
-        height: 80,
+        width: dimensions.width,
+        height: dimensions.height,
         role: this.determineRole(entity.type)
       });
     });
@@ -402,27 +478,30 @@ export class LayoutGrammarEngine {
     return positions;
   }
 
-  // Grid layout fallback
-  private createGridLayout(entities: Entity[]): EntityPosition[] {
+  // Default layout for unknown archetypes
+  private createDefaultLayout(entities: Entity[]): EntityPosition[] {
     const positions: EntityPosition[] = [];
     const cols = Math.ceil(Math.sqrt(entities.length));
     const rows = Math.ceil(entities.length / cols);
-    const cellWidth = (1280 - 2 * this.tokens.grid.margin) / cols;
-    const cellHeight = (720 - 2 * this.tokens.grid.margin) / rows;
+    const cellWidth = (this.tokens.canvas.width - 2 * this.tokens.grid.margin) / cols;
+    const cellHeight = (this.tokens.canvas.height - 2 * this.tokens.grid.margin) / rows;
     
     entities.forEach((entity, index) => {
       const col = index % cols;
       const row = Math.floor(index / cols);
       
-      const x = this.snapToGrid(this.tokens.grid.margin + col * cellWidth + cellWidth / 2);
-      const y = this.snapToGrid(this.tokens.grid.margin + row * cellHeight + cellHeight / 2);
+      // Calculate in center coordinate system and output directly
+      const x = this.snapToCenterGrid((col * cellWidth) - (this.tokens.canvas.width / 2) + (cellWidth / 2));
+      const y = this.snapToCenterGrid((this.tokens.canvas.height / 2) - (row * cellHeight) - (cellHeight / 2));
+      
+      const dimensions = this.getElementDimensions(entity.type);
       
       positions.push({
         id: entity.id,
         x,
         y,
-        width: 120,
-        height: 80,
+        width: dimensions.width,
+        height: dimensions.height,
         role: this.determineRole(entity.type)
       });
     });
@@ -500,10 +579,6 @@ export class LayoutGrammarEngine {
   }
 
   // Utility methods
-  private snapToGrid(value: number): number {
-    return Math.round(value / this.tokens.grid.snap) * this.tokens.grid.snap;
-  }
-
   private determineRole(entityType: string): string {
     switch (entityType) {
       case 'actor': return 'actor.card';
