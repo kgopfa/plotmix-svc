@@ -549,77 +549,124 @@ export class LayoutGrammarEngine {
 
 **Integration**: Executed procedurally in Stage 7 to generate element positioning.
 
-#### 4. **Gesture Catalog & Animation Compiler**
+#### 4. **Flexible Animation System & Gesture Compiler**
 
-**Purpose**: Rule-based animation generation from predefined gestures.
+**Purpose**: Purpose-based animation generation that supports multiple use cases beyond just intro animations.
+
+The new animation system is designed to be **context-aware** rather than **purpose-restricted**. The same animation can be used for:
+- **Scene management**: intro, outro, transitions between scenes
+- **Content flow**: point switching, emphasis, content reveals
+- **Interactive elements**: CTAs, buttons, form interactions
+- **Data visualization**: charts, diagrams, progress indicators
+- **Text presentation**: typewriter effects, word stagger, explanations
+- **Brand elements**: logo reveals, marketing polish
 
 ```typescript
-export interface IntroGesture {
-  id: string;
-  category: 'intro' | 'transition' | 'emphasis';
-  compiler_key: string;
-  defaults: Record<string, any>;
-  constraints: { cooldown: number; maxElements: number };
-  weight: number;
+export interface GestureContext {
+  elementId: string;
+  startTime: number;
+  duration: number;
+  intensity?: 'subtle' | 'moderate' | 'dramatic';
+  direction?: 'left' | 'right' | 'up' | 'down';
+  easing?: GsapEase;
 }
 
-export const INTRO_GESTURES: IntroGesture[] = [
-  {
-    id: "intro.slide_left",
-    category: "intro",
-    compiler_key: "INTRO_SLIDE_LEFT_V1",
-    defaults: { distance_ratio: 0.6, with_fade: true },
-    constraints: { cooldown: 1, maxElements: 64 },
-    weight: 1.0
-  },
-  {
-    id: "intro.fade_in",
-    category: "intro", 
-    compiler_key: "INTRO_FADE_IN_V1",
-    defaults: { duration_scale: 1.0 },
-    constraints: { cooldown: 0, maxElements: 100 },
-    weight: 1.2
+// Animation categories by purpose, not restriction
+export const ANIMATION_PATTERNS = {
+  // Scene-Level: Can be used for intro, outro, or transitions
+  SCENE_FADE_IN_V1: 'Scene Fade In',
+  SCENE_SLIDE_IN_V1: 'Scene Slide In',
+  SCENE_ZOOM_IN_V1: 'Scene Zoom In',
+  
+  // Element Reveal: Can be used for any content reveal
+  ELEMENT_SLIDE_IN_V1: 'Element Slide In',
+  ELEMENT_BUBBLE_IN_V1: 'Element Bubble In',
+  ELEMENT_ORBIT_IN_V1: 'Element Orbit In',
+  
+  // Emphasis & Attention: Can be used anytime, not just intros
+  ELEMENT_PULSE_V1: 'Element Pulse',
+  ELEMENT_BOUNCE_V1: 'Element Bounce',
+  ELEMENT_SHAKE_V1: 'Element Shake',
+  
+  // Point Transitions: For switching between explanation points
+  POINT_CROSSFADE_V1: 'Point Crossfade',
+  POINT_SLIDE_SWAP_V1: 'Point Slide Swap',
+  
+  // Text-Specific: For explanations and content flow
+  TEXT_TYPEWRITER_V1: 'Typewriter Text',
+  TEXT_WORD_STAGGER_V1: 'Word Stagger',
+  
+  // Data/Diagrammatic: For charts and visualizations
+  DATA_LINE_DRAW_V1: 'Line Draw',
+  DATA_BAR_GROW_V1: 'Bar Chart Growth',
+  
+  // Brand/Marketing: For CTAs and polish
+  BRAND_CTA_EMPHASIS_V1: 'CTA Emphasis'
+};
+```
+
+**Integration**: Gestures are selected procedurally in Stage 8 based on context, theme, and content purpose.
+
+#### 5. **Flexible Animation Compiler Functions**
+
+**Purpose**: Procedural generation of animation keyframes that can be used for multiple purposes based on context.
+
+The new system generates animations that are **context-aware** rather than **intro-only**. The same slide animation can be used for:
+- **Scene intro** (startTime: 0)
+- **Point transition** (startTime: 3.5) 
+- **Element emphasis** (startTime: 5.0)
+- **Scene outro** (startTime: 8.0)
+
+```typescript
+// Example: Flexible slide animation that works for any purpose
+export function ELEMENT_SLIDE_IN_V1(context: GestureContext): ElementAnimation[] {
+  const direction = context.direction || 'left';
+  const offset = context.intensity === 'dramatic' ? 150 : 
+                 context.intensity === 'moderate' ? 100 : 60;
+  
+  let xOffset = 0, yOffset = 0;
+  switch (direction) {
+    case 'left': xOffset = -offset; break;
+    case 'right': xOffset = offset; break;
+    case 'up': yOffset = -offset; break;
+    case 'down': yOffset = offset; break;
   }
-];
-```
+  
+  return [{
+    id: `element-slide-${context.elementId}`,
+    displayName: `Element Slide In ${direction}`,
+    type: 'move',
+    startTime: context.startTime,        // Flexible timing
+    duration: context.duration,          // Configurable duration
+    easing: context.easing || 'power2.out',
+    properties: {
+      x: { from: xOffset, to: 0 },
+      y: { from: yOffset, to: 0 }
+    }
+  }];
+}
 
-**Integration**: Gestures are selected procedurally in Stage 8 based on theme and content.
-
-#### 5. **Animation Compiler Functions**
-
-**Purpose**: Procedural generation of animation keyframes from gesture definitions.
-
-```typescript
-export function INTRO_SLIDE_LEFT_V1(ctx: {
-  now: number;
-  targetIds: string[];
-  frame: { width: number; height: number };
-  theme: ThemePack;
-  params?: { distance_ratio?: number; with_fade?: boolean };
-}) {
-  const distance = (ctx.params?.distance_ratio ?? 0.6) * ctx.frame.width;
-  const dur = TOKENS.dur.move * (ctx.theme.motion.speedFactor ?? 1);
-  const stag = ctx.theme.motion.stagger ?? 0.08;
-
-  return ctx.targetIds.flatMap((id, i) => ([
-    // Pre-position off-screen
-    { id: `a-${id}-pre`, displayName: "Pre Pos", type: "move",
-      startTime: ctx.now, duration: 0.001, properties: { x: -distance, y: 0 } },
-    // Slide to final position
-    { id: `a-${id}-in`, displayName: "Intro Slide L", type: "move",
-      startTime: ctx.now + i * stag + 0.02, duration: dur,
-      properties: { x: 0, y: 0 }, easing: TOKENS.ease.move },
-    // Optional fade
-    ...(ctx.params?.with_fade ?? true ? [{
-      id: `a-${id}-fade`, displayName: "Intro Fade", type: "fade",
-      startTime: ctx.now + i * stag + 0.02, duration: TOKENS.dur.base,
-      properties: { alpha: 1 }, easing: TOKENS.ease.enter
-    }] : [])
-  ]));
+// Example: Emphasis animation that works anytime, not just intros
+export function ELEMENT_PULSE_V1(context: GestureContext): ElementAnimation[] {
+  const intensity = context.intensity === 'dramatic' ? 0.3 : 
+                    context.intensity === 'moderate' ? 0.2 : 0.1;
+  
+  return [{
+    id: `pulse-${context.elementId}`,
+    displayName: 'Element Pulse',
+    type: 'scale',
+    startTime: context.startTime,        // Can be used mid-explanation
+    duration: context.duration,
+    easing: context.easing || 'power2.inOut',
+    properties: {
+      scaleX: { from: 1, to: 1 + intensity, then: 1 },
+      scaleY: { from: 1, to: 1 + intensity, then: 1 }
+    }
+  }];
 }
 ```
 
-**Integration**: Executed procedurally in Stage 8 to generate element animations.
+**Integration**: Executed procedurally in Stage 8 to generate context-aware element animations.
 
 ### How Procedural Generation Integrates with LLM Output
 
@@ -684,56 +731,143 @@ const elements = layoutResult.elements.map(element => ({
 #### **Stage 7 → Stage 8: Layout to Final Schema**
 
 ```typescript
-// Procedural Animation Generation (Stage 8)
+// Flexible Animation Generation (Stage 8)
 const animations = sceneExecPlan.steps.flatMap(step => {
   const stepElements = getElementsForStep(step.id, layoutResult.elements);
   
-  // Generate intro animations procedurally
-  const introGesture = selectIntroGesture({
-    theme: sceneExecPlan.theme,
-    targetCount: stepElements.length,
-    history: getGestureHistory(sceneExecPlan.scene_id)
-  });
+  // Generate context-aware animations based on step purpose
+  const animations = [];
   
-  // Compile gesture to animations
-  const gestureCompiler = getGestureCompiler(introGesture.compiler_key);
-  return gestureCompiler({
-    now: calculateStartTime(step),
-    targetIds: stepElements.map(e => e.id),
-    frame: { width: 1280, height: 720 },
-    theme: sceneExecPlan.theme,
-    params: step.params
-  });
+  // 1. Intro animations (if this is the first step)
+  if (step.order === 0) {
+    const introContext = {
+      elementId: step.id,
+      startTime: calculateStartTime(step),
+      duration: 0.6,
+      intensity: 'moderate' as const,
+      direction: 'left' as const,
+      easing: 'power2.out' as const
+    };
+    animations.push(...ELEMENT_SLIDE_IN_V1(introContext));
+  }
+  
+  // 2. Emphasis animations (if step has emphasis parameters)
+  if (step.params?.emphasis && step.params.emphasis !== 'low') {
+    const emphasisContext = {
+      elementId: step.id,
+      startTime: calculateStartTime(step) + 0.5, // After intro
+      duration: 0.8,
+      intensity: step.params.scale === 'high' ? 'dramatic' : 
+                 step.params.scale === 'low' ? 'subtle' : 'moderate',
+      direction: 'left' as const,
+      easing: 'power2.out' as const
+    };
+    
+    switch (step.params.emphasisType) {
+      case 'pulse':
+        animations.push(...ELEMENT_PULSE_V1(emphasisContext));
+        break;
+      case 'bounce':
+        animations.push(...ELEMENT_BOUNCE_V1(emphasisContext));
+        break;
+      case 'glow':
+        animations.push(...ELEMENT_FLASH_COLOR_V1(emphasisContext));
+        break;
+    }
+  }
+  
+  // 3. Transition animations (if moving to next point)
+  if (step.order > 0) {
+    const transitionContext = {
+      elementId: step.id,
+      startTime: calculateStartTime(step),
+      duration: 1.0,
+      intensity: 'moderate' as const,
+      direction: 'right' as const,
+      easing: 'power2.inOut' as const
+    };
+    animations.push(...POINT_CROSSFADE_V1(transitionContext));
+  }
+  
+  return animations;
 });
 
 // Attach animations to elements
 const finalElements = layoutResult.elements.map(element => ({
   ...element,
-  animations: animations.filter(a => a.targetId === element.id)
+  animations: animations.filter(a => a.id.includes(element.id))
 }));
 ```
 
-### Procedural Generation Benefits
+### Flexible Animation System Benefits
 
-#### 1. **Consistency & Reliability**
+#### 1. **Context-Aware Usage**
+- **Same animation, multiple purposes**: Fade can be intro, transition, or emphasis
+- **Timing flexibility**: Animations work at any point in the timeline
+- **Content flow support**: Animations enhance storytelling, not just intros
+
+#### 2. **Enhanced User Experience**
+- **Point switching**: Smooth transitions between explanation points
+- **Content emphasis**: Highlight key concepts mid-explanation
+- **Flow control**: Guide user attention through complex content
+
+#### 3. **Consistency & Reliability**
 - **Deterministic results** for same inputs
 - **No LLM hallucinations** in visual execution
 - **Predictable performance** and timing
 
-#### 2. **Performance & Scalability**
+#### 4. **Performance & Scalability**
 - **Fast execution** (no API calls in stages 5-8)
 - **Efficient caching** of layout and animation algorithms
 - **Parallel processing** of multiple scenes
 
-#### 3. **Technical Constraints**
+#### 5. **Technical Constraints**
 - **Schema compliance** enforced at compile time
 - **Performance budgets** respected automatically
 - **Validation rules** applied consistently
 
-#### 4. **Maintainability**
+#### 6. **Maintainability**
 - **Clear separation** of concerns
 - **Testable algorithms** for layout and animation
 - **Version-controlled** gesture definitions
+
+### Animation Pattern Categories & Usage
+
+#### 1. **Scene-Level Animations**
+- **Purpose**: Manage entire scene visibility and positioning
+- **Usage**: Intro, outro, transitions between scenes
+- **Examples**: `SCENE_FADE_IN_V1`, `SCENE_SLIDE_IN_V1`, `SCENE_ZOOM_IN_V1`
+- **Timing**: Usually at scene boundaries (startTime: 0 or end of scene)
+
+#### 2. **Element Reveal & Point Switching**
+- **Purpose**: Introduce new content or switch between explanation points
+- **Usage**: Any content reveal, not just intros
+- **Examples**: `ELEMENT_SLIDE_IN_V1`, `ELEMENT_BUBBLE_IN_V1`, `POINT_CROSSFADE_V1`
+- **Timing**: Flexible - can be used anytime during explanation
+
+#### 3. **Emphasis & Attention**
+- **Purpose**: Draw attention to specific elements or concepts
+- **Usage**: Mid-explanation emphasis, highlighting key points
+- **Examples**: `ELEMENT_PULSE_V1`, `ELEMENT_BOUNCE_V1`, `ELEMENT_SHAKE_V1`
+- **Timing**: Can be triggered anytime, not restricted to intros
+
+#### 4. **Text-Specific Animations**
+- **Purpose**: Enhance text presentation and readability
+- **Usage**: Explanations, content flow, storytelling
+- **Examples**: `TEXT_TYPEWRITER_V1`, `TEXT_WORD_STAGGER_V1`
+- **Timing**: During text presentation, not just at beginning
+
+#### 5. **Data & Diagrammatic Animations**
+- **Purpose**: Animate charts, diagrams, and data visualizations
+- **Usage**: Progress indicators, data reveals, chart builds
+- **Examples**: `DATA_LINE_DRAW_V1`, `DATA_BAR_GROW_V1`, `DATA_COUNTER_TICK_V1`
+- **Timing**: When data needs to be revealed or emphasized
+
+#### 6. **Brand & Marketing Polish**
+- **Purpose**: Enhance interactive elements and brand presentation
+- **Usage**: CTAs, buttons, logo reveals, marketing polish
+- **Examples**: `BRAND_CTA_EMPHASIS_V1`, `BRAND_LOGO_REVEAL_V1`
+- **Timing**: When user interaction is needed or brand elements are presented
 
 ### Procedural Generation Constraints
 
@@ -795,9 +929,13 @@ const animationValidation = validateAnimations(animations);
 - Collision detection and resolution
 
 #### 2. **Enhanced Animation System**
-- Physics-based motion simulation
-- Advanced easing functions
-- Performance-optimized animation compilation
+- **Flexible animation patterns** that work for multiple purposes (not just intros)
+- **Context-aware timing** - animations can be used anytime during explanation
+- **Enhanced gesture catalog** with emphasis, transition, and flow support
+- **Improved animation timing** and easing calculations
+- **Better integration** with theme system and motion profiles
+- **Point switching support** - smooth transitions between explanation points
+- **Content emphasis** - highlight key concepts mid-explanation
 
 #### 3. **Theme System Expansion**
 - Dynamic theme generation based on content

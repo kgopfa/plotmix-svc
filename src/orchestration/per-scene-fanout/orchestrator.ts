@@ -87,26 +87,21 @@ export class PerSceneFanOutOrchestrator {
    * Step 1: Split caption into atomic, imperative steps (2-5 max, ≤8 words each)
    */
   private async generateAtomicSteps(caption: string): Promise<AtomicStep[]> {
-    const system = 'Split caption into atomic steps. Return ONLY valid JSON array with exact format.';
-    const user = `REQUIREMENTS:
-- Create 2-5 atomic steps from the caption
-- Each step: id (string), text (≤8 words, imperative style)
-- Return valid JSON array only
+    const system = 'Split caption into atomic steps. Return valid JSON array only.';
+    const user = `Create 2-5 atomic steps from the caption.
 
-REQUIRED FORMAT:
-[{"id":"1","text":"short imperative step"},{"id":"2","text":"another short step"}]
+Each step: id (string), text (≤8 words, imperative style)
 
-EXAMPLE:
-[{"id":"1","text":"Enter credentials"},{"id":"2","text":"Click submit button"}]
+Format: [{"id":"1","text":"short imperative step"}]
 
-CAPTION: "${caption}"
+Caption: "${caption}"
 
-Return valid JSON array only - no explanation:`;
+Return JSON array only:`;
 
     const result = await this.client.callLLM([
       { role: 'system', content: system },
       { role: 'user', content: user }
-    ], 'perSceneFanOut', { json: false, attempts: 2 });
+    ], 'perSceneFanOut', { json: false, attempts: 1 });
 
     let parsed: any;
     try {
@@ -269,57 +264,27 @@ Example: [{"step_id":"1","motif_id":"motif_id","confidence":0.9}]`;
    * Step 4: Generate entities and relations using canonical generic vocabulary
    */
   private async generateEntitiesAndRelations(steps: AtomicStep[]): Promise<StepEntities[]> {
-    const system = 'Generate entities and relations for each step. Return ONLY valid JSON array with exact format.';
-    const user = `REQUIREMENTS:
-- Generate entities and relations for each step
-- Entity types: ["actor","process","container","event","channel"]
-- Relation types: ["flows_to","interacts_with","contains","triggers","produces"]
-- Return valid JSON array only
+    const system = 'Generate entities and relations for each step. Return valid JSON array only.';
+    const user = `Generate entities and relations for each step.
 
-REQUIRED FORMAT:
-[{"step_id":"step_id","entities":[{"id":"entity1","type":"actor","label":"Entity Name","description":"optional"}],"relations":[{"from":"entity1","to":"entity2","label":"relation description","type":"interacts_with"}]}]
+Entity types: actor, process, container, event, channel
+Relation types: flows_to, interacts_with, contains, triggers, produces
 
-EXAMPLE:
-[{"step_id":"1","entities":[{"id":"user","type":"actor","label":"User"},{"id":"form","type":"container","label":"Login Form"}],"relations":[{"from":"user","to":"form","label":"interacts with","type":"interacts_with"}]}]
+Format: [{"step_id":"1","entities":[{"id":"user","type":"actor","label":"User"}],"relations":[{"from":"user","to":"form","label":"interacts with","type":"interacts_with"}]}]
 
-STEPS: ${JSON.stringify(steps)}
+Steps: ${JSON.stringify(steps)}
 
-Return valid JSON array only - no explanation:`;
+Return JSON array only:`;
 
     const result = await this.client.callLLM([
       { role: 'system', content: system },
       { role: 'user', content: user }
-    ], 'perSceneFanOut', { json: false, attempts: 2 });
+    ], 'perSceneFanOut', { json: false, attempts: 1 });
 
     try {
       const parsed = JSON.parse(result);
       return Array.isArray(parsed) ? parsed : [];
     } catch (parseError) {
-      // Check if the response was truncated (often ends mid-JSON)
-      if (result.length > 300 && !result.trim().endsWith('}') && !result.trim().endsWith(']')) {
-        logger.warn('Entities response appears truncated, retrying with simpler prompt', { 
-          resultLength: result.length,
-          lastChars: result.slice(-50)
-        });
-        
-        // Retry with a simpler, more concise prompt
-        const simpleSystem = 'Generate minimal entities per step. Return JSON array only.';
-        const simpleUser = `Steps: ${JSON.stringify(steps)}
-Format: [{"step_id":"1","entities":[{"entity_id":"1","type":"actor","name":"user"}],"relations":[]}]`;
-
-        try {
-          const retryResult = await this.client.callLLM([
-            { role: 'system', content: simpleSystem },
-            { role: 'user', content: simpleUser }
-          ], 'perSceneFanOut', { json: false, attempts: 1 });
-          
-          const retryParsed = JSON.parse(retryResult);
-          return Array.isArray(retryParsed) ? retryParsed : [];
-        } catch (retryError) {
-          logger.error('Retry also failed for entities response', { retryError });
-        }
-      }
-      
       logger.error('Failed to parse entities response', { 
         result: result.substring(0, 500) + (result.length > 500 ? '...' : ''),
         error: parseError instanceof Error ? parseError.message : String(parseError)
@@ -332,40 +297,28 @@ Format: [{"step_id":"1","entities":[{"entity_id":"1","type":"actor","name":"user
    * Step 5: Generate motif parameters (only non-default overrides)
    */
   private async generateMotifParams(selections: MotifSelection[]): Promise<MotifParams[]> {
-    const system = 'Generate motif parameters for each step with emphasis controls. Return ONLY valid JSON array with exact format.';
-    const user = `REQUIREMENTS:
-- Generate motif parameters for each step with emphasis controls
-- Include step_id and params object with emphasis settings
-- Return valid JSON array only
+    const system = 'Generate motif parameters for each step with emphasis controls. Return valid JSON array only.';
+    const user = `Generate motif parameters for each step with emphasis controls.
 
-EMPHASIS CONTROLS:
-- emphasis: "low" | "medium" | "high" (overall emphasis level)
-- emphasisType: "scale" | "color" | "glow" | "pulse" | "bounce" | "none" (emphasis method)
-- emphasisDuration: "short" | "medium" | "long" (emphasis timing)
-- scale: "subtle" | "moderate" | "dramatic" (scaling intensity)
-- color: "accent" | "primary" | "warning" | "success" | "custom" (emphasis color)
-- customColor: "#RRGGBB" (hex color for custom emphasis)
-- glow: "none" | "soft" | "medium" | "strong" (glow effect)
-- pulse: "none" | "gentle" | "noticeable" | "attention-grabbing" (pulse intensity)
-- speed: "slow" | "medium" | "fast" (animation speed)
-- stagger: "none" | "minimal" | "moderate" | "pronounced" (stagger timing)
+Emphasis: low/medium/high
+Type: scale/color/glow/pulse/bounce/none
+Scale: subtle/moderate/dramatic
+Color: accent/primary/warning/success
+Glow: none/soft/medium/strong
+Pulse: none/gentle/noticeable
+Speed: slow/medium/fast
+Stagger: none/minimal/moderate/pronounced
 
-REQUIRED FORMAT:
-[{"step_id":"step_id","params":{"emphasis":"high","emphasisType":"scale","scale":"moderate"},"overrides_only":true}]
+Format: [{"step_id":"1","params":{"emphasis":"high","emphasisType":"scale","scale":"moderate"}}]
 
-EXAMPLES:
-[{"step_id":"1","params":{"emphasis":"high","emphasisType":"scale","scale":"moderate","color":"accent"},"overrides_only":true}]
-[{"step_id":"2","params":{"emphasis":"medium","emphasisType":"color","color":"primary","glow":"soft"},"overrides_only":true}]
-[{"step_id":"3","params":{"emphasis":"low","emphasisType":"pulse","pulse":"gentle","speed":"slow"},"overrides_only":true}]
+Motif selections: ${JSON.stringify(selections)}
 
-MOTIF SELECTIONS: ${JSON.stringify(selections)}
-
-Return valid JSON array only - no explanation:`;
+Return JSON array only:`;
 
     const result = await this.client.callLLM([
       { role: 'system', content: system },
       { role: 'user', content: user }
-    ], 'perSceneFanOut', { json: false, attempts: 2 });
+    ], 'perSceneFanOut', { json: false, attempts: 1 });
 
     try {
       const parsed = JSON.parse(result);
@@ -380,28 +333,21 @@ Return valid JSON array only - no explanation:`;
    * Step 6: Generate step transitions from small enum
    */
   private async generateStepTransitions(steps: AtomicStep[]): Promise<StepTransition[]> {
-    const system = 'Generate transitions between steps. Return ONLY valid JSON array with exact format.';
-    const user = `REQUIREMENTS:
-- Generate transitions between consecutive steps
-- Use only valid transition types
-- Return valid JSON array only
+    const system = 'Generate transitions between steps. Return valid JSON array only.';
+    const user = `Generate transitions between consecutive steps.
 
-VALID TRANSITIONS: ["xfade_fast","pan_right","zoom_in_light","caption_hold"]
+Valid transitions: xfade_fast, pan_right, zoom_in_light, caption_hold
 
-REQUIRED FORMAT:
-[{"from":"step_id","to":"step_id","transition_id":"transition_type"}]
+Format: [{"from":"1","to":"2","transition_id":"xfade_fast"}]
 
-EXAMPLE:
-[{"from":"1","to":"2","transition_id":"xfade_fast"},{"from":"2","to":"3","transition_id":"pan_right"}]
+Steps: ${JSON.stringify(steps)}
 
-STEPS: ${JSON.stringify(steps)}
-
-Return valid JSON array only - no explanation:`;
+Return JSON array only:`;
 
     const result = await this.client.callLLM([
       { role: 'system', content: system },
       { role: 'user', content: user }
-    ], 'perSceneFanOut', { json: false, attempts: 2 });
+    ], 'perSceneFanOut', { json: false, attempts: 1 });
 
     try {
       const parsed = JSON.parse(result);

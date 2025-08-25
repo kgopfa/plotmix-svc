@@ -75,11 +75,15 @@ export class ProceduralCompiler {
   // Main compilation method
   async compileScene(context: CompilerContext): Promise<CompilerResult> {
     try {
+      // 0. Normalize entity IDs to ensure consistency
+      const normalizedEntities = this.normalizeEntityIds(context.entities);
+      const normalizedRelations = this.normalizeRelationIds(context.relations, normalizedEntities);
+
       // 1. Generate layout using layout grammar engine
       const layoutResult = this.layoutEngine.generateLayout(
         context.archetype,
-        context.entities,
-        context.relations
+        normalizedEntities,
+        normalizedRelations
       );
 
       // 2. Apply styling to elements
@@ -107,6 +111,70 @@ export class ProceduralCompiler {
     } catch (error) {
       throw new Error(`Compilation failed: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+
+  // Normalize entity IDs to ensure consistency
+  private normalizeEntityIds(entities: Entity[]): Entity[] {
+    return entities.map((entity, index) => {
+      // Handle different ID formats from LLM responses
+      let normalizedId = entity.id;
+      
+      // If entity has entity_id instead of id, use that
+      if ('entity_id' in entity && typeof entity.entity_id === 'string' && entity.entity_id) {
+        normalizedId = entity.entity_id;
+      }
+      
+      // If entity has name instead of label, use that
+      let normalizedLabel = entity.label;
+      if ('name' in entity && typeof entity.name === 'string' && entity.name) {
+        normalizedLabel = entity.name;
+      }
+      
+      // Ensure ID is a string and not empty
+      if (!normalizedId || typeof normalizedId !== 'string') {
+        normalizedId = `entity_${index + 1}`;
+      }
+      
+      // Ensure label is a string and not empty
+      if (!normalizedLabel || typeof normalizedLabel !== 'string') {
+        normalizedLabel = `Entity ${index + 1}`;
+      }
+      
+      return {
+        ...entity,
+        id: normalizedId,
+        label: normalizedLabel
+      };
+    });
+  }
+
+  // Normalize relation IDs to match normalized entity IDs
+  private normalizeRelationIds(relations: Relation[], normalizedEntities: Entity[]): Relation[] {
+    return relations.map(relation => {
+      // Find the normalized entity IDs for from and to
+      const fromEntity = normalizedEntities.find(e => 
+        e.id === relation.from || 
+        ('entity_id' in e && typeof e.entity_id === 'string' && e.entity_id === relation.from) ||
+        ('name' in e && typeof e.name === 'string' && e.name === relation.from)
+      );
+      
+      const toEntity = normalizedEntities.find(e => 
+        e.id === relation.to || 
+        ('entity_id' in e && typeof e.entity_id === 'string' && e.entity_id === relation.to) ||
+        ('name' in e && typeof e.name === 'string' && e.name === relation.to)
+      );
+      
+      if (!fromEntity || !toEntity) {
+        // Skip invalid relations instead of throwing
+        return null;
+      }
+      
+      return {
+        ...relation,
+        from: fromEntity.id,
+        to: toEntity.id
+      };
+    }).filter(Boolean) as Relation[]; // Remove null relations
   }
 
   // Apply styling to elements using style resolver
@@ -145,7 +213,7 @@ export class ProceduralCompiler {
       const animations: ElementAnimation[] = [];
       
       // Generate intro animation based on element type and position
-      const introAnimation = this.selectIntroAnimation(element, context);
+      const introAnimation = this.selectIntroAnimation(element);
       if (introAnimation) {
         animations.push(...introAnimation);
       }
@@ -177,22 +245,14 @@ export class ProceduralCompiler {
     
     if (emphasis === 'low' || emphasisType === 'none') return [];
     
-    // Create gesture context for emphasis animations
+    // Create gesture context for emphasis animations using new interface
     const gestureContext = {
-      targetIds: [element.id],
-      now: 0.5, // Start emphasis after intro
-      frame: { width: 1920, height: 1080 },
-      theme: context.theme,
-      params: {
-        emphasis,
-        emphasisType,
-        scale: params['scale'] || 'moderate',
-        color: params['color'] || 'accent',
-        glow: params['glow'] || 'medium',
-        pulse: params['pulse'] || 'noticeable',
-        speed: params['speed'] || 'medium',
-        stagger: params['stagger'] || 'moderate'
-      }
+      elementId: element.id,
+      startTime: 0.5, // Start emphasis after intro
+      duration: 0.8, // Default emphasis duration
+      intensity: (params['scale'] === 'high' ? 'dramatic' : params['scale'] === 'low' ? 'subtle' : 'moderate') as 'dramatic' | 'subtle' | 'moderate',
+      direction: 'left' as const, // Default direction
+      easing: 'power2.out' as const
     };
     
     // Select emphasis gesture based on type
@@ -215,16 +275,16 @@ export class ProceduralCompiler {
 
   // Select appropriate intro animation based on element properties
   private selectIntroAnimation(
-    element: CanvasElement, 
-    context: CompilerContext
+    element: CanvasElement
   ): ElementAnimation[] | null {
-    // Simple intro animation selection based on element type
+    // Create gesture context using new interface
     const gestureContext = {
-      targetIds: [element.id],
-      now: 0,
-      frame: { width: 1920, height: 1080 },
-      theme: context.theme,
-      params: {}
+      elementId: element.id,
+      startTime: 0,
+      duration: 0.6, // Default intro duration
+      intensity: 'moderate' as const,
+      direction: 'left' as const,
+      easing: 'power2.out' as const
     };
     
     // Choose intro based on element type
