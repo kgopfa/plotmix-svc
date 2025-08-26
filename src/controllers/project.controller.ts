@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { ProjectService } from '../services/project.service';
-import { OrchestrationService } from '../services/orchestration.service';
+// import { OrchestrationService } from '../services/orchestration.service';
+import { Orchestrator } from '../services/pipeline/orchestrator';
 import { logger } from '../utils/logger';
 import { createDefaultProjectConfiguration } from '../utils/project-config';
 import { AuthenticatedRequest, CreateProjectWithConversationRequest, ProjectConfigurationResponse, BatchDeleteRequest } from '../types';
@@ -67,7 +68,26 @@ export class ProjectController {
         return;
       }
 
-      const result: ProjectConfigurationResponse = await OrchestrationService.generateProjectConfiguration(req.user.userId, data);
+      // New pipeline: generate mainState via orchestrator, then create project
+      const generated = await Orchestrator.generateFromPrompt({ prompt: data.prompt, canvas: { width: 1920, height: 1080 } });
+      const project = await ProjectService.createProject(req.user.userId, {
+        name: data.name || 'Generated Project',
+        title: data.title,
+        source: 'GENERATED',
+        mainState: generated.mainState,
+        configuration: createDefaultProjectConfiguration(),
+        features: {
+          attachments: { enabled: false },
+          audio: { enabled: false },
+          music: { enabled: false },
+          webSearch: { enabled: false },
+        },
+      } as any);
+      const result: ProjectConfigurationResponse = {
+        project,
+        conversationId: '',
+        user: { id: req.user.userId!, name: req.user.name as any, email: req.user.email as any }
+      };
 
       // Precompute render key and URL (using existing helper: same key format as renderer)
       try {
