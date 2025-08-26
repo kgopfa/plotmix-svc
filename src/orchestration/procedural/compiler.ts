@@ -215,19 +215,39 @@ export class ProceduralCompiler {
       // Generate intro animation based on element type and position
       const introAnimation = this.selectIntroAnimation(element);
       if (introAnimation) {
-        animations.push(...introAnimation);
+        animations.push(...this.normalizeToOnlyAnimations(introAnimation));
       }
       
       // Generate emphasis animations based on motif parameters
       const emphasisAnimations = this.generateEmphasisAnimations(element, context);
       if (emphasisAnimations.length > 0) {
-        animations.push(...emphasisAnimations);
+        animations.push(...this.normalizeToOnlyAnimations(emphasisAnimations));
       }
       
       return {
         ...element,
         animations
       };
+    });
+  }
+
+  // Adapter: normalize animations to "to"-only schema and clamp/support properties
+  private normalizeToOnlyAnimations(anims: ElementAnimation[]): ElementAnimation[] {
+    return anims.map(a => {
+      const clamped: ElementAnimation = { ...a };
+      // Clamp alpha
+      if (clamped.type === 'fade') {
+        const p: any = clamped.properties || {};
+        if (typeof p.alpha === 'number') {
+          p.alpha = Math.max(0, Math.min(1, p.alpha));
+        }
+        clamped.properties = p;
+      }
+      // Strip unsupported numeric properties for typewriter/path/physics if any sneaked in
+      if (clamped.type === 'typewriter' || clamped.type === 'path' || clamped.type === 'physics' || clamped.type === 'color') {
+        clamped.properties = clamped.properties || {};
+      }
+      return clamped;
     });
   }
 

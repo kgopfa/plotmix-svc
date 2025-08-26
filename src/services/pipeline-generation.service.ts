@@ -3,6 +3,8 @@ import { ENGINE_SPEC } from '../specs/engine-spec';
 import { sanitizeMovePropertiesInPlace } from '../utils/sanitize';
 import { PipelineRunner } from '../orchestration/pipeline-runner';
 import { validateLayoutCompilerOutput, logValidationResult } from '../schema/pipeline-validation';
+import { validateElementsArray } from '../schema/elements';
+import { assignAnimationIdentifiers } from '../schema/animations';
 
 export class PipelineGenerationService {
   // --------- Pipeline orchestration ---------
@@ -99,17 +101,23 @@ export class PipelineGenerationService {
       // Sanitize move arrays -> single values before validation
       sanitizeMovePropertiesInPlace(doc);
 
-      // Validate the final document structure
-      const validationResult = this.validateDoc(doc);
-      if (!validationResult.valid) {
-        logger.warn('Final document validation failed', {
-          errors: validationResult.errors,
-          patchHints: validationResult.patchHints
-        });
-        
-        // Log validation errors but continue with the document
-        // The pipeline has already validated each stage individually
-        logger.info('Continuing with document despite validation errors');
+      // Final schema validation at end of pipeline (elements + animation identifiers)
+      try {
+        const sceneCanvas = doc.mainState?.scenes?.[0]?.sceneCanvas;
+        if (!sceneCanvas) {
+          logger.warn('Missing sceneCanvas in final document; skipping end-of-pipeline validation');
+        } else {
+          const elemRes = validateElementsArray(sceneCanvas.elements || []);
+          if (!elemRes.valid || !elemRes.value) {
+            logger.warn('Element array validation failed at pipeline end', { errors: elemRes.errors });
+          } else {
+            const assigned = assignAnimationIdentifiers(elemRes.value, sceneCanvas.groups || [], { recomputeDisplayNames: true });
+            sceneCanvas.elements = assigned.elements;
+            sceneCanvas.groups = assigned.groups;
+          }
+        }
+      } catch (e) {
+        logger.warn('Final element validation pass threw', { error: e instanceof Error ? e.message : String(e) });
       }
 
       logger.info('Pipeline generation completed successfully', {
@@ -134,25 +142,7 @@ export class PipelineGenerationService {
     return ENGINE_SPEC;
   }
 
-  private static validateDoc(doc: any) {
-    // Placeholder - would validate against ENGINE_SPEC
-    // For now, just check if doc has the required structure
-    const hasRequiredStructure = doc && 
-      typeof doc === 'object' && 
-      doc.mainState && 
-      doc.mainState.dimensions &&
-      doc.mainState.scenes &&
-      Array.isArray(doc.mainState.scenes) &&
-      doc.mainState.scenes.length > 0 &&
-      doc.mainState.scenes[0]?.sceneCanvas?.elements &&
-      Array.isArray(doc.mainState.scenes[0].sceneCanvas.elements);
-    
-    return { 
-      valid: hasRequiredStructure, 
-      errors: hasRequiredStructure ? [] : ['Missing required structure'], 
-      patchHints: [] 
-    };
-  }
+  // validateDoc removed; validation now happens at the end of the pipeline
 
   private static generateDescription(scenes: any[]): string {
     if (!scenes.length) return 'A short conceptual flow.';

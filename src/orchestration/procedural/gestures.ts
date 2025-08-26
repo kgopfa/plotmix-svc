@@ -1,7 +1,7 @@
 // Gesture Compiler Functions - Purpose-based animation patterns
 // These can be used across presentations, websites, ads, and illustrative content
 
-import { ElementAnimation, AnimatableProperties, GsapEase } from '../../types/canvas';
+import { ElementAnimation, GsapEase } from '../../types/canvas';
 
 // Gesture context for animation generation
 export interface GestureContext {
@@ -19,17 +19,26 @@ export interface GestureContext {
 
 // Fade in / fade out
 export function SCENE_FADE_IN_V1(context: GestureContext): ElementAnimation[] {
-  return [{
-    id: `fade-in-${context.elementId}`,
-    displayName: 'Scene Fade In',
-    type: 'fade',
-    startTime: context.startTime,
-    duration: context.duration,
-    easing: context.easing || 'power2.out',
-    properties: {
-      opacity: { from: 0, to: 1 }
-    } as AnimatableProperties
-  }];
+  return [
+    {
+      id: `preset-alpha-0-${context.elementId}`,
+      displayName: 'Preset Alpha 0',
+      type: 'fade',
+      startTime: 0,
+      duration: 0.1,
+      easing: 'none',
+      properties: { alpha: 0 }
+    },
+    {
+      id: `fade-in-${context.elementId}`,
+      displayName: 'Scene Fade In',
+      type: 'fade',
+      startTime: context.startTime,
+      duration: context.duration,
+      easing: context.easing || 'power2.out',
+      properties: { alpha: 1 }
+    }
+  ];
 }
 
 export function SCENE_FADE_OUT_V1(context: GestureContext): ElementAnimation[] {
@@ -40,9 +49,7 @@ export function SCENE_FADE_OUT_V1(context: GestureContext): ElementAnimation[] {
     startTime: context.startTime,
     duration: context.duration,
     easing: context.easing || 'power2.in',
-    properties: {
-      opacity: { from: 1, to: 0 }
-    } as AnimatableProperties
+    properties: { alpha: 0 }
   }];
 }
 
@@ -59,36 +66,52 @@ export function SCENE_SLIDE_IN_V1(context: GestureContext): ElementAnimation[] {
     case 'down': yOffset = offset; break;
   }
   
-  return [{
-    id: `slide-in-${context.elementId}`,
-    displayName: `Scene Slide In ${direction}`,
-    type: 'move',
-    startTime: context.startTime,
-    duration: context.duration,
-    easing: context.easing || 'back.out',
-    properties: {
-      x: { from: xOffset, to: 0 },
-      y: { from: yOffset, to: 0 }
-    } as AnimatableProperties
-  }];
+  return [
+    {
+      id: `preset-pos-${context.elementId}`,
+      displayName: 'Preset Position',
+      type: 'move',
+      startTime: 0,
+      duration: 0.1,
+      easing: 'none',
+      properties: { x: xOffset, y: yOffset }
+    },
+    {
+      id: `slide-in-${context.elementId}`,
+      displayName: `Scene Slide In ${direction}`,
+      type: 'move',
+      startTime: context.startTime,
+      duration: context.duration,
+      easing: context.easing || 'back.out',
+      properties: { x: 0, y: 0 }
+    }
+  ];
 }
 
 // Zoom in / zoom out
 export function SCENE_ZOOM_IN_V1(context: GestureContext): ElementAnimation[] {
   const scale = context.intensity === 'dramatic' ? 0.3 : context.intensity === 'moderate' ? 0.5 : 0.7;
   
-  return [{
-    id: `zoom-in-${context.elementId}`,
-    displayName: 'Scene Zoom In',
-    type: 'scale',
-    startTime: context.startTime,
-    duration: context.duration,
-    easing: context.easing || 'back.out',
-    properties: {
-      scaleX: { from: scale, to: 1 },
-      scaleY: { from: scale, to: 1 }
-    } as AnimatableProperties
-  }];
+  return [
+    {
+      id: `preset-scale-${context.elementId}`,
+      displayName: 'Preset Scale',
+      type: 'scale',
+      startTime: 0,
+      duration: 0.1,
+      easing: 'none',
+      properties: { scaleX: scale, scaleY: scale }
+    },
+    {
+      id: `zoom-in-${context.elementId}`,
+      displayName: 'Scene Zoom In',
+      type: 'scale',
+      startTime: context.startTime,
+      duration: context.duration,
+      easing: context.easing || 'back.out',
+      properties: { scaleX: 1, scaleY: 1 }
+    }
+  ];
 }
 
 // ============================================================================
@@ -108,66 +131,100 @@ export function ELEMENT_SLIDE_IN_V1(context: GestureContext): ElementAnimation[]
     case 'down': yOffset = offset; break;
   }
   
-  return [{
-    id: `element-slide-${context.elementId}`,
-    displayName: `Element Slide In ${direction}`,
-    type: 'move',
-    startTime: context.startTime,
-    duration: context.duration,
-    easing: context.easing || 'power2.out',
-    properties: {
-      x: { from: xOffset, to: 0 },
-      y: { from: yOffset, to: 0 }
-    } as AnimatableProperties
-  }];
+  return [
+    {
+      id: `preset-pos-${context.elementId}`,
+      displayName: 'Preset Position',
+      type: 'move',
+      startTime: 0,
+      duration: 0.1,
+      easing: 'none',
+      properties: { x: xOffset, y: yOffset }
+    },
+    {
+      id: `element-slide-${context.elementId}`,
+      displayName: `Element Slide In ${direction}`,
+      type: 'move',
+      startTime: context.startTime,
+      duration: context.duration,
+      easing: context.easing || 'power2.out',
+      properties: { x: 0, y: 0 }
+    }
+  ];
 }
 
 // Staggered slides for lists
 export function ELEMENT_STAGGER_SLIDE_V1(context: GestureContext, staggerDelay: number = 0.1): ElementAnimation[] {
-  return [{
-    id: `stagger-slide-${context.elementId}`,
-    displayName: 'Staggered Slide',
-    type: 'move',
-    startTime: context.startTime + staggerDelay,
-    duration: context.duration,
-    easing: context.easing || 'power2.out',
-    properties: {
-      x: { from: -100, to: 0 }
-    } as AnimatableProperties
-  }];
+  return [
+    {
+      id: `preset-pos-${context.elementId}`,
+      displayName: 'Preset Position',
+      type: 'move',
+      startTime: 0,
+      duration: 0.1,
+      easing: 'none',
+      properties: { x: -100 }
+    },
+    {
+      id: `stagger-slide-${context.elementId}`,
+      displayName: 'Staggered Slide',
+      type: 'move',
+      startTime: context.startTime + staggerDelay,
+      duration: context.duration,
+      easing: context.easing || 'power2.out',
+      properties: { x: 0 }
+    }
+  ];
 }
 
 // Bubble / pop in
 export function ELEMENT_BUBBLE_IN_V1(context: GestureContext): ElementAnimation[] {
-  return [{
-    id: `bubble-${context.elementId}`,
-    displayName: 'Bubble Pop In',
-    type: 'scale',
-    startTime: context.startTime,
-    duration: context.duration,
-    easing: context.easing || 'back.out',
-    properties: {
-      scaleX: { from: 0, to: 1.1, then: 1 },
-      scaleY: { from: 0, to: 1.1, then: 1 }
-    } as AnimatableProperties
-  }];
+  return [
+    {
+      id: `preset-scale-${context.elementId}`,
+      displayName: 'Preset Scale',
+      type: 'scale',
+      startTime: 0,
+      duration: 0.1,
+      easing: 'none',
+      properties: { scaleX: 0, scaleY: 0 }
+    },
+    {
+      id: `bubble-${context.elementId}`,
+      displayName: 'Bubble Pop In',
+      type: 'scale',
+      startTime: context.startTime,
+      duration: context.duration,
+      easing: context.easing || 'back.out',
+      yoyo: true,
+      repeat: 1,
+      properties: { scaleX: 1.1, scaleY: 1.1 }
+    }
+  ];
 }
 
 // Orbit in (curved spin-in)
 export function ELEMENT_ORBIT_IN_V1(context: GestureContext): ElementAnimation[] {
-  return [{
-    id: `orbit-${context.elementId}`,
-    displayName: 'Orbit Spin In',
-    type: 'move',
-    startTime: context.startTime,
-    duration: context.duration,
-    easing: context.easing || 'power2.out',
-    properties: {
-      x: { from: -100, to: 0 },
-      y: { from: -50, to: 0 },
-      rotation: { from: -180, to: 0 }
-    } as AnimatableProperties
-  }];
+  return [
+    {
+      id: `preset-orbit-${context.elementId}`,
+      displayName: 'Preset Orbit',
+      type: 'move',
+      startTime: 0,
+      duration: 0.1,
+      easing: 'none',
+      properties: { x: -100, y: -50, rotation: -180 }
+    },
+    {
+      id: `orbit-${context.elementId}`,
+      displayName: 'Orbit Spin In',
+      type: 'move',
+      startTime: context.startTime,
+      duration: context.duration,
+      easing: context.easing || 'power2.out',
+      properties: { x: 0, y: 0, rotation: 0 }
+    }
+  ];
 }
 
 // ============================================================================
@@ -185,10 +242,9 @@ export function ELEMENT_PULSE_V1(context: GestureContext): ElementAnimation[] {
     startTime: context.startTime,
     duration: context.duration,
     easing: context.easing || 'power2.inOut',
-    properties: {
-      scaleX: { from: 1, to: 1 + intensity, then: 1 },
-      scaleY: { from: 1, to: 1 + intensity, then: 1 }
-    } as AnimatableProperties
+    yoyo: true,
+    repeat: 1,
+    properties: { scaleX: 1 + intensity, scaleY: 1 + intensity }
   }];
 }
 
@@ -203,10 +259,9 @@ export function ELEMENT_BOUNCE_V1(context: GestureContext): ElementAnimation[] {
     startTime: context.startTime,
     duration: context.duration,
     easing: context.easing || 'bounce.out',
-    properties: {
-      scaleX: { from: 1, to: 1 + intensity, then: 1 },
-      scaleY: { from: 1, to: 1 + intensity, then: 1 }
-    } as AnimatableProperties
+    yoyo: true,
+    repeat: 1,
+    properties: { scaleX: 1 + intensity, scaleY: 1 + intensity }
   }];
 }
 
@@ -214,32 +269,42 @@ export function ELEMENT_BOUNCE_V1(context: GestureContext): ElementAnimation[] {
 export function ELEMENT_SHAKE_V1(context: GestureContext): ElementAnimation[] {
   const intensity = context.intensity === 'dramatic' ? 15 : context.intensity === 'moderate' ? 10 : 5;
   
-  return [{
-    id: `shake-${context.elementId}`,
-    displayName: 'Element Shake',
-    type: 'move',
-    startTime: context.startTime,
-    duration: context.duration,
-    easing: context.easing || 'power2.inOut',
-    properties: {
-      x: { from: -intensity, to: intensity, then: 0 }
-    } as AnimatableProperties
-  }];
+  return [
+    {
+      id: `preset-shake-${context.elementId}`,
+      displayName: 'Preset Shake',
+      type: 'move',
+      startTime: 0,
+      duration: 0.1,
+      easing: 'none',
+      properties: { x: -intensity }
+    },
+    {
+      id: `shake-${context.elementId}`,
+      displayName: 'Element Shake',
+      type: 'move',
+      startTime: context.startTime,
+      duration: context.duration,
+      easing: context.easing || 'power2.inOut',
+      yoyo: true,
+      repeat: 1,
+      properties: { x: intensity }
+    },
+    {
+      id: `shake-return-${context.elementId}`,
+      displayName: 'Shake Return',
+      type: 'move',
+      startTime: context.startTime + context.duration,
+      duration: 0.1,
+      easing: 'none',
+      properties: { x: 0 }
+    }
+  ];
 }
 
 // Flash highlight color
-export function ELEMENT_FLASH_COLOR_V1(context: GestureContext): ElementAnimation[] {
-  return [{
-    id: `flash-${context.elementId}`,
-    displayName: 'Color Flash',
-    type: 'color',
-    startTime: context.startTime,
-    duration: context.duration,
-    easing: context.easing || 'power2.inOut',
-    properties: {
-      fillColor: { from: '#FFFFFF', to: '#FFD700', then: '#FFFFFF' }
-    } as AnimatableProperties
-  }];
+export function ELEMENT_FLASH_COLOR_V1(_context: GestureContext): ElementAnimation[] {
+  return [];
 }
 
 // ============================================================================
@@ -256,9 +321,16 @@ export function POINT_CROSSFADE_V1(context: GestureContext): ElementAnimation[] 
       startTime: context.startTime,
       duration: context.duration / 2,
       easing: context.easing || 'power2.in',
-      properties: {
-        opacity: { from: 1, to: 0 }
-      } as AnimatableProperties
+      properties: { alpha: 0 }
+    },
+    {
+      id: `preset-alpha-0-${context.elementId}`,
+      displayName: 'Preset Alpha 0',
+      type: 'fade',
+      startTime: context.startTime + context.duration / 2 - 0.1,
+      duration: 0.1,
+      easing: 'none',
+      properties: { alpha: 0 }
     },
     {
       id: `fade-in-${context.elementId}`,
@@ -267,9 +339,7 @@ export function POINT_CROSSFADE_V1(context: GestureContext): ElementAnimation[] 
       startTime: context.startTime + context.duration / 2,
       duration: context.duration / 2,
       easing: context.easing || 'power2.out',
-      properties: {
-        opacity: { from: 0, to: 1 }
-      } as AnimatableProperties
+      properties: { alpha: 1 }
     }
   ];
 }
@@ -295,10 +365,16 @@ export function POINT_SLIDE_SWAP_V1(context: GestureContext): ElementAnimation[]
       startTime: context.startTime,
       duration: context.duration / 2,
       easing: context.easing || 'power2.in',
-      properties: {
-        x: { from: 0, to: xOffset },
-        y: { from: 0, to: yOffset }
-      } as AnimatableProperties
+      properties: { x: xOffset, y: yOffset }
+    },
+    {
+      id: `preset-pos-${context.elementId}`,
+      displayName: 'Preset Position',
+      type: 'move',
+      startTime: context.startTime + context.duration / 2 - 0.1,
+      duration: 0.1,
+      easing: 'none',
+      properties: { x: xOffset, y: yOffset }
     },
     {
       id: `slide-in-${context.elementId}`,
@@ -307,10 +383,7 @@ export function POINT_SLIDE_SWAP_V1(context: GestureContext): ElementAnimation[]
       startTime: context.startTime + context.duration / 2,
       duration: context.duration / 2,
       easing: context.easing || 'power2.out',
-      properties: {
-        x: { from: xOffset, to: 0 },
-        y: { from: yOffset, to: 0 }
-      } as AnimatableProperties
+      properties: { x: 0, y: 0 }
     }
   ];
 }
@@ -328,9 +401,7 @@ export function TEXT_TYPEWRITER_V1(context: GestureContext): ElementAnimation[] 
     startTime: context.startTime,
     duration: context.duration,
     easing: context.easing || 'none',
-    properties: {
-      textReveal: { from: 0, to: 1 }
-    } as AnimatableProperties
+    properties: {}
   }];
 }
 
@@ -345,9 +416,7 @@ export function TEXT_WORD_STAGGER_V1(context: GestureContext, wordCount: number)
     startTime: context.startTime + (i * staggerDelay),
     duration: staggerDelay,
     easing: context.easing || 'power2.out',
-    properties: {
-      wordReveal: { from: 0, to: 1, wordIndex: i }
-    } as AnimatableProperties
+    properties: {}
   }));
 }
 
@@ -364,40 +433,37 @@ export function DATA_LINE_DRAW_V1(context: GestureContext): ElementAnimation[] {
     startTime: context.startTime,
     duration: context.duration,
     easing: context.easing || 'power2.out',
-    properties: {
-      pathProgress: { from: 0, to: 1 }
-    } as AnimatableProperties
+    properties: {}
   }];
 }
 
 // Bar grow (for charts)
 export function DATA_BAR_GROW_V1(context: GestureContext): ElementAnimation[] {
-  return [{
-    id: `bar-grow-${context.elementId}`,
-    displayName: 'Bar Chart Growth',
-    type: 'scale',
-    startTime: context.startTime,
-    duration: context.duration,
-    easing: context.easing || 'power2.out',
-    properties: {
-      scaleY: { from: 0, to: 1 }
-    } as AnimatableProperties
-  }];
+  return [
+    {
+      id: `preset-scale-${context.elementId}`,
+      displayName: 'Preset Scale',
+      type: 'scale',
+      startTime: 0,
+      duration: 0.1,
+      easing: 'none',
+      properties: { scaleY: 0 }
+    },
+    {
+      id: `bar-grow-${context.elementId}`,
+      displayName: 'Bar Chart Growth',
+      type: 'scale',
+      startTime: context.startTime,
+      duration: context.duration,
+      easing: context.easing || 'power2.out',
+      properties: { scaleY: 1 }
+    }
+  ];
 }
 
 // Counter tick (numbers animate up)
-export function DATA_COUNTER_TICK_V1(context: GestureContext, finalValue: number): ElementAnimation[] {
-  return [{
-    id: `counter-${context.elementId}`,
-    displayName: 'Counter Animation',
-    type: 'scale',
-    startTime: context.startTime,
-    duration: context.duration,
-    easing: context.easing || 'power2.out',
-    properties: {
-      value: { from: 0, to: finalValue }
-    } as AnimatableProperties
-  }];
+export function DATA_COUNTER_TICK_V1(_context: GestureContext, _finalValue: number): ElementAnimation[] {
+  return [];
 }
 
 // ============================================================================
@@ -406,17 +472,26 @@ export function DATA_COUNTER_TICK_V1(context: GestureContext, finalValue: number
 
 // Logo reveal (build from shapes/letters)
 export function BRAND_LOGO_REVEAL_V1(context: GestureContext): ElementAnimation[] {
-  return [{
-    id: `logo-reveal-${context.elementId}`,
-    displayName: 'Logo Build',
-    type: 'scale',
-    startTime: context.startTime,
-    duration: context.duration,
-    easing: context.easing || 'power2.out',
-    properties: {
-      buildProgress: { from: 0, to: 1 }
-    } as AnimatableProperties
-  }];
+  return [
+    {
+      id: `preset-scale-${context.elementId}`,
+      displayName: 'Preset Scale',
+      type: 'scale',
+      startTime: 0,
+      duration: 0.1,
+      easing: 'none',
+      properties: { scaleX: 0, scaleY: 0 }
+    },
+    {
+      id: `logo-reveal-${context.elementId}`,
+      displayName: 'Logo Build',
+      type: 'scale',
+      startTime: context.startTime,
+      duration: context.duration,
+      easing: context.easing || 'power2.out',
+      properties: { scaleX: 1, scaleY: 1 }
+    }
+  ];
 }
 
 // CTA emphasis (button pulse, shake, shine sweep)
@@ -429,21 +504,9 @@ export function BRAND_CTA_EMPHASIS_V1(context: GestureContext): ElementAnimation
       startTime: context.startTime,
       duration: context.duration,
       easing: context.easing || 'power2.inOut',
-      properties: {
-        scaleX: { from: 1, to: 1.1, then: 1 },
-        scaleY: { from: 1, to: 1.1, then: 1 }
-      } as AnimatableProperties
-    },
-    {
-      id: `cta-shine-${context.elementId}`,
-      displayName: 'CTA Shine Sweep',
-      type: 'fade',
-      startTime: context.startTime + context.duration / 2,
-      duration: context.duration / 2,
-      easing: context.easing || 'power2.out',
-      properties: {
-        shineProgress: { from: 0, to: 1 }
-      } as AnimatableProperties
+      yoyo: true,
+      repeat: 1,
+      properties: { scaleX: 1.1, scaleY: 1.1 }
     }
   ];
 }

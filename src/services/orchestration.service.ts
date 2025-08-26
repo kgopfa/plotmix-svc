@@ -9,8 +9,7 @@ import {
   ProjectConfigurationResponse,
   CreateProjectRequest,
 } from '../types';
-import { validateElementsArray } from '../schema/elements';
-import { assignAnimationIdentifiers } from '../schema/animations';
+// Validation has been moved to the pipeline's final step. The orchestrator now trusts pipeline output.
 import { PipelineGenerationService } from './pipeline-generation.service';
 
 export class OrchestrationService {
@@ -145,7 +144,7 @@ export class OrchestrationService {
     }
   }
 
-  // Centralized schema validation + normalization
+  // Centralized normalization only (validation moved to pipeline)
   private static normalizeAndValidateMainState(raw: any) {
     logger.info('Validating and normalizing mainState response', {
       hasScenes: !!raw.scenes,
@@ -164,17 +163,6 @@ export class OrchestrationService {
         }
 
         const source = raw.scenes[0].sceneCanvas;
-        const elementsInput = Array.isArray(source.elements) ? source.elements : [];
-        const groupsInput = Array.isArray(source.groups) ? source.groups : [];
-
-        // Validate elements
-        const elemRes = validateElementsArray(elementsInput);
-        if (!elemRes.valid || !elemRes.value) {
-          throw new Error(`Invalid elements: ${elemRes.errors.join('; ')}`);
-        }
-
-        // Assign animation identifiers
-        const assigned = assignAnimationIdentifiers(elemRes.value, groupsInput, { recomputeDisplayNames: true });
 
         // Return the validated structure
         return {
@@ -182,8 +170,8 @@ export class OrchestrationService {
           scenes: [{
             ...raw.scenes[0],
             sceneCanvas: {
-              elements: assigned.elements,
-              groups: assigned.groups,
+              elements: Array.isArray(source.elements) ? source.elements : [],
+              groups: Array.isArray(source.groups) ? source.groups : [],
               timeline: {
                 scale: source.timeline?.scale ?? 1,
                 duration: source.timeline?.duration ?? 3,
@@ -204,15 +192,6 @@ export class OrchestrationService {
         }
 
         const source = raw.scenes[0].sceneCanvas;
-        const elementsInput = Array.isArray(source.elements) ? source.elements : [];
-        const groupsInput = Array.isArray(source.groups) ? source.groups : [];
-
-        const elemRes = validateElementsArray(elementsInput);
-        if (!elemRes.valid || !elemRes.value) {
-          throw new Error(`Invalid elements: ${elemRes.errors.join('; ')}`);
-        }
-
-        const assigned = assignAnimationIdentifiers(elemRes.value, groupsInput, { recomputeDisplayNames: true });
 
         // Convert legacy structure to new structure
         return {
@@ -224,8 +203,8 @@ export class OrchestrationService {
             sceneId: raw.scenes[0].sceneId || 'default-scene',
             sceneName: raw.scenes[0].sceneName || 'Default Scene',
             sceneCanvas: {
-              elements: assigned.elements,
-              groups: assigned.groups,
+              elements: Array.isArray(source.elements) ? source.elements : [],
+              groups: Array.isArray(source.groups) ? source.groups : [],
               timeline: {
                 scale: source.timeline?.scale ?? 1,
                 duration: source.timeline?.duration ?? 3,
