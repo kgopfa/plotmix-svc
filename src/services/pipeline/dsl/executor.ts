@@ -75,7 +75,12 @@ export class Executor {
     for (let i = 0; i < MAX_PASSES; i++) {
       const res = validate(doc);
       if (res?.valid) return doc.mainState as MainState;
-      logger.warn('Executor: validation failed; invoking Fixer', { attempt: i + 1, errorCount: res?.errors?.length || 0 });
+      logger.warn('Executor: validation failed; invoking Fixer', {
+        attempt: i + 1,
+        errorCount: res?.errors?.length || 0,
+        errors: Array.isArray(res?.errors) ? res.errors.slice(0, 10) : undefined,
+        patchHints: Array.isArray(res?.patchHints) ? res.patchHints.slice(0, 10) : undefined,
+      });
       doc = await fixer(res.errors, res.patchHints, doc) as any;
       // Ensure move properties sanitized
       sanitizeMovePropertiesInPlace(doc);
@@ -119,7 +124,23 @@ export class Executor {
       base.fontSize = toNumber(e.fontSize, 24);
       base.wordWrap = !!e.wordWrap;
       base.wordWrapWidth = toNumber(e.wordWrapWidth, base.width);
+      // Center text by default unless explicitly set or labeled as an external label
+      base.textAlign = (e as any).textAlign || 'center';
     }
+    // Apply shape-specific props
+    if (e.type === 'rectangle' && typeof (e as any).cornerRadius === 'number') {
+      (base as any).cornerRadius = clamp(toNumber((e as any).cornerRadius, 0), 0, Math.min(base.width, base.height) / 2);
+    }
+    if (e.type === 'circle' && typeof (e as any).radius === 'number') {
+      (base as any).radius = clamp(toNumber((e as any).radius, base.height / 2), 0, Math.max(base.width, base.height));
+    }
+    // Shadows
+    if (typeof (e as any).shadowEnabled !== 'undefined') (base as any).shadowEnabled = !!(e as any).shadowEnabled;
+    if (typeof (e as any).shadowColor !== 'undefined') (base as any).shadowColor = normalizeColor((e as any).shadowColor, '#000000');
+    if (typeof (e as any).shadowBlur !== 'undefined') (base as any).shadowBlur = toNumber((e as any).shadowBlur, 0);
+    if (typeof (e as any).shadowOffsetX !== 'undefined') (base as any).shadowOffsetX = toNumber((e as any).shadowOffsetX, 0);
+    if (typeof (e as any).shadowOffsetY !== 'undefined') (base as any).shadowOffsetY = toNumber((e as any).shadowOffsetY, 0);
+    if (typeof (e as any).shadowOpacity !== 'undefined') (base as any).shadowOpacity = clamp(toNumber((e as any).shadowOpacity, 1), 0, 1);
     if (e.type === 'line' && e.lineOptions) {
       base.lineOptions = e.lineOptions;
       base.width = toNumber(e.width, 0);
@@ -160,6 +181,15 @@ export class Executor {
     if (typeof p.opacity !== 'undefined') el.opacity = clamp(toNumber(p.opacity, el.opacity), 0, 1);
     if (typeof p.fontFamily !== 'undefined') el.fontFamily = String(p.fontFamily || 'Inter');
     if (typeof p.fontSize !== 'undefined') el.fontSize = toNumber(p.fontSize, el.fontSize);
+    if (typeof (p as any).textAlign !== 'undefined') (el as any).textAlign = (p as any).textAlign;
+    if (typeof (p as any).cornerRadius !== 'undefined') (el as any).cornerRadius = clamp(toNumber((p as any).cornerRadius, (el as any).cornerRadius), 0, Math.min((el as any).width || 0, (el as any).height || 0) / 2);
+    // Shadows
+    if (typeof (p as any).shadowEnabled !== 'undefined') (el as any).shadowEnabled = !!(p as any).shadowEnabled;
+    if (typeof (p as any).shadowColor !== 'undefined') (el as any).shadowColor = normalizeColor((p as any).shadowColor, (el as any).shadowColor);
+    if (typeof (p as any).shadowBlur !== 'undefined') (el as any).shadowBlur = toNumber((p as any).shadowBlur, (el as any).shadowBlur);
+    if (typeof (p as any).shadowOffsetX !== 'undefined') (el as any).shadowOffsetX = toNumber((p as any).shadowOffsetX, (el as any).shadowOffsetX);
+    if (typeof (p as any).shadowOffsetY !== 'undefined') (el as any).shadowOffsetY = toNumber((p as any).shadowOffsetY, (el as any).shadowOffsetY);
+    if (typeof (p as any).shadowOpacity !== 'undefined') (el as any).shadowOpacity = clamp(toNumber((p as any).shadowOpacity, (el as any).shadowOpacity), 0, 1);
   }
 
   private static addAnimation(state: MainState, action: AnimateAction, ctx: ActionPlan['context']) {

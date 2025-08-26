@@ -187,7 +187,7 @@ Global rules:
     - line: MUST include x and y (numbers). Set fill: "none". Provide stroke (hex) and strokeWidth (number). Provide lineOptions.points.start/end. If isCurved: true, include a valid controlPoint.
     - path: typically set fill: "none" and provide stroke (hex) and strokeWidth for visible paths; include at least 2 pathPoints.
   - Font support (allowed values for element.fontFamily):
-    - Sans-serif: "Inter", "Roboto", "Libre Franklin", "Raleway", "Source Sans Pro", "Poppins", "Open Sans", "Lato", "Arial", "Helvetica", "Verdana", "Tahoma", "Trebuchet MS".
+    - Sans-serif: "Inter", "Roboto", "Libre Franklin", "Raleway", "Source Sans Pro", "Poppins", "Open Sans", "Lato", "Arial", "Helvetica", "Helvetica Neue", "Segoe UI", "Montserrat", "Nunito", "Geist", "Verdana", "Tahoma", "Trebuchet MS".
     - Serif: "Playfair Display", "Merriweather", "Lora", "Times New Roman", "Georgia", "Garamond", "Palatino".
     - Script: "Dancing Script", "Pacifico", "Great Vibes", "Satisfy", "Kaushan Script", "Allura", "Alex Brush".
     - Monospace: "Geist Mono", "Source Code Pro", "Fira Code", "JetBrains Mono", "Inconsolata", "Courier New", "Consolas", "Monaco", "Menlo".

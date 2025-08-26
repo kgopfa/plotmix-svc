@@ -56,6 +56,18 @@ const ELEMENT_TYPES: Set<string> = new Set([
   'rectangle', 'circle', 'triangle', 'arc', 'line', 'path', 'image', 'text',
 ]);
 
+// Pipeline/frontend-supported fonts allowlist
+const FONT_ALLOWLIST: Set<string> = new Set([
+  // Sans-serif
+  'Inter','Roboto','Libre Franklin','Raleway','Source Sans Pro','Poppins','Open Sans','Lato','Arial','Helvetica','Helvetica Neue','Segoe UI','Montserrat','Nunito','Geist','Verdana','Tahoma','Trebuchet MS',
+  // Serif
+  'Playfair Display','Merriweather','Lora','Times New Roman','Georgia','Garamond','Palatino',
+  // Script
+  'Dancing Script','Pacifico','Great Vibes','Satisfy','Kaushan Script','Allura','Alex Brush',
+  // Monospace
+  'Geist Mono','Source Code Pro','Fira Code','JetBrains Mono','Inconsolata','Courier New','Consolas','Monaco','Menlo',
+]);
+
 function validateLineOptions(v: unknown): ValidationResult<LineOptions> {
   const errors: string[] = [];
   const o = (v ?? {}) as Record<string, unknown>;
@@ -169,7 +181,13 @@ function validateText(obj: any): string[] {
   const errors: string[] = [];
   if (!isString(obj.text)) errors.push('text must be a string for text element');
   if (obj.fontSize !== undefined && !isNumber(obj.fontSize)) errors.push('fontSize must be a number');
-  if (obj.fontFamily !== undefined && !isString(obj.fontFamily)) errors.push('fontFamily must be a string');
+  if (obj.fontFamily !== undefined) {
+    if (!isString(obj.fontFamily)) {
+      errors.push('fontFamily must be a string');
+    } else if (!FONT_ALLOWLIST.has(obj.fontFamily)) {
+      errors.push('fontFamily not in allowlist');
+    }
+  }
   if (obj.fontWeight !== undefined && !isString(obj.fontWeight)) errors.push('fontWeight must be a string');
   if (obj.fontStyle !== undefined && !isString(obj.fontStyle)) errors.push('fontStyle must be a string');
   if (obj.textAlign !== undefined && !isString(obj.textAlign)) errors.push('textAlign must be a string');

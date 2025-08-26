@@ -29,7 +29,7 @@ export interface AddElementAction {
   element: {
     id?: string;
     name?: string;
-    type: 'rect' | 'text' | 'ellipse' | 'image' | 'line' | 'path';
+    type: 'rectangle' | 'circle' | 'triangle' | 'text' | 'image' | 'line' | 'path';
     x?: number;
     y?: number;
     width?: number;
@@ -40,16 +40,27 @@ export interface AddElementAction {
     strokeWidth?: number;
     opacity?: number;
     zIndex?: number;
+    // Shape-specific
+    cornerRadius?: number; // rectangle
+    radius?: number; // circle
     // Text-specific
     text?: string;
     fontFamily?: string;
     fontSize?: number;
+    textAlign?: 'left' | 'center' | 'right';
     wordWrap?: boolean;
     wordWrapWidth?: number;
     // Line-specific
     lineOptions?: { points: { start: { x: number; y: number }; end: { x: number; y: number } } };
     // Path-specific
     pathPoints?: Array<{ x: number; y: number }>;
+    // Shadows
+    shadowEnabled?: boolean;
+    shadowColor?: string;
+    shadowBlur?: number;
+    shadowOffsetX?: number;
+    shadowOffsetY?: number;
+    shadowOpacity?: number;
   };
 }
 
@@ -76,6 +87,15 @@ export interface SetStyleAction {
     opacity?: number;
     fontFamily?: string;
     fontSize?: number;
+    textAlign?: 'left' | 'center' | 'right';
+    cornerRadius?: number;
+    // Shadows
+    shadowEnabled?: boolean;
+    shadowColor?: string;
+    shadowBlur?: number;
+    shadowOffsetX?: number;
+    shadowOffsetY?: number;
+    shadowOpacity?: number;
   };
 }
 

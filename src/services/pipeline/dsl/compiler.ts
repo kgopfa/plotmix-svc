@@ -31,6 +31,19 @@ export class Compiler {
       if (typeof n.x !== 'number' || typeof n.y !== 'number') throw new Error(`Compiler: layout node ${n.id} missing coordinates`);
       if (typeof n.width !== 'number' || typeof n.height !== 'number') throw new Error(`Compiler: layout node ${n.id} missing size`);
       const d = designById.get(n.id) || {};
+      const palette = d.palette || {};
+      const typography = d.typography || {};
+      const styleDefaults = {
+        fill: palette.fill || '#FFFFFF',
+        stroke: palette.stroke || '#E2E8F0',
+        text: '#0F172A',
+        fontFamily: typography.fontFamily || 'Inter',
+        fontSize: typography.fontSize || 16,
+        cornerRadius: typeof d.cornerRadius === 'number' ? d.cornerRadius : (d.template === 'card' ? 12 : 0),
+        shadow: d.emphasis === 'elevated' || d.shadow
+          ? { enabled: true, color: '#000000', blur: 12, offsetX: 0, offsetY: 8, opacity: 0.12 }
+          : { enabled: false }
+      } as const;
       const bgId = `el-${n.id}-bg`;
       actions.push({
         type: 'addElement',
@@ -42,8 +55,15 @@ export class Compiler {
           y: n.y,
           width: n.width,
           height: n.height,
-          fill: d.palette?.fill || '#FFFFFF',
-          stroke: d.palette?.stroke || '#E2E8F0',
+          fill: styleDefaults.fill,
+          stroke: styleDefaults.stroke,
+          cornerRadius: styleDefaults.cornerRadius,
+          shadowEnabled: styleDefaults.shadow.enabled,
+          shadowColor: (styleDefaults.shadow as any).color,
+          shadowBlur: (styleDefaults.shadow as any).blur,
+          shadowOffsetX: (styleDefaults.shadow as any).offsetX,
+          shadowOffsetY: (styleDefaults.shadow as any).offsetY,
+          shadowOpacity: (styleDefaults.shadow as any).opacity,
           animations: []
         }
       } as any);
@@ -55,13 +75,16 @@ export class Compiler {
           type: 'text',
           name: 'entity-label',
           x: n.x,
-          y: n.y - Math.max(40, Math.round(n.height * 0.6)),
-          width: Math.max(120, n.width - 20),
-          height: 40,
-          fill: '#0F172A',
+          y: n.y,
+          width: Math.max(120, n.width - 24),
+          height: Math.max(40, Math.round(n.height * 0.5)),
+          fill: styleDefaults.text,
           text: labelById.get(n.id),
-          fontFamily: d.typography?.fontFamily || 'Inter',
-          fontSize: d.typography?.fontSize || 16,
+          fontFamily: styleDefaults.fontFamily,
+          fontSize: styleDefaults.fontSize,
+          textAlign: 'center',
+          wordWrap: true,
+          wordWrapWidth: Math.max(120, n.width - 24),
           animations: []
         }
       } as any);

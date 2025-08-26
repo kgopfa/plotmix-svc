@@ -71,7 +71,7 @@ export class Router {
   static async entityDesign(entities: any[], tone: string): Promise<{ entityDesign: any[] }>
   {
     const client = LlmFactory.create();
-    const system = 'For each entity, pick a visual spec (no geometry). Return only JSON {"entityDesign":[{"entityId","template","shape","palette","typography","icons"|"icon"?,"ornament"?,"padding"?,"emphasis"?}]}.';
+    const system = 'For each entity, pick a visual spec (no geometry). Aim for cohesive, website-quality styling (not whiteboard). Defaults: center non-label text inside containers; prefer varied corner radii (0, 8, 12) rather than always rounded; use subtle shadows only when emphasis is required; consistent palette and typography across entities. IMPORTANT: typography.fontFamily MUST be chosen STRICTLY from this allowlist and nothing else: ["Inter","Roboto","Open Sans","Lato","Arial","Helvetica","Helvetica Neue","Segoe UI","Montserrat","Nunito","Libre Franklin","Raleway","Source Sans Pro","Poppins","Verdana","Tahoma","Trebuchet MS","Geist","Geist Mono","Source Code Pro","Fira Code","JetBrains Mono","Inconsolata","Courier New","Consolas","Monaco","Menlo"]. If unsure, use "Inter" for general text, or "Geist Mono" for code-like text. Return only JSON {"entityDesign":[{"entityId","template","shape","palette":{"fill","stroke"},"typography":{"fontFamily","fontSize"},"cornerRadius"?,"shadow"?:{"enabled":boolean,"color"?:string,"blur"?:number,"offsetX"?:number,"offsetY"?:number,"opacity"?:number},"icons"|"icon"?,"ornament"?,"padding"?,"emphasis"?}]}.';
     const user = JSON.stringify({ entities, tone });
     const res = await client.callStage('entities', [
       { role: 'system', content: system },
