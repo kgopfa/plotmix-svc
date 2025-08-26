@@ -149,15 +149,26 @@ export class PipelineClient {
     const requestOptions: OpenAI.ChatCompletionCreateParams = {
       model: config.model,
       messages,
-      temperature: config.temperature,
-      max_tokens: config.maxTokens as number,
       // Only use response_format for models that support it
       ...(json && supportsJson && { response_format: { type: 'json_object' } }),
     };
 
     try {
+      logger.info('Sending request to OpenAI', { 
+        model: requestOptions.model,
+        temperature: requestOptions.temperature,
+        maxTokens: requestOptions.max_tokens || requestOptions.max_completion_tokens,
+        messageCount: messages.length
+      });
+      
       const response = await this.openai.chat.completions.create(requestOptions);
       const content = response.choices[0]?.message?.content;
+      
+      logger.debug('Received response from OpenAI', { 
+        hasContent: !!content,
+        contentLength: content?.length || 0,
+        contentPreview: content?.substring(0, 200) || 'No content'
+      });
       
       if (!content) {
         throw new Error('No content in response');

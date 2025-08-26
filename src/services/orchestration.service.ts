@@ -11,7 +11,6 @@ import {
 } from '../types';
 import { validateElementsArray } from '../schema/elements';
 import { assignAnimationIdentifiers } from '../schema/animations';
-import { OpenAIGenerationService } from './openai-generation.service';
 import { PipelineGenerationService } from './pipeline-generation.service';
 
 export class OrchestrationService {
@@ -19,7 +18,7 @@ export class OrchestrationService {
     userId: string,
     data: CreateProjectWithConversationRequest
   ): Promise<ProjectConfigurationResponse> {
-    logger.info('Starting project configuration generation', {
+    logger.info('Starting project configuration generation with chained pipeline', {
       userId,
       promptLength: data.prompt?.length || 0,
       hasFeatures: !!data.features,
@@ -28,19 +27,16 @@ export class OrchestrationService {
     });
 
     try {
-      // Feature flag to choose between legacy and new pipeline
-      const usePipeline = process.env['GEN_CHAINED'] === '1';
-      const openAIResponse = usePipeline
-        ? await this.processPromptWithPipeline(data)
-        : await this.processPromptWithOpenAI(data);
+      // Use the chained generation pipeline directly
+      const pipelineResponse = await this.processPrompt(data);
 
-      openAIResponse.mainState = this.normalizeAndValidateMainState(openAIResponse.mainState);
+      pipelineResponse.mainState = this.normalizeAndValidateMainState(pipelineResponse.mainState);
 
-      const project = await this.createProjectFromGeneratedResponse(userId, data, openAIResponse);
+      const project = await this.createProjectFromGeneratedResponse(userId, data, pipelineResponse);
 
-      const conversationId = await this.createConversationForProject(userId, data, project.id, openAIResponse);
+      const conversationId = await this.createConversationForProject(userId, data, project.id, pipelineResponse);
 
-      await this.createConversationMessages(conversationId, data, openAIResponse);
+      await this.createConversationMessages(conversationId, data, pipelineResponse);
 
       const user = await this.getUserData(userId);
 
@@ -48,8 +44,8 @@ export class OrchestrationService {
         projectId: project.id,
         conversationId,
         userId,
-        mainStateGenerated: !!openAIResponse.mainState,
-        pipelineUsed: usePipeline,
+        mainStateGenerated: !!pipelineResponse.mainState,
+        pipelineUsed: true,
       });
 
       return {
@@ -68,8 +64,8 @@ export class OrchestrationService {
     }
   }
 
-  private static async processPromptWithPipeline(data: CreateProjectWithConversationRequest) {
-    logger.info('Starting pipeline prompt processing', {
+  private static async processPrompt(data: CreateProjectWithConversationRequest) {
+    logger.info('Starting prompt processing with chained generation pipeline', {
       promptLength: data.prompt?.length || 0,
       hasFeatures: !!data.features,
     });
@@ -77,7 +73,7 @@ export class OrchestrationService {
     try {
       const pipelineResponse = await PipelineGenerationService.generateScene(data.prompt);
 
-      logger.info('Pipeline processing completed successfully', {
+      logger.info('Prompt processing completed successfully', {
         hasMainState: !!pipelineResponse.mainState,
         elementCount: pipelineResponse.mainState?.scenes?.[0]?.sceneCanvas?.elements?.length || 0,
       });
@@ -85,31 +81,6 @@ export class OrchestrationService {
       return pipelineResponse;
     } catch (error) {
       logger.error('Pipeline prompt processing failed', {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        promptLength: data.prompt?.length || 0,
-      });
-      throw error;
-    }
-  }
-
-  private static async processPromptWithOpenAI(data: CreateProjectWithConversationRequest) {
-    logger.info('Starting OpenAI prompt processing', {
-      promptLength: data.prompt?.length || 0,
-      hasFeatures: !!data.features,
-    });
-
-    try {
-      const openAIResponse = await OpenAIGenerationService.generateScene(data.prompt);
-
-      logger.info('OpenAI processing completed successfully', {
-        hasMainState: !!openAIResponse.mainState,
-        elementCount: openAIResponse.mainState?.elements?.length || 0,
-      });
-
-      return openAIResponse;
-    } catch (error) {
-      logger.error('OpenAI prompt processing failed', {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
         promptLength: data.prompt?.length || 0,
@@ -176,43 +147,97 @@ export class OrchestrationService {
 
   // Centralized schema validation + normalization
   private static normalizeAndValidateMainState(raw: any) {
-    logger.info('Validating and normalizing openAI mainState response', {
-      raw,
+    logger.info('Validating and normalizing mainState response', {
+      hasScenes: !!raw.scenes,
+      hasDimensions: !!raw.dimensions,
+      rawType: typeof raw,
     });
 
     try {
-      // Process first scene's canvas
-      if (!raw.scenes || !Array.isArray(raw.scenes) || raw.scenes.length === 0) {
-        throw new Error('Invalid mainState format: missing scenes array');
+      // Handle new pipeline structure (with dimensions and scenes)
+      if (raw.dimensions && raw.scenes && Array.isArray(raw.scenes) && raw.scenes.length > 0) {
+        logger.info('Processing new pipeline structure with dimensions and scenes');
+        
+        // Validate the structure
+        if (!raw.scenes[0]?.sceneCanvas) {
+          throw new Error('Invalid schema: missing sceneCanvas in first scene');
+        }
+
+        const source = raw.scenes[0].sceneCanvas;
+        const elementsInput = Array.isArray(source.elements) ? source.elements : [];
+        const groupsInput = Array.isArray(source.groups) ? source.groups : [];
+
+        // Validate elements
+        const elemRes = validateElementsArray(elementsInput);
+        if (!elemRes.valid || !elemRes.value) {
+          throw new Error(`Invalid elements: ${elemRes.errors.join('; ')}`);
+        }
+
+        // Assign animation identifiers
+        const assigned = assignAnimationIdentifiers(elemRes.value, groupsInput, { recomputeDisplayNames: true });
+
+        // Return the validated structure
+        return {
+          dimensions: raw.dimensions,
+          scenes: [{
+            ...raw.scenes[0],
+            sceneCanvas: {
+              elements: assigned.elements,
+              groups: assigned.groups,
+              timeline: {
+                scale: source.timeline?.scale ?? 1,
+                duration: source.timeline?.duration ?? 3,
+                currentTime: source.timeline?.currentTime ?? 0,
+                animationStates: source.timeline?.animationStates ?? {},
+              },
+            },
+          }],
+        };
+      }
+      
+      // Handle legacy structure (just scenes array) - convert to new structure
+      if (raw.scenes && Array.isArray(raw.scenes) && raw.scenes.length > 0) {
+        logger.info('Processing legacy structure with scenes array - converting to new structure');
+        
+        if (!raw.scenes[0] || !raw.scenes[0].sceneCanvas) {
+          throw new Error('Invalid schema: missing first scene or sceneCanvas');
+        }
+
+        const source = raw.scenes[0].sceneCanvas;
+        const elementsInput = Array.isArray(source.elements) ? source.elements : [];
+        const groupsInput = Array.isArray(source.groups) ? source.groups : [];
+
+        const elemRes = validateElementsArray(elementsInput);
+        if (!elemRes.valid || !elemRes.value) {
+          throw new Error(`Invalid elements: ${elemRes.errors.join('; ')}`);
+        }
+
+        const assigned = assignAnimationIdentifiers(elemRes.value, groupsInput, { recomputeDisplayNames: true });
+
+        // Convert legacy structure to new structure
+        return {
+          dimensions: {
+            width: 1920,
+            height: 1080
+          },
+          scenes: [{
+            sceneId: raw.scenes[0].sceneId || 'default-scene',
+            sceneName: raw.scenes[0].sceneName || 'Default Scene',
+            sceneCanvas: {
+              elements: assigned.elements,
+              groups: assigned.groups,
+              timeline: {
+                scale: source.timeline?.scale ?? 1,
+                duration: source.timeline?.duration ?? 3,
+                currentTime: source.timeline?.currentTime ?? 0,
+                animationStates: source.timeline?.animationStates ?? {},
+              },
+            },
+          }],
+        };
       }
 
-      const firstScene = raw.scenes[0];
-      if (!firstScene || !firstScene.sceneCanvas) {
-        throw new Error('Invalid schema: missing first scene or sceneCanvas');
-      }
-
-      const source = firstScene.sceneCanvas;
-      const elementsInput = Array.isArray(source.elements) ? source.elements : [];
-
-      const elemRes = validateElementsArray(elementsInput);
-      if (!elemRes.valid || !elemRes.value) {
-        throw new Error(`Invalid elements: ${elemRes.errors.join('; ')}`);
-      }
-
-      const groupsInput = Array.isArray(source.groups) ? source.groups : [];
-
-      const assigned = assignAnimationIdentifiers(elemRes.value, groupsInput, { recomputeDisplayNames: true });
-
-      return {
-        elements: assigned.elements,
-        groups: assigned.groups,
-        timeline: {
-          scale: source.timeline?.scale ?? 1,
-          duration: source.timeline?.duration ?? 0,
-          currentTime: source.timeline?.currentTime ?? 0,
-          animationStates: {},
-        },
-      };
+      throw new Error('Invalid mainState format: missing scenes array or dimensions');
     } catch (error) {
       logger.error('normalizeAndValidateMainState failed', {
         error: error instanceof Error ? error.message : String(error),

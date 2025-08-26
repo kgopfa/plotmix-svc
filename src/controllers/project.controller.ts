@@ -88,6 +88,7 @@ export class ProjectController {
         return;
       }
 
+      // Use the chained generation pipeline directly
       const result: ProjectConfigurationResponse = await OrchestrationService.generateProjectConfiguration(req.user.userId, data);
 
       // Precompute render key and URL (using existing helper: same key format as renderer)
