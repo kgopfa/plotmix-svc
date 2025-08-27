@@ -1,14 +1,14 @@
-import { Orchestrator } from '../orchestrator';
-import { DslCompiler } from '../dsl/compiler';
-import { execute } from '../dsl/executor';
-import { pickStyle } from '../procedural/seed';
-import STYLES from '../../../specs/styles';
+import { Orchestrator } from '../services/pipeline/orchestrator';
+import { DslCompiler } from '../services/pipeline/dsl/compiler';
+import { execute } from '../services/pipeline/dsl/executor';
+import { pickStyle } from '../services/pipeline/procedural/seed';
+import STYLES from '../specs/styles';
 
 // Mock the LLM pipeline to avoid real LLM calls
-jest.mock('../llm', () => {
+jest.mock('../services/pipeline/llm', () => {
   class MockLlmPipeline {
     async execute(_: string) {
-      const dsl = `seed 9999\ncanvas 1280x720\nstyle auto\narray values [1,2] at (0,0) gap 20 cell 60`;
+      const dsl = `seed 9999\ncanvas 1920x1080\nstyle auto\narray values [1,2] at (0,0) gap 20 cell 60`;
       return { success: true, dsl };
     }
   }
@@ -19,7 +19,7 @@ describe('PipelineService', () => {
   describe('generateFromDsl', () => {
     it('should generate a scene from valid DSL', () => {
       const dsl = `seed 1234
-canvas 1280x720
+canvas 1920x1080
 style auto
 array values [1,2,3] at (0,0) gap 20 cell 60`;
 
@@ -154,7 +154,7 @@ describe('Executor', () => {
     const program = [{
       kind: 'SETUP' as const,
       seed: 1234,
-      canvas: { width: 1280, height: 720 },
+      canvas: { width: 1920, height: 1080 },
       style: 'auto'
     }, {
       kind: 'DRAW_ARRAY' as const,
