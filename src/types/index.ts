@@ -250,6 +250,12 @@ export * from './project';
 // DSL types
 export * from './dsl';
 
+// Procedural types
+export * from './procedural';
+
+// LLM types
+export * from './llm';
+
 // Utility types
 export interface BatchDeleteRequest {
   ids: string[];

@@ -1,145 +1,33 @@
-// Action-oriented DSL for building/updating mainState deterministically
-
-export type EasingAllowlist =
-  | 'none'
-  | 'power1.in' | 'power1.out' | 'power1.inOut'
-  | 'power2.in' | 'power2.out' | 'power2.inOut'
-  | 'power3.in' | 'power3.out' | 'power3.inOut'
-  | 'power4.in' | 'power4.out' | 'power4.inOut'
-  | 'back.in' | 'back.out' | 'back.inOut'
-  | 'elastic.in' | 'elastic.out' | 'elastic.inOut'
-  | 'bounce.in' | 'bounce.out' | 'bounce.inOut'
-  | 'sine.in' | 'sine.out' | 'sine.inOut'
-  | 'expo.in' | 'expo.out' | 'expo.inOut'
-  | 'circ.in' | 'circ.out' | 'circ.inOut';
-
-export type GroupType = 'text' | 'custom' | 'polygon';
-
-export interface DslContext {
-  canvas?: { width?: number; height?: number };
-  defaults?: {
-    fontFamily?: string;
-    easing?: EasingAllowlist;
-    duration?: number;
-  };
-}
-
-export interface AddElementAction {
-  type: 'addElement';
-  element: {
-    id?: string;
-    name?: string;
-    type: 'rectangle' | 'circle' | 'triangle' | 'text' | 'image' | 'line' | 'path';
-    x?: number;
-    y?: number;
-    width?: number;
-    height?: number;
-    rotation?: number;
-    fill?: string; // "#RRGGBB" | "none"
-    stroke?: string;
-    strokeWidth?: number;
-    opacity?: number;
-    zIndex?: number;
-    // Shape-specific
-    cornerRadius?: number; // rectangle
-    radius?: number; // circle
-    // Text-specific
-    text?: string;
-    fontFamily?: string;
-    fontSize?: number;
-    textAlign?: 'left' | 'center' | 'right';
-    wordWrap?: boolean;
-    wordWrapWidth?: number;
-    // Line-specific
-    lineOptions?: { points: { start: { x: number; y: number }; end: { x: number; y: number } } };
-    // Path-specific
-    pathPoints?: Array<{ x: number; y: number }>;
-    // Shadows
-    shadowEnabled?: boolean;
-    shadowColor?: string;
-    shadowBlur?: number;
-    shadowOffsetX?: number;
-    shadowOffsetY?: number;
-    shadowOpacity?: number;
-  };
-}
-
-export interface GroupElementsAction {
-  type: 'groupElements';
-  group: {
-    id?: string;
-    name?: string;
-    type: GroupType;
-    x?: number;
-    y?: number;
-    isDefaultGroup?: boolean;
-    elementIds: string[];
-  };
-}
-
-export interface SetStyleAction {
-  type: 'setStyle';
-  targetId: string;
-  props: {
-    fill?: string;
-    stroke?: string;
-    strokeWidth?: number;
-    opacity?: number;
-    fontFamily?: string;
-    fontSize?: number;
-    textAlign?: 'left' | 'center' | 'right';
-    cornerRadius?: number;
-    // Shadows
-    shadowEnabled?: boolean;
-    shadowColor?: string;
-    shadowBlur?: number;
-    shadowOffsetX?: number;
-    shadowOffsetY?: number;
-    shadowOpacity?: number;
-  };
-}
-
-export interface AnimateAction {
-  type: 'animate';
-  targetId: string;
-  animation: {
-    id?: string;
-    name?: string;
-    type: 'move' | 'scale' | 'rotate' | 'fade' | 'custom';
-    startTime: number;
-    duration: number;
-    easing?: EasingAllowlist;
-    properties: {
-      x?: number;
-      y?: number;
-      opacity?: number;
-      rotation?: number;
-      scaleX?: number;
-      scaleY?: number;
-      [key: string]: unknown;
-    };
-  };
-}
-
-export interface SetTimelineAction {
-  type: 'setTimeline';
-  timeline: {
-    scale?: number;
-    duration?: number;
-    currentTime?: number;
-  };
-}
-
 export type Action =
-  | AddElementAction
-  | GroupElementsAction
-  | SetStyleAction
-  | AnimateAction
-  | SetTimelineAction;
+  | { kind: "SETUP"; seed: number; canvas: { width: number; height: number }; style: "auto"|string }
+  | { kind: "DRAW_ARRAY"; values: (number|string)[]; at: { x: number; y: number }; gap: number; cell?: number }
+  | { kind: "DRAW_TEXT"; text: string; at: { x: number; y: number }; width: number; size: number; weight: number; align: "left"|"center"|"right" };
 
-export interface ActionPlan {
-  context?: DslContext;
-  actions: Action[];
-}
+export type ActionProgram = Action[];
 
+export type Group = {
+  animations: any[]; elementIds: string[]; x: number; y: number; id: string; name: string;
+  type: "custom"; opacity: number; rotation: number; isDefaultGroup: boolean;
+};
 
+export type Rect = {
+  animations: any[]; fill: string; x: number; y: number; id: string; name: string; type: "rectangle";
+  width: number; height: number; pivotX: number; pivotY: number; stroke: string; zIndex: number; groupId: string;
+  opacity: number; visible: boolean; shadowBlur: number; shadowColor: string; strokeWidth: number; cornerRadius: number;
+  shadowEnabled: boolean; shadowOffsetX: number; shadowOffsetY: number; shadowOpacity: number; isAnimationPath: boolean;
+};
+
+export type TextEl = {
+  animations: any[]; fill: string; x: number; y: number; id: string; name: string; text: string; type: "text";
+  width: number; height: number; pivotX: number; pivotY: number; zIndex: number; groupId: string; opacity: number; visible: boolean;
+  fontSize: number; wordWrap: boolean; fontStyle: "normal"|"italic"; textAlign: "left"|"right"|"center";
+  fontFamily: string; fontWeight: string|number; lineHeight: number; shadowBlur: number; shadowColor: string; strokeWidth: number;
+  cornerRadius: number; letterSpacing: number; shadowEnabled: boolean; shadowOffsetX: number; shadowOffsetY: number; shadowOpacity: number;
+  wordWrapWidth: number; textStrokeJoin: "round"|"miter"|"bevel"; isAnimationPath: boolean; textStrokeWidth: number;
+};
+
+export type Scene = {
+  groups: Group[];
+  elements: (Rect|TextEl)[];
+  timeline: { scale: number; duration: number; currentTime: number; animationStates: Record<string, unknown> };
+};

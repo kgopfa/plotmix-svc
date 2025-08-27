@@ -1,60 +1,92 @@
-import { Executor } from './dsl/executor';
-import { Compiler } from './dsl/compiler';
-import { LayoutGrammarService } from './layout-grammar.service';
-import { Router as LlmRouter } from './llm/router';
-import { AnimationResolverService } from './animation-resolver.service';
-// (no direct DSL type usage here)
-import { logger } from '../../utils/logger';
+import { DslCompiler } from './dsl/compiler';
+import { execute } from './dsl/executor';
+import { LlmPipeline } from './llm';
+import type { ActionProgram, Scene } from '../../types';
 
-// role type used by LLM router submodule
-
-export class Orchestrator {
-  static async generateFromPrompt(params: { prompt: string; canvas?: { width?: number; height?: number }; tone?: 'concise'|'friendly'|'formal' }) {
-    const prompt = params.prompt;
-    const canvas = { width: Number(params.canvas?.width) || 1920, height: Number(params.canvas?.height) || 1080 };
-    logger.info('pipeline:start', { promptLength: prompt.length, canvas });
-
-    const router = await LlmRouter.router(prompt);
-    logger.info('pipeline:stage_complete', { stage: 'router', archetypes: router.archetypes, tone: router.tone });
-
-    const intent = await LlmRouter.intent(prompt, router);
-    logger.info('pipeline:stage_complete', { stage: 'intent', domain: intent.domain, coreFlowsCount: intent.core_flows.length });
-
-    const beats = await LlmRouter.beats(router, intent);
-    logger.info('pipeline:stage_complete', { stage: 'beats', beatsCount: beats.beats.length });
-
-    const { entities } = await LlmRouter.entitySet(intent.domain, beats.beats);
-    logger.info('pipeline:stage_complete', { stage: 'entitySet', entitiesCount: entities.length });
-
-    const design = await LlmRouter.entityDesign(entities, router.tone);
-    logger.info('pipeline:stage_complete', { stage: 'entityDesign', designsCount: Array.isArray(design?.entityDesign) ? design.entityDesign.length : 0 });
-
-    const layout = LayoutGrammarService.layoutProcessFlow({ entities, canvas });
-    logger.info('pipeline:stage_complete', { stage: 'layout', nodesCount: layout.nodes.length });
-
-    const anim = await LlmRouter.animationPlan(entities, beats.beats);
-    logger.info('pipeline:stage_complete', { stage: 'animations_plan', animationsCount: Array.isArray(anim?.animations) ? anim.animations.length : 0 });
-
-    const resolved = AnimationResolverService.resolve({
-      abstract: anim.animations,
-      beats: beats.beats.map((b) => ({ id: b.id, narration: b.narration, durationSec: b.durationSec })),
-      groups: layout.nodes.map((n) => ({ id: `grp-${n.id}` }))
-    });
-    logger.info('pipeline:stage_complete', { stage: 'animations_resolved', tracks: resolved.length });
-
-    const dsl = Compiler.build({ layout, entities, design: design.entityDesign, animations: resolved });
-    logger.info('pipeline:stage_complete', { stage: 'compile', actionsCount: dsl.actions.length });
-
-    const mainState = await Executor.apply(dsl);
-    logger.info('pipeline:stage_complete', {
-      stage: 'execute+validate',
-      elementsCount: Array.isArray((mainState as any)?.elements) ? (mainState as any).elements.length : 0,
-      groupsCount: Array.isArray((mainState as any)?.groups) ? (mainState as any).groups.length : 0,
-      timelineDuration: Number((mainState as any)?.timeline?.duration) || 0
-    });
-    
-    return { mainState, summary: 'Generated single-scene illustrative canvas with validated animations.' };
-  }
+export interface PipelineResult {
+  success: boolean;
+  scene?: Scene;
+  error?: string;
+  summary?: string;
 }
 
+export class Orchestrator {
+  /**
+   * Generate a canvas scene from DSL input
+   */
+  static generateFromDsl(dsl: string): PipelineResult {
+    try {
+      const program = DslCompiler.compile(dsl);
+      if (program.length === 0) {
+        return { success: false, error: 'No valid actions found in DSL' };
+      }
 
+      const scene = execute(program);
+      return { success: true, scene, summary: this.generateSummary(program, scene) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  /**
+   * Generate a canvas scene using the full LLM pipeline (planner → visual → DSL → compile → execute)
+   */
+  static async generateFromPromptWithLLM(prompt: string): Promise<PipelineResult> {
+    try {
+      const llm = new LlmPipeline();
+      const result = await llm.execute(prompt);
+
+      if (!result.success) {
+        return { success: false, error: `LLM pipeline failed: ${result.error}` };
+      }
+
+      if (!result.dsl) {
+        return { success: false, error: 'LLM pipeline produced no DSL' };
+      }
+
+      const program = DslCompiler.compile(result.dsl);
+      if (program.length === 0) {
+        return { success: false, error: 'No valid actions found in LLM-generated DSL' };
+      }
+
+      const scene = execute(program);
+      return { success: true, scene, summary: this.generateSummary(program, scene) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  /**
+   * Human-readable summary (presentation-only)
+   */
+  private static generateSummary(program: ActionProgram, scene: Scene): string {
+    const setup = program.find(a => a.kind === 'SETUP');
+    const seed = setup && setup.kind === 'SETUP' ? setup.seed : 0;
+    const canvas = setup && setup.kind === 'SETUP' ? setup.canvas : { width: 1280, height: 720 };
+
+    const arrayElements = scene.elements.filter(el => el.type === 'rectangle').length;
+    const textElements = scene.elements.filter(el => el.type === 'text').length;
+
+    return `Generated visualization with ${arrayElements} array elements and ${textElements} text elements on ${canvas.width}x${canvas.height} canvas using seed ${seed}.`;
+  }
+
+  /**
+   * Basic structural validation of the resulting scene
+   */
+  static validateScene(scene: Scene): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    if (!scene.groups || scene.groups.length === 0) errors.push('Scene must contain at least one group');
+    if (!scene.elements || scene.elements.length === 0) errors.push('Scene must contain at least one element');
+    if (!scene.timeline) errors.push('Scene must have a timeline');
+
+    for (const group of scene.groups) {
+      if (!group.elementIds || group.elementIds.length === 0) errors.push(`Group ${group.id} has no elements`);
+      for (const elementId of group.elementIds) {
+        if (!scene.elements.find(el => el.id === elementId)) errors.push(`Group ${group.id} references non-existent element ${elementId}`);
+      }
+    }
+
+    return { valid: errors.length === 0, errors };
+  }
+}

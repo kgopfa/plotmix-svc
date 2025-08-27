@@ -1,0 +1,121 @@
+import { logger } from '../../../utils/logger';
+import { LlmFactory } from '../../../clients/llm/factory';
+import { PromptTemplates } from '../../../specs/pipeline';
+import type { LlmClient, ContentPlan, ScenePlan, Stage } from '../../../types';
+
+export interface ChainedExecutionResult {
+  success: boolean;
+  contentPlan?: ContentPlan;
+  scenePlan?: ScenePlan;
+  dsl?: string;
+  error?: string;
+  stage?: Stage;
+}
+
+export class ChainedExecutionPipeline {
+  private client: LlmClient;
+
+  constructor() {
+    this.client = LlmFactory.create();
+  }
+
+  /**
+   * Execute the full LLM pipeline from abstract prompt to DSL (no compilation here)
+   */
+  async execute(prompt: string): Promise<ChainedExecutionResult> {
+    try {
+      logger.info('llm-pipeline:start', { promptLength: prompt.length });
+
+      // Stage 1: Content Planner
+      const contentPlanResult = await this.executeContentPlanner(prompt);
+      if (!contentPlanResult.success) {
+        return {
+          success: false,
+          error: `Content Planner failed: ${contentPlanResult.error}`,
+          stage: 'planner'
+        };
+      }
+
+      const contentPlan = contentPlanResult.content as ContentPlan;
+      logger.info('llm-pipeline:content_planned', { 
+        problemTitle: contentPlan.problem.title,
+        arrayCount: contentPlan.visualRequirements.arrays.length 
+      });
+
+      // Stage 2: Visual Planner
+      const scenePlanResult = await this.executeVisualPlanner(contentPlan);
+      if (!scenePlanResult.success) {
+        return {
+          success: false,
+          error: `Visual Planner failed: ${scenePlanResult.error}`,
+          stage: 'visual'
+        };
+      }
+
+      const scenePlan = scenePlanResult.content as ScenePlan;
+      logger.info('llm-pipeline:visual_planned', { 
+        sectionsCount: scenePlan.sections.length,
+        canvas: scenePlan.canvas 
+      });
+
+      // Stage 3: DSL Emitter
+      const dslResult = await this.executeDslEmitter(scenePlan);
+      if (!dslResult.success) {
+        return {
+          success: false,
+          error: `DSL Emitter failed: ${dslResult.error}`,
+          stage: 'dsl'
+        };
+      }
+
+      const dsl = dslResult.content as string;
+      logger.info('llm-pipeline:dsl_generated', { dslLength: dsl.length });
+
+      // Return only LLM artifacts; compilation is handled by orchestrator
+      return {
+        success: true,
+        contentPlan,
+        scenePlan,
+        dsl
+      };
+
+    } catch (error) {
+      logger.error('llm-pipeline:error', { error: error instanceof Error ? error.message : String(error) });
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+
+  /**
+   * Execute Stage 1: Content Planner
+   */
+  private async executeContentPlanner(prompt: string): Promise<any> {
+    const messages = PromptTemplates.contentPlanner(prompt);
+    return await this.client.callStage('planner', messages, { temperature: 0.1, json: true });
+  }
+
+  /**
+   * Execute Stage 2: Visual Planner
+   */
+  private async executeVisualPlanner(contentPlan: ContentPlan): Promise<any> {
+    const messages = PromptTemplates.visualPlanner(contentPlan);
+    return await this.client.callStage('visual', messages, { temperature: 0.1, json: true });
+  }
+
+  /**
+   * Execute Stage 3: DSL Emitter
+   */
+  private async executeDslEmitter(scenePlan: ScenePlan): Promise<any> {
+    const messages = PromptTemplates.dslEmitter(scenePlan);
+    return await this.client.callStage('dsl', messages, { temperature: 0.0, json: false });
+  }
+
+  /**
+   * Get the raw LLM client for custom usage
+   */
+  getClient(): LlmClient {
+    return this.client;
+  }
+}

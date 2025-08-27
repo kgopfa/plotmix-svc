@@ -1,128 +1,143 @@
-import type { ActionPlan, Action } from '../../../types/dsl';
+import type { Action, ActionProgram } from '../../../types';
 
-export class Compiler {
-  static build(params: {
-    layout: { canvas: { width: number; height: number }, nodes: Array<{ id: string; x: number; y: number; width: number; height: number }> };
-    entities: Array<{ id: string; label?: string }>;
-    design: Array<any>;
-    animations: Array<any>;
-  }): ActionPlan {
-    const { layout, entities, design, animations } = params;
-    if (!layout || !layout.canvas || !Array.isArray(layout.nodes)) {
-      throw new Error('Compiler: invalid layout input');
-    }
-    if (!Array.isArray(entities)) {
-      throw new Error('Compiler: entities must be an array');
-    }
-    if (!Array.isArray(design)) {
-      throw new Error('Compiler: design must be an array');
-    }
-    if (!Array.isArray(animations)) {
-      throw new Error('Compiler: animations must be an array');
-    }
-    const actions: Action[] = [] as any;
+export class DslCompiler {
+  static compile(dsl: string): ActionProgram {
+    const lines = dsl.trim().split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    const program: Action[] = [];
 
-    const designById = new Map<string, any>(design.map((d: any) => [d.entityId, d]));
-    const labelById = new Map<string, string>((entities || []).map((e) => [e.id, e.label || e.id]));
-    const groupIds: Set<string> = new Set();
-
-    for (const n of layout.nodes) {
-      if (!n || typeof n.id !== 'string') throw new Error('Compiler: layout node missing id');
-      if (typeof n.x !== 'number' || typeof n.y !== 'number') throw new Error(`Compiler: layout node ${n.id} missing coordinates`);
-      if (typeof n.width !== 'number' || typeof n.height !== 'number') throw new Error(`Compiler: layout node ${n.id} missing size`);
-      const d = designById.get(n.id) || {};
-      const palette = d.palette || {};
-      const typography = d.typography || {};
-      const styleDefaults = {
-        fill: palette.fill || '#FFFFFF',
-        stroke: palette.stroke || '#E2E8F0',
-        text: '#0F172A',
-        fontFamily: typography.fontFamily || 'Inter',
-        fontSize: typography.fontSize || 16,
-        cornerRadius: typeof d.cornerRadius === 'number' ? d.cornerRadius : (d.template === 'card' ? 12 : 0),
-        shadow: d.emphasis === 'elevated' || d.shadow
-          ? { enabled: true, color: '#000000', blur: 12, offsetX: 0, offsetY: 8, opacity: 0.12 }
-          : { enabled: false }
-      } as const;
-      const bgId = `el-${n.id}-bg`;
-      actions.push({
-        type: 'addElement',
-        element: {
-          id: bgId,
-          type: 'rectangle',
-          name: 'entity-bg',
-          x: n.x,
-          y: n.y,
-          width: n.width,
-          height: n.height,
-          fill: styleDefaults.fill,
-          stroke: styleDefaults.stroke,
-          cornerRadius: styleDefaults.cornerRadius,
-          shadowEnabled: styleDefaults.shadow.enabled,
-          shadowColor: (styleDefaults.shadow as any).color,
-          shadowBlur: (styleDefaults.shadow as any).blur,
-          shadowOffsetX: (styleDefaults.shadow as any).offsetX,
-          shadowOffsetY: (styleDefaults.shadow as any).offsetY,
-          shadowOpacity: (styleDefaults.shadow as any).opacity,
-          animations: []
-        }
-      } as any);
-      const labelId = `el-${n.id}-label`;
-      actions.push({
-        type: 'addElement',
-        element: {
-          id: labelId,
-          type: 'text',
-          name: 'entity-label',
-          x: n.x,
-          y: n.y,
-          width: Math.max(120, n.width - 24),
-          height: Math.max(40, Math.round(n.height * 0.5)),
-          fill: styleDefaults.text,
-          text: labelById.get(n.id),
-          fontFamily: styleDefaults.fontFamily,
-          fontSize: styleDefaults.fontSize,
-          textAlign: 'center',
-          wordWrap: true,
-          wordWrapWidth: Math.max(120, n.width - 24),
-          animations: []
-        }
-      } as any);
-      actions.push({
-        type: 'groupElements',
-        group: {
-          id: `grp-${n.id}`,
-          name: `entity-${n.id}`,
-          type: 'custom',
-          x: n.x,
-          y: n.y,
-          isDefaultGroup: false,
-          elementIds: [bgId, labelId],
-          animations: []
-        }
-      } as any);
-      groupIds.add(`grp-${n.id}`);
+    for (const line of lines) {
+      const action = this.parseLine(line);
+      if (action) {
+        program.push(action);
+      }
     }
 
-    // Animations now come as abstract intents; resolved after this block by AnimationResolver
-
-    actions.push({ type: 'setTimeline', timeline: { scale: 100, duration: this.computeDuration(animations), currentTime: 0 } } as any);
-
-    if (actions.length === 0) {
-      throw new Error('Compiler: generated empty action list');
-    }
-
-    return { context: { canvas: { width: layout.canvas.width, height: layout.canvas.height } }, actions };
+    return program;
   }
 
-  private static computeDuration(anims: Array<any>): number {
-    let latest = 0;
-    for (const a of anims || []) {
-      const end = (Number(a?.startTime) || 0) + (Number(a?.duration) || 0);
-      if (end > latest) latest = end;
+  private static parseLine(line: string): Action | null {
+    const parts = line.split(/\s+/);
+    const command = parts[0]?.toLowerCase();
+
+    switch (command) {
+      case 'seed':
+        return this.parseSeed(parts);
+      case 'canvas':
+        return this.parseCanvas(parts);
+      case 'style':
+        return this.parseStyle(parts);
+      case 'text':
+        return this.parseText(line);
+      case 'array':
+        return this.parseArray(line);
+      default:
+        console.warn(`Unknown DSL command: ${command}`);
+        return null;
     }
-    return Math.max(1, Math.min(60, Math.round((latest + 0.2) * 100) / 100));
+  }
+
+  private static parseSeed(parts: string[]): Action | null {
+    if (parts.length < 2) return null;
+    const seed = parseInt(parts[1]!);
+    if (isNaN(seed)) return null;
+    
+    return {
+      kind: "SETUP",
+      seed,
+      canvas: { width: 1280, height: 720 }, // defaults
+      style: "auto"
+    };
+  }
+
+  private static parseCanvas(parts: string[]): Action | null {
+    if (parts.length < 2) return null;
+    const canvasStr = parts[1]!;
+    const match = canvasStr.match(/^(\d+)x(\d+)$/);
+    if (!match) return null;
+    
+    const width = parseInt(match[1]!);
+    const height = parseInt(match[2]!);
+    
+    return {
+      kind: "SETUP",
+      seed: 0, // will be overridden by actual seed command
+      canvas: { width, height },
+      style: "auto"
+    };
+  }
+
+  private static parseStyle(parts: string[]): Action | null {
+    if (parts.length < 2) return null;
+    const style = parts[1]!;
+    
+    return {
+      kind: "SETUP",
+      seed: 0, // will be overridden by actual seed command
+      canvas: { width: 1280, height: 720 }, // defaults
+      style: style === "auto" ? "auto" : style
+    };
+  }
+
+  private static parseText(line: string): Action | null {
+    // text at (-900,-60) w 900 size 36 weight 700 align left "Problem Understanding"
+    const atMatch = line.match(/at\s*\(([^)]+)\)/);
+    const wMatch = line.match(/w\s+(\d+)/);
+    const sizeMatch = line.match(/size\s+(\d+)/);
+    const weightMatch = line.match(/weight\s+(\d+)/);
+    const alignMatch = line.match(/align\s+(left|center|right)/);
+    const contentMatch = line.match(/"([^"]+)"/);
+
+    if (!atMatch || !contentMatch) return null;
+
+    const coords = atMatch[1]!.split(',').map(v => parseInt(v.trim()));
+    const x = coords[0];
+    const y = coords[1];
+    const width = wMatch ? parseInt(wMatch[1]!) : 600;
+    const size = sizeMatch ? parseInt(sizeMatch[1]!) : 28;
+    const weight = weightMatch ? parseInt(weightMatch[1]!) : 600;
+    const align = alignMatch ? alignMatch[1] as "left"|"center"|"right" : "left";
+
+    if (x === undefined || y === undefined || isNaN(x) || isNaN(y) || isNaN(width) || isNaN(size) || isNaN(weight)) return null;
+
+    return {
+      kind: "DRAW_TEXT",
+      text: contentMatch[1]!,
+      at: { x, y },
+      width,
+      size,
+      weight,
+      align
+    };
+  }
+
+  private static parseArray(line: string): Action | null {
+    // array values [4,5,6,7,0,1,2] at (-900,0) gap 16 cell 60
+    const valuesMatch = line.match(/values\s+\[([^\]]+)\]/);
+    const atMatch = line.match(/at\s*\(([^)]+)\)/);
+    const gapMatch = line.match(/gap\s+(\d+)/);
+    const cellMatch = line.match(/cell\s+(\d+)/);
+
+    if (!valuesMatch || !atMatch || !gapMatch) return null;
+
+    const values = valuesMatch[1]!.split(',').map(v => {
+      const trimmed = v.trim();
+      const num = parseInt(trimmed);
+      return isNaN(num) ? trimmed : num;
+    });
+
+    const x = parseInt(atMatch[1]!.split(',')[0]!.trim());
+    const y = parseInt(atMatch[1]!.split(',')[1]!.trim());
+    const gap = parseInt(gapMatch[1]!);
+    const cell = cellMatch ? parseInt(cellMatch[1]!) : undefined;
+
+    if (isNaN(x) || isNaN(y) || isNaN(gap)) return null;
+
+    return {
+      kind: "DRAW_ARRAY",
+      values,
+      at: { x, y },
+      gap,
+      ...(cell !== undefined && { cell })
+    };
   }
 }
-
-

@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import type { LlmClient, Stage, Role, OpenAiConfig } from './types';
+import type { LlmClient, Stage, Role, OpenAiConfig, PipelineStage } from './types';
 
 export class OpenAiLlmClient implements LlmClient {
   private readonly sdk: OpenAI;
@@ -10,10 +10,13 @@ export class OpenAiLlmClient implements LlmClient {
     this.sdk = new OpenAI({ apiKey: cfg.apiKey, baseURL: cfg.baseURL });
   }
 
-  private modelFor(stage: Stage): string {
+  private modelFor(stage: Stage | PipelineStage): string {
     if (stage === 'planner') return this.cfg.stages.modelPlanner;
     if (stage === 'entities') return this.cfg.stages.modelEntities;
-    return this.cfg.stages.modelActions;
+    if (stage === 'actions') return this.cfg.stages.modelActions;
+    if (stage === 'visual') return this.cfg.stages.modelPlanner; // Use planner model for visual stage
+    if (stage === 'dsl') return this.cfg.stages.modelActions; // Use actions model for DSL stage
+    throw new Error(`Unknown stage: ${stage}`);
   }
 
   async callStage(stage: Stage, messages: Array<{ role: Role; content: string }>, opts: { json?: boolean; temperature?: number } = {}): Promise<any> {
