@@ -1,9 +1,27 @@
 export type Action =
-  | { kind: "SETUP"; seed: number; canvas: { width: number; height: number }; style: "auto"|string }
-  | { kind: "DRAW_ARRAY"; values: (number|string)[]; at: { x: number; y: number }; gap: number; cell?: number }
-  | { kind: "DRAW_TEXT"; text: string; at: { x: number; y: number }; width: number; size: number; weight: number; align: "left"|"center"|"right" };
+  | { kind: "SETUP"; seed: number; canvas: { width: number; height: number }; style: "auto"|string; grid?: GridSpec }
+  | { kind: "DRAW_ARRAY"; values: (number|string)[]; gap?: number; cell?: number; gridPosition?: GridPosition }
+  | { kind: "DRAW_TEXT"; text: string; width?: number; size?: number; weight?: number; align?: "left"|"center"|"right"; gridPosition?: GridPosition };
 
 export type ActionProgram = Action[];
+
+export type GridSpec = {
+  columns: number;
+  gutterX: number;
+  marginX: number;
+  rows: number;
+  rowHeight: number;
+  gutterY: number;
+  marginY: number;
+  baseline?: number; // optional
+};
+
+export type GridPosition = {
+  colStart: number; // 1-based
+  colSpan: number;
+  rowStart: number; // 1-based
+  rowSpan: number;
+};
 
 export type Group = {
   animations: any[]; elementIds: string[]; x: number; y: number; id: string; name: string;

@@ -1,8 +1,9 @@
 import { DslCompiler } from './dsl/compiler';
 import { execute } from './dsl/executor';
 import { LlmPipeline } from './llm';
-import { validateElementsArray } from '../../schema/elements';
 import type { ActionProgram, Scene } from '../../types';
+import { validateElementsArray } from '../../schema/elements';
+import { logger } from '../../utils/logger';
 
 export interface PipelineResult {
   success: boolean;
@@ -15,6 +16,9 @@ export class Orchestrator {
   static async generateFromPrompt(prompt: string): Promise<PipelineResult> {
     const llm = new LlmPipeline();
     const result = await llm.execute(prompt);
+    // TEMPORARY DEBUG LOG - log the LLM pipeline result
+    logger.info('🔍 DEBUG: LLM pipeline result:', { result });
+
     if (!result.success) {
       throw new Error(`LLM pipeline failed: ${result.error}`);
     }
@@ -44,15 +48,36 @@ export class Orchestrator {
       }
 
       const scene = execute(program);
-      
+
       // Validate elements using schema validation
       const validationResult = validateElementsArray(scene.elements);
       if (!validationResult.valid) {
-        return { 
-          success: false, 
-          error: `Element validation failed: ${validationResult.errors.join('; ')}` 
-        };
+        logger.error('Element validation failed:', { errors: validationResult.errors });
+        throw new Error(`Element validation failed: ${validationResult.errors.join('; ')}`);
       }
+      
+      // TEMPORARY DEBUG LOG - log the generated scene after validation
+      logger.info('🔍 DEBUG: Generated scene after validation:', {
+        elementsCount: scene.elements.length,
+        groupsCount: scene.groups.length,
+        elements: scene.elements.map(el => ({
+          id: el.id,
+          type: el.type,
+          name: el.name,
+          x: el.x,
+          y: el.y,
+          width: el.width,
+          height: el.height,
+          fontFamily: el.type === 'text' ? (el as any).fontFamily : undefined,
+          fontWeight: el.type === 'text' ? (el as any).fontWeight : undefined
+        })),
+        groups: scene.groups.map(g => ({
+          id: g.id,
+          name: g.name,
+          elementIds: g.elementIds,
+          elementCount: g.elementIds.length
+        }))
+      });
       
       return { success: true, mainState: scene, summary: this.generateSummary(program, scene) };
     } catch (error) {

@@ -24,6 +24,7 @@ export class DslCompiler {
         return this.parseSeed(parts);
       case 'canvas':
         return this.parseCanvas(parts);
+      
       case 'style':
         return this.parseStyle(parts);
       case 'text':
@@ -78,6 +79,19 @@ export class DslCompiler {
     };
   }
 
+  /*
+  private static parseStyle(parts: string[]): Action | null {
+    if (parts.length < 2) return null;
+    const style = parts[1]!;
+    
+    return {
+      kind: "SETUP",
+      seed: 0, // will be overridden by actual seed command
+      canvas: { width: 1920, height: 1080 }, // high-res default
+      style: style === "auto" ? "auto" : style
+    };
+  }
+
   private static parseText(line: string): Action | null {
     // text at (-900,-60) w 900 size 36 weight 700 align left "Problem Understanding"
     const atMatch = line.match(/at\s*\(([^)]+)\)/);
@@ -109,35 +123,93 @@ export class DslCompiler {
       align
     };
   }
+  */
+
+
 
   private static parseArray(line: string): Action | null {
-    // array values [4,5,6,7,0,1,2] at (-900,0) gap 16 cell 60
-    const valuesMatch = line.match(/values\s+\[([^\]]+)\]/);
-    const atMatch = line.match(/at\s*\(([^)]+)\)/);
+    const valuesMatch = line.match(/^array\s+\[([^\]]+)\]/);
     const gapMatch = line.match(/gap\s+(\d+)/);
     const cellMatch = line.match(/cell\s+(\d+)/);
+    const gridMatch = line.match(/grid\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)/);
 
-    if (!valuesMatch || !atMatch || !gapMatch) return null;
+    if (!valuesMatch) {
+      return null;
+    }
 
     const values = valuesMatch[1]!.split(',').map(v => {
       const trimmed = v.trim();
-      const num = parseInt(trimmed);
-      return isNaN(num) ? trimmed : num;
+      return trimmed.startsWith('"') && trimmed.endsWith('"') 
+        ? trimmed.slice(1, -1) 
+        : isNaN(Number(trimmed)) ? trimmed : Number(trimmed);
     });
 
-    const x = parseInt(atMatch[1]!.split(',')[0]!.trim());
-    const y = parseInt(atMatch[1]!.split(',')[1]!.trim());
-    const gap = parseInt(gapMatch[1]!);
+    const gap = gapMatch ? parseInt(gapMatch[1]!) : undefined;
     const cell = cellMatch ? parseInt(cellMatch[1]!) : undefined;
+    
+    let gridPosition: any = undefined;
+    if (gridMatch) {
+      const colStart = gridMatch[1]!;
+      const colSpan = gridMatch[2]!;
+      const rowStart = gridMatch[3]!;
+      const rowSpan = gridMatch[4]!;
+      gridPosition = {
+        colStart: parseInt(colStart),
+        colSpan: parseInt(colSpan),
+        rowStart: parseInt(rowStart),
+        rowSpan: parseInt(rowSpan)
+      };
+    }
 
-    if (isNaN(x) || isNaN(y) || isNaN(gap)) return null;
+    return { 
+      kind: "DRAW_ARRAY", 
+      values, 
+      ...(gap !== undefined && { gap }),
+      ...(cell !== undefined && { cell }),
+      ...(gridPosition && { gridPosition })
+    };
+  }
 
-    return {
-      kind: "DRAW_ARRAY",
-      values,
-      at: { x, y },
-      gap,
-      ...(cell !== undefined && { cell })
+  private static parseText(line: string): Action | null {
+    const textMatch = line.match(/^text\s+"([^"]+)"/);
+    const widthMatch = line.match(/width\s+(\d+)/);
+    const sizeMatch = line.match(/size\s+(\d+)/);
+    const weightMatch = line.match(/weight\s+(\d+)/);
+    const alignMatch = line.match(/align\s+(left|center|right)/);
+    const gridMatch = line.match(/grid\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)/);
+
+    if (!textMatch) {
+      return null;
+    }
+
+    const text = textMatch[1]!;
+    const width = widthMatch ? parseInt(widthMatch[1]!) : undefined;
+    const size = sizeMatch ? parseInt(sizeMatch[1]!) : undefined;
+    const weight = weightMatch ? parseInt(weightMatch[1]!) : undefined;
+    const align = alignMatch ? alignMatch[1] as "left"|"center"|"right" : undefined;
+    
+    let gridPosition: any = undefined;
+    if (gridMatch) {
+      const colStart = gridMatch[1]!;
+      const colSpan = gridMatch[2]!;
+      const rowStart = gridMatch[3]!;
+      const rowSpan = gridMatch[4]!;
+      gridPosition = {
+        colStart: parseInt(colStart),
+        colSpan: parseInt(colSpan),
+        rowStart: parseInt(rowStart),
+        rowSpan: parseInt(rowSpan)
+      };
+    }
+
+    return { 
+      kind: "DRAW_TEXT", 
+      text, 
+      ...(width !== undefined && { width }),
+      ...(size !== undefined && { size }),
+      ...(weight !== undefined && { weight }),
+      ...(align !== undefined && { align }),
+      ...(gridPosition && { gridPosition })
     };
   }
 }

@@ -7,8 +7,8 @@ import { MESSAGE_TYPES } from '../types';
 import { logger } from '../utils/logger';
 import { createDefaultProjectConfiguration } from '../utils/project-config';
 import { AuthenticatedRequest, CreateProjectWithConversationRequest, ProjectConfigurationResponse, BatchDeleteRequest } from '../types';
-import { enqueueRenderJob } from '../services/render-queue.service';
-import { buildRenderObjectKey } from '../services/render-storage.service';
+// import { enqueueRenderJob } from '../services/render-queue.service';
+// import { buildRenderObjectKey } from '../services/render-storage.service';
 
 export class ProjectController {
   static async createProject(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -71,7 +71,7 @@ export class ProjectController {
       }
 
       // New pipeline: generate mainState via orchestrator, then create project
-      const generated = await Orchestrator.generateFromPrompt({ prompt: data.prompt, canvas: { width: 1920, height: 1080 } });
+      const generated = await Orchestrator.generateFromPrompt(data.prompt);
       const project = await ProjectService.createProject(req.user.userId, {
         name: data.name || 'Generated Project',
         title: data.title,
@@ -102,6 +102,7 @@ export class ProjectController {
         user: { id: req.user.userId!, name: (req.user as any).name, email: (req.user as any).email }
       };
 
+      /*
       // Precompute render key and URL (using existing helper: same key format as renderer)
       try {
         const key = buildRenderObjectKey(project.id);
@@ -151,6 +152,7 @@ export class ProjectController {
           } as any);
         } catch {}
       }
+      */
 
       res.status(201).json({
         success: true,
@@ -200,6 +202,8 @@ export class ProjectController {
         return;
       }
       const project = await ProjectService.getProjectById(projectId, req.user.userId);
+
+      logger.info('🔍 XXL: Project current state: ', { project });
 
       if (!project) {
         res.status(404).json({

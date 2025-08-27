@@ -37,14 +37,13 @@ Your output MUST be valid JSON matching this exact schema:
     "arrays": [
       {
         "values": [number|string],
-        "purpose": "string",
-        "position": {"x": number, "y": number}
+        "purpose": "string"
       }
     ]
   }
 }
 
-Be precise and concise. Include which visuals are needed (only arrays are supported).`
+Be precise and concise. Include which visuals are needed (only arrays are supported). Do not specify positions - the system will handle layout automatically.`
       },
       {
         role: 'user',
@@ -79,8 +78,7 @@ Your output MUST be valid JSON matching this exact schema:
         {
           "kind": "array",
           "values": [number|string],
-          "at": {"x": number, "y": number},
-          "gap": number,
+          "gap": number (optional),
           "cell": number (optional)
         }
       ] (optional)
@@ -91,9 +89,10 @@ Your output MUST be valid JSON matching this exact schema:
 Rules:
 - Use canvas 1920x1080 unless specified otherwise
 - Arrays are drawn horizontally with gap=16 and cell=60 unless specified
-- Position text elements above arrays (y = array_y - 60 for titles, y = array_y - 24 for descriptions)
+- Do NOT specify positions - the system automatically centers and spaces elements
 - Use seed=42 unless specified
-- style="auto" for seeded style selection`
+- style="auto" for seeded style selection
+- Optional: Grid system available for precise layouts (columns, rows, gutters, margins)`
       },
       {
         role: 'user',
@@ -114,7 +113,8 @@ Rules:
 STRICT RULES:
 - Output ONLY the DSL inside one \`\`\`dsl fenced block
 - Use defaults where unspecified
-- For each section: emit a title text at (x_section, y_section - 60), then any body text as one-liners
+- Do NOT specify coordinates - the system handles all positioning automatically
+- For each section: emit a title text, then any body text as one-liners
 - For visuals, support only: array
 - No prose or comments
 
@@ -124,11 +124,16 @@ seed <int>
 canvas <width>x<height>
 style <auto|Minimal|Monospace|...>
 
-text at (<x>,<y>) w <px> size <px> weight <int> align <left|center|right> "<one-line content>"
-array values [v1,v2,...] at (<x>,<y>) gap <px> cell <px>
+text size <px> weight <int> align <left|center|right> "<one-line content>"
+array [v1,v2,...] gap <px> cell <px>
 \`\`\`
 
-Defaults if omitted: size=28, weight=600, align=left, w=600.`
+Defaults if omitted: size=28, weight=600, align=center, gap=16, cell=60.
+
+Optional Grid Positioning:
+- grid <cols> cols <rows> rows <gutter> gutter <margin> margin
+- array [v1,v2,...] grid <colStart> <colSpan> <rowStart> <rowSpan>
+- text "content" grid <colStart> <colSpan> <rowStart> <rowSpan>`
       },
       {
         role: 'user',
