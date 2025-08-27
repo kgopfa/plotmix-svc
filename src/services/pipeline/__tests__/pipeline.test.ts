@@ -7,7 +7,7 @@ import STYLES from '../../../specs/styles';
 // Mock the LLM pipeline to avoid real LLM calls
 jest.mock('../llm', () => {
   class MockLlmPipeline {
-    async execute(prompt: string) {
+    async execute(_: string) {
       const dsl = `seed 9999\ncanvas 1280x720\nstyle auto\narray values [1,2] at (0,0) gap 20 cell 60`;
       return { success: true, dsl };
     }
@@ -40,12 +40,12 @@ array values [1,2,3] at (0,0) gap 20 cell 60`;
 
     it('should generate different scenes for different seeds', () => {
       const dsl1 = `seed 1111
-canvas 1280x720
+canvas 1920x1080
 style auto
 array values [1,2,3] at (0,0) gap 20 cell 60`;
 
       const dsl2 = `seed 2222
-canvas 1280x720
+canvas 1920x1080
 style auto
 array values [1,2,3] at (0,0) gap 20 cell 60`;
 
@@ -71,7 +71,7 @@ array values [1,2,3] at (0,0) gap 20 cell 60`;
   describe('generateFromDsl (heuristic)', () => {
     it('should generate scene from heuristic DSL', () => {
       const dsl = `seed 1234
-canvas 1280x720
+canvas 1920x1080
 style auto
 array values [1,2,3,4,5] at (0,0) gap 20 cell 60`;
       const result = Orchestrator.generateFromDsl(dsl);
@@ -84,7 +84,7 @@ array values [1,2,3,4,5] at (0,0) gap 20 cell 60`;
   describe('validateScene', () => {
     it('should validate a valid scene', () => {
       const dsl = `seed 1234
-canvas 1280x720
+canvas 1920x1080
 style auto
 array values [1,2] at (0,0) gap 20 cell 60`;
 
@@ -116,10 +116,10 @@ describe('DslCompiler', () => {
     const program = DslCompiler.compile(dsl);
     
     expect(program).toHaveLength(1);
-    expect(program[0].kind).toBe('SETUP');
-    const setup = program[0];
-    if (setup.kind !== 'SETUP') throw new Error('Expected SETUP');
-    expect(setup.seed).toBe(1234);
+    const first = program[0]!;
+    expect(first.kind).toBe('SETUP');
+    if (first.kind !== 'SETUP') throw new Error('Expected SETUP');
+    expect(first.seed).toBe(1234);
   });
 
   it('should parse canvas command', () => {
@@ -127,11 +127,11 @@ describe('DslCompiler', () => {
     const program = DslCompiler.compile(dsl);
     
     expect(program).toHaveLength(1);
-    expect(program[0].kind).toBe('SETUP');
-    const setup = program[0];
-    if (setup.kind !== 'SETUP') throw new Error('Expected SETUP');
-    expect(setup.canvas?.width).toBe(1920);
-    expect(setup.canvas?.height).toBe(1080);
+    const first = program[0]!;
+    expect(first.kind).toBe('SETUP');
+    if (first.kind !== 'SETUP') throw new Error('Expected SETUP');
+    expect(first.canvas?.width).toBe(1920);
+    expect(first.canvas?.height).toBe(1080);
   });
 
   it('should parse array command', () => {
@@ -139,13 +139,13 @@ describe('DslCompiler', () => {
     const program = DslCompiler.compile(dsl);
     
     expect(program).toHaveLength(1);
-    expect(program[0].kind).toBe('DRAW_ARRAY');
-    const draw = program[0];
-    if (draw.kind !== 'DRAW_ARRAY') throw new Error('Expected DRAW_ARRAY');
-    expect(draw.values).toEqual([1, 2, 3]);
-    expect(draw.at).toEqual({ x: 0, y: 0 });
-    expect(draw.gap).toBe(20);
-    expect(draw.cell).toBe(60);
+    const first = program[0]!;
+    expect(first.kind).toBe('DRAW_ARRAY');
+    if (first.kind !== 'DRAW_ARRAY') throw new Error('Expected DRAW_ARRAY');
+    expect(first.values).toEqual([1, 2, 3]);
+    expect(first.at).toEqual({ x: 0, y: 0 });
+    expect(first.gap).toBe(20);
+    expect(first.cell).toBe(60);
   });
 });
 
@@ -171,11 +171,11 @@ describe('Executor', () => {
     expect(scene.timeline).toBeDefined();
   });
 
-  it('should apply different styles based on seed', () => {
+  it('should apply seeded style to rectangles for each seed', () => {
     const program1 = [{
       kind: 'SETUP' as const,
       seed: 1111,
-      canvas: { width: 1280, height: 720 },
+      canvas: { width: 1920, height: 1080 },
       style: 'auto'
     }, {
       kind: 'DRAW_ARRAY' as const,
@@ -187,7 +187,7 @@ describe('Executor', () => {
     const program2 = [{
       kind: 'SETUP' as const,
       seed: 2222,
-      canvas: { width: 1280, height: 720 },
+      canvas: { width: 1920, height: 1080 },
       style: 'auto'
     }, {
       kind: 'DRAW_ARRAY' as const,
@@ -199,11 +199,14 @@ describe('Executor', () => {
     const scene1 = execute(program1);
     const scene2 = execute(program2);
 
-    // Different seeds should produce different styles
-    const element1 = scene1.elements.find(el => el.type === 'rectangle');
-    const element2 = scene2.elements.find(el => el.type === 'rectangle');
-    
-    expect(element1?.fill).not.toBe(element2?.fill);
+    const rect1 = scene1.elements.find(el => el.type === 'rectangle') as any;
+    const rect2 = scene2.elements.find(el => el.type === 'rectangle') as any;
+
+    const style1 = pickStyle(1111);
+    const style2 = pickStyle(2222);
+
+    expect(rect1.stroke).toBe(style1.palette.cellStroke);
+    expect(rect2.stroke).toBe(style2.palette.cellStroke);
   });
 });
 

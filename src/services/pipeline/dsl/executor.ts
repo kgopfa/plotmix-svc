@@ -14,7 +14,7 @@ function hashStr(s: string): string {
 }
 
 function idFor(seed: number, parts: string[]): string { 
-  return `${parts[0]}-${hashStr([seed, ...parts].join("|"))}`; 
+  return `${parts[0]}-${hashStr([seed, ...parts].join("|") )}`; 
 }
 
 // Element builders (cell group)
@@ -39,8 +39,8 @@ function makeCell(
     type: "rectangle",
     width: style.cell.w, 
     height: style.cell.h,
-    pivotX: 50, 
-    pivotY: 50,
+    pivotX: style.cell.w / 2, 
+    pivotY: style.cell.h / 2,
     stroke: style.palette.cellStroke,
     zIndex: 1,
     groupId: gid,
@@ -67,8 +67,8 @@ function makeCell(
     type: "text",
     width: Math.max(20, 0.33 * style.cell.w), // sensible default
     height: 0.51 * style.cell.h,
-    pivotX: 220, 
-    pivotY: 100,
+    pivotX: style.cell.w / 2, 
+    pivotY: style.cell.h / 2,
     zIndex: 2,
     groupId: gid,
     opacity: 1, 
@@ -114,7 +114,6 @@ function makeCell(
 export function execute(program: ActionProgram): Scene {
   // Defaults
   let seed = 0;
-  let canvas = { width: 1280, height: 720 };
   let style: StylePack = STYLES[0]!;
 
   const groups: Group[] = [];
@@ -122,9 +121,14 @@ export function execute(program: ActionProgram): Scene {
 
   for (const act of program) {
     if (act.kind === "SETUP") {
-      seed = act.seed;
-      canvas = act.canvas ?? canvas;
-      style = act.style === "auto" ? pickStyle(seed) : (STYLES.find(s => s.name === act.style) ?? STYLES[0]!);
+      // Only update seed when it is a meaningful value (non-zero)
+      if (typeof act.seed === 'number' && !Number.isNaN(act.seed) && act.seed !== 0) {
+        seed = act.seed;
+      }
+      // Recompute style if a style directive is present
+      if (typeof act.style === 'string') {
+        style = act.style === "auto" ? pickStyle(seed) : (STYLES.find(s => s.name === act.style) ?? STYLES[0]!);
+      }
     }
 
     if (act.kind === "DRAW_ARRAY") {
