@@ -78,7 +78,7 @@ function makeCell(
     fontStyle: "normal",
     textAlign: style.typography.align,
     fontFamily: style.typography.family,
-    fontWeight: style.typography.weight,
+    fontWeight: style.typography.weight, // Now a string, no conversion needed
     lineHeight: 1.2,
     shadowBlur: 0, 
     shadowColor: "#000000",
@@ -89,7 +89,7 @@ function makeCell(
     shadowOffsetX: 10, 
     shadowOffsetY: 10,
     shadowOpacity: 0.5,
-    wordWrapWidth: 440,
+    wordWrapWidth: Math.max(20, 0.33 * style.cell.w), // Must match width when wordWrap is true
     textStrokeJoin: "round",
     isAnimationPath: false,
     textStrokeWidth: 0,
@@ -125,6 +125,7 @@ export function execute(program: ActionProgram): Scene {
       if (typeof act.seed === 'number' && !Number.isNaN(act.seed) && act.seed !== 0) {
         seed = act.seed;
       }
+
       // Recompute style if a style directive is present
       if (typeof act.style === 'string') {
         style = act.style === "auto" ? pickStyle(seed) : (STYLES.find(s => s.name === act.style) ?? STYLES[0]!);
@@ -168,7 +169,7 @@ export function execute(program: ActionProgram): Scene {
         fontStyle: "normal",
         textAlign: act.align,
         fontFamily: style.typography.family,
-        fontWeight: act.weight,
+        fontWeight: String(act.weight), // Ensure fontWeight is a string
         lineHeight: 1.2,
         shadowBlur: 0,
         shadowColor: "#000000",

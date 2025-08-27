@@ -1,20 +1,42 @@
 import { DslCompiler } from './dsl/compiler';
 import { execute } from './dsl/executor';
 import { LlmPipeline } from './llm';
+import { validateElementsArray } from '../../schema/elements';
 import type { ActionProgram, Scene } from '../../types';
 
 export interface PipelineResult {
   success: boolean;
-  scene?: Scene;
+  mainState?: Scene;
   error?: string;
   summary?: string;
 }
 
 export class Orchestrator {
+  static async generateFromPrompt(prompt: string): Promise<PipelineResult> {
+    const llm = new LlmPipeline();
+    const result = await llm.execute(prompt);
+    if (!result.success) {
+      throw new Error(`LLM pipeline failed: ${result.error}`);
+    }
+
+    if (!result.dsl) {
+      throw new Error('LLM pipeline produced no DSL');
+    }
+
+    const dslResult = this.generateFromDsl(result.dsl);
+    
+    // If DSL generation failed due to validation, throw error
+    if (!dslResult.success) {
+      throw new Error(`DSL execution failed: ${dslResult.error}`);
+    }
+    
+    return dslResult;
+  }
+
   /**
    * Generate a canvas scene from DSL input
    */
-  static generateFromDsl(dsl: string): PipelineResult {
+  private static generateFromDsl(dsl: string): PipelineResult {
     try {
       const program = DslCompiler.compile(dsl);
       if (program.length === 0) {
@@ -22,35 +44,17 @@ export class Orchestrator {
       }
 
       const scene = execute(program);
-      return { success: true, scene, summary: this.generateSummary(program, scene) };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : String(error) };
-    }
-  }
-
-  /**
-   * Generate a canvas scene using the full LLM pipeline (planner → visual → DSL → compile → execute)
-   */
-  static async generateFromPromptWithLLM(prompt: string): Promise<PipelineResult> {
-    try {
-      const llm = new LlmPipeline();
-      const result = await llm.execute(prompt);
-
-      if (!result.success) {
-        return { success: false, error: `LLM pipeline failed: ${result.error}` };
+      
+      // Validate elements using schema validation
+      const validationResult = validateElementsArray(scene.elements);
+      if (!validationResult.valid) {
+        return { 
+          success: false, 
+          error: `Element validation failed: ${validationResult.errors.join('; ')}` 
+        };
       }
-
-      if (!result.dsl) {
-        return { success: false, error: 'LLM pipeline produced no DSL' };
-      }
-
-      const program = DslCompiler.compile(result.dsl);
-      if (program.length === 0) {
-        return { success: false, error: 'No valid actions found in LLM-generated DSL' };
-      }
-
-      const scene = execute(program);
-      return { success: true, scene, summary: this.generateSummary(program, scene) };
+      
+      return { success: true, mainState: scene, summary: this.generateSummary(program, scene) };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
@@ -62,7 +66,7 @@ export class Orchestrator {
   private static generateSummary(program: ActionProgram, scene: Scene): string {
     const setup = program.find(a => a.kind === 'SETUP');
     const seed = setup && setup.kind === 'SETUP' ? setup.seed : 0;
-    const canvas = setup && setup.kind === 'SETUP' ? setup.canvas : { width: 1280, height: 720 };
+    const canvas = setup && setup.kind === 'SETUP' ? setup.canvas : { width: 1920, height: 1080 };
 
     const arrayElements = scene.elements.filter(el => el.type === 'rectangle').length;
     const textElements = scene.elements.filter(el => el.type === 'text').length;

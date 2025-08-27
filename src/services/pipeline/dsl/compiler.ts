@@ -44,7 +44,7 @@ export class DslCompiler {
     return {
       kind: "SETUP",
       seed,
-      canvas: { width: 1280, height: 720 }, // defaults
+      canvas: { width: 1920, height: 1080 }, // high-res default
       style: "auto"
     };
   }
@@ -73,7 +73,7 @@ export class DslCompiler {
     return {
       kind: "SETUP",
       seed: 0, // will be overridden by actual seed command
-      canvas: { width: 1280, height: 720 }, // defaults
+      canvas: { width: 1920, height: 1080 }, // high-res default
       style: style === "auto" ? "auto" : style
     };
   }

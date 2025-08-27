@@ -3,5 +3,5 @@ export type StylePack = {
   cell: { w: number; h: number; radius: number; stroke: number };
   shadow: { blur: number; dx: number; dy: number; opacity: number; enabled: boolean };
   palette: { cellFill: string; cellStroke: string; text: string; surface: string };
-  typography: { family: string; size: number; weight: number; align: "center"|"left"|"right" };
+  typography: { family: string; size: number; weight: string; align: "center"|"left"|"right" };
 };

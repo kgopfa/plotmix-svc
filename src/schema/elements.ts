@@ -66,6 +66,9 @@ const FONT_ALLOWLIST: Set<string> = new Set([
   'Dancing Script','Pacifico','Great Vibes','Satisfy','Kaushan Script','Allura','Alex Brush',
   // Monospace
   'Geist Mono','Source Code Pro','Fira Code','JetBrains Mono','Inconsolata','Courier New','Consolas','Monaco','Menlo',
+  // CSS Font Stacks
+  'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
+  'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
 ]);
 
 function validateLineOptions(v: unknown): ValidationResult<LineOptions> {
