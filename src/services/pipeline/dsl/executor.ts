@@ -3,7 +3,7 @@ import type { StylePack } from '../../../types';
 import { pickStyle } from '../procedural/seed';
 import STYLES from '../../../specs/styles';
 import { randomUUID } from 'crypto';
-import { gridToRect, getDefaultGrid } from '../../../utils/grid';
+import { gridToRect } from '../../../utils/grid';
 
 
 
@@ -176,10 +176,7 @@ export function execute(program: ActionProgram): Scene {
       // Set up grid system
       if (act.grid) {
         grid = act.grid;
-      } else {
-        // Use default grid if none specified
-        grid = getDefaultGrid(canvasWidth, canvasHeight);
-      }
+      } 
     }
 
     if (act.kind === "DRAW_ARRAY") {

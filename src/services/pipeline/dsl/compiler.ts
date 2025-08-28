@@ -1,8 +1,12 @@
 import type { Action, ActionProgram } from '../../../types';
+import { logger } from '../../../utils/logger';
 
 export class DslCompiler {
   static compile(dsl: string): ActionProgram {
-    const lines = dsl.trim().split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    // Strip markdown fence blocks if present
+    const cleanDsl = dsl.replace(/^```dsl\s*\n?/, '').replace(/\n?```$/, '');
+    
+    const lines = cleanDsl.trim().split('\n').map(line => line.trim()).filter(line => line.length > 0);
     const program: Action[] = [];
 
     for (const line of lines) {
@@ -24,7 +28,6 @@ export class DslCompiler {
         return this.parseSeed(parts);
       case 'canvas':
         return this.parseCanvas(parts);
-      
       case 'style':
         return this.parseStyle(parts);
       case 'text':
@@ -32,8 +35,8 @@ export class DslCompiler {
       case 'array':
         return this.parseArray(line);
       default:
-        console.warn(`Unknown DSL command: ${command}`);
-        return null;
+        logger.error(`Unknown DSL command: ${command}`);
+        throw new Error(`Unknown DSL command: ${command}`);
     }
   }
 
@@ -124,8 +127,6 @@ export class DslCompiler {
     };
   }
   */
-
-
 
   private static parseArray(line: string): Action | null {
     const valuesMatch = line.match(/^array\s+\[([^\]]+)\]/);
