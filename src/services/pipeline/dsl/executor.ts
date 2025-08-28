@@ -1,9 +1,8 @@
-import type { ActionProgram, Scene, Group, Rect, TextEl, GridSpec } from '../../../types';
+import type { ActionProgram, Scene, Group, Rect, TextEl } from '../../../types';
 import type { StylePack } from '../../../types';
 import { pickStyle } from '../procedural/seed';
 import STYLES from '../procedural/layout/styles';
 import { randomUUID } from 'crypto';
-import { gridToCenter } from '../../../utils/grid';
 
 // Calculate optimal cell dimensions based on content
 function calculateOptimalCellDimensions(
@@ -99,29 +98,29 @@ function makeCell(
     type: "text",
     width: textWidth,
     height: textHeight,
-    pivotX: textWidth / 2,  // Center pivot for text
-    pivotY: textHeight / 2, // Center pivot for text
+    pivotX: textWidth / 2,  // Center pivot
+    pivotY: textHeight / 2, // Center pivot
     zIndex: 2,
     groupId: gid,
-    opacity: 1, 
+    opacity: 1,
     visible: true,
     fontSize: style.typography.size,
-    wordWrap: true,
+    wordWrap: false,
     fontStyle: "normal",
-    textAlign: style.typography.align,
+    textAlign: "center",
     fontFamily: style.typography.family,
     fontWeight: style.typography.weight,
     lineHeight: 1.2,
-    shadowBlur: 0, 
-    shadowColor: "#000000",
+    shadowBlur: 0,
+    shadowColor: "transparent",
     strokeWidth: 0,
     cornerRadius: 0,
     letterSpacing: 0,
     shadowEnabled: false,
-    shadowOffsetX: 10, 
-    shadowOffsetY: 10,
-    shadowOpacity: 0.5,
-    wordWrapWidth: textWidth,
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
+    shadowOpacity: 0,
+    wordWrapWidth: 0,
     textStrokeJoin: "round",
     isAnimationPath: false,
     textStrokeWidth: 0,
@@ -130,10 +129,10 @@ function makeCell(
   const group: Group = {
     animations: [],
     elementIds: [rid, tid],
-    x: centerX, 
-    y: centerY,
+    x: 0,
+    y: 0,
     id: gid,
-    name: `Cell ${value}`,
+    name: `Array Cell ${value}`,
     type: "custom",
     opacity: 1,
     rotation: 0,
@@ -143,7 +142,6 @@ function makeCell(
   return { group, rect, text };
 }
 
-// CORRECTED text element creation function
 function makeTextElement(
   text: string,
   centerX: number,
@@ -154,39 +152,35 @@ function makeTextElement(
   align: string,
   style: StylePack
 ): TextEl {
-  // Calculate actual text dimensions for proper centering
-  const isMonospace = style.typography.family.includes('monospace');
-  const charWidth = isMonospace ? 0.6 : 0.7;
-  const estimatedTextWidth = text.length * size * charWidth;
-  const textWidth = Math.min(estimatedTextWidth, width);
-  const textHeight = Math.max(size * 1.2, 40);
+  const tid = randomUUID();
+  const gid = randomUUID();
 
   return {
     animations: [],
     fill: style.palette.text,
     x: centerX,
     y: centerY,
-    id: randomUUID(),
-    name: `Text ${text.slice(0, 20)}`,
+    id: tid,
+    name: `Text ${text}`,
     text: text,
     type: "text",
-    width: textWidth,
-    height: textHeight,
-    pivotX: textWidth / 2,  // Center pivot
-    pivotY: textHeight / 2, // Center pivot
-    zIndex: 3,
-    groupId: "",
+    width: width,
+    height: size * 1.2,
+    pivotX: width / 2,
+    pivotY: (size * 1.2) / 2,
+    zIndex: 1,
+    groupId: gid,
     opacity: 1,
     visible: true,
     fontSize: size,
-    wordWrap: false,
+    wordWrap: true,
     fontStyle: "normal",
-    textAlign: align as "left" | "center" | "right",
+    textAlign: align as "left"|"center"|"right",
     fontFamily: style.typography.family,
-    fontWeight: String(weight),
+    fontWeight: weight,
     lineHeight: 1.2,
     shadowBlur: 0,
-    shadowColor: "#000000",
+    shadowColor: "transparent",
     strokeWidth: 0,
     cornerRadius: 0,
     letterSpacing: 0,
@@ -201,20 +195,17 @@ function makeTextElement(
   };
 }
 
-// Executor core - CORRECTED coordinate handling
+// Executor core - Simplified automatic positioning
 export function execute(program: ActionProgram): Scene {
   // Defaults
   let seed = 0;
   let style: StylePack = STYLES[0]!;
-  let grid: GridSpec | undefined = undefined;
-  let canvasWidth = 1920;
-  let canvasHeight = 1080;
 
   const groups: Group[] = [];
   const elements: (Rect|TextEl)[] = [];
   
-  // Automatic layout state (fallback when grid not used)
-  let currentY = 0; // Start at center
+  // Automatic layout state
+  let currentY = -400; // Start near the top of the canvas (center is 0)
   const verticalSpacing = 120; // Space between different elements
 
   for (const act of program) {
@@ -224,109 +215,59 @@ export function execute(program: ActionProgram): Scene {
         seed = act.seed;
       }
 
-      // Update canvas dimensions
-      canvasWidth = act.canvas.width;
-      canvasHeight = act.canvas.height;
-
       // Recompute style if a style directive is present
       if (typeof act.style === 'string') {
         style = act.style === "auto" ? pickStyle(seed) : (STYLES.find(s => s.name === act.style) ?? STYLES[0]!);
       }
-
-      // Set up grid system
-      if (act.grid) {
-        grid = act.grid;
-      } 
     }
 
     if (act.kind === "DRAW_ARRAY") {
-      if (act.gridPosition && grid) {
-        // CORRECTED: Use grid-based positioning with consistent center coordinates
-        const gridCenter = gridToCenter(grid, act.gridPosition, canvasWidth, canvasHeight);
-        const cellWidth = gridCenter.width / act.values.length;
-        const cellHeight = gridCenter.height;
-        
-        // Calculate starting X position for array (leftmost cell center)
-        const arrayWidth = act.values.length * cellWidth;
-        const startX = gridCenter.x - arrayWidth / 2 + cellWidth / 2;
-        
-        act.values.forEach((v, i) => {
-          const centerX = startX + i * cellWidth;
-          const centerY = gridCenter.y;
-          const { group, rect: cellRect, text } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight);
-          groups.push(group);
-          elements.push(cellRect, text);
-        });
-      } else {
-        // Automatic positioning (already correct - uses center-origin consistently)
-        const gap = act.gap ?? 16; // Default gap
-        const minCellSize = act.cell ?? style.cell.w;
+      // Automatic positioning for arrays
+      const minCellSize = act.cell ?? style.cell.w;
+      const gap = act.gap ?? 16;
 
-        // Calculate optimal cell dimensions based on content
-        const { width: cellWidth, height: cellHeight } = calculateOptimalCellDimensions(
-          act.values, 
-          style, 
-          minCellSize
-        );
+      // Calculate optimal cell dimensions based on content
+      const { width: cellWidth, height: cellHeight } = calculateOptimalCellDimensions(
+        act.values, 
+        style, 
+        minCellSize
+      );
 
-        // Calculate total width and position array at center
-        const totalWidth = act.values.length * cellWidth + (act.values.length - 1) * gap;
-        const startX = -totalWidth / 2; // Center the array horizontally
-
-        act.values.forEach((v, i) => {
-          const centerX = startX + i * (cellWidth + gap) + cellWidth / 2;
-          const centerY = currentY;
-          const { group, rect, text } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight);
-          groups.push(group);
-          elements.push(rect, text);
-        });
-        
-        currentY += verticalSpacing; // Move down for next element
-      }
+      // Calculate total width and position array at center
+      const totalWidth = act.values.length * cellWidth + (act.values.length - 1) * gap;
+      const startX = -totalWidth / 2; // Center the array horizontally
+      
+      act.values.forEach((v, i) => {
+        const centerX = startX + i * (cellWidth + gap) + cellWidth / 2;
+        const centerY = currentY;
+        const { group, rect, text } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight);
+        groups.push(group);
+        elements.push(rect, text);
+      });
+      
+      currentY += verticalSpacing; // Move down for next element
     }
 
     if (act.kind === "DRAW_TEXT") {
-      if (act.gridPosition && grid) {
-        // CORRECTED: Use grid-based positioning with consistent center coordinates
-        const gridCenter = gridToCenter(grid, act.gridPosition, canvasWidth, canvasHeight);
-        const width = act.width ?? gridCenter.width;
-        const size = act.size ?? 28;
-        const weight = act.weight ?? 600;
-        const align = act.align ?? "left";
-        
-        const textEl = makeTextElement(
-          act.text,
-          gridCenter.x,
-          gridCenter.y,
-          width,
-          size,
-          weight,
-          align,
-          style
-        );
-        
-        elements.push(textEl);
-      } else {
-        // Automatic positioning (already correct)
-        const width = act.width ?? 600;
-        const size = act.size ?? 28;
-        const weight = act.weight ?? 600;
-        const align = act.align ?? "left";
-        
-        const textEl = makeTextElement(
-          act.text,
-          0, // Center horizontally
-          currentY,
-          width,
-          size,
-          weight,
-          align,
-          style
-        );
-        
-        elements.push(textEl);
-        currentY += verticalSpacing; // Move down for next element
-      }
+      // Automatic positioning for text
+      const width = act.width ?? 600;
+      const size = act.size ?? 28;
+      const weight = act.weight ?? 600;
+      const align = act.align ?? "left";
+      
+      const textEl = makeTextElement(
+        act.text,
+        0, // Center horizontally
+        currentY,
+        width,
+        size,
+        weight,
+        align,
+        style
+      );
+      
+      elements.push(textEl);
+      currentY += verticalSpacing; // Move down for next element
     }
 
     // (future) DRAW_STACK, DRAW_QUEUE, DRAW_LINKED_LIST, DRAW_TREE...

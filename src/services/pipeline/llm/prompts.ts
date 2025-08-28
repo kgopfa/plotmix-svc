@@ -70,16 +70,7 @@ Examples of what goes in arrays:
 Your output MUST be valid JSON matching this exact schema:
 {
   "seed": number,
-  "canvas": {"width": number, "height": number},
   "style": "auto"|string,
-  "grid": {
-    "columns": number,
-    "rows": number, 
-    "gutterX": number,
-    "gutterY": number,
-    "marginX": number,
-    "marginY": number
-  },
   "sections": [
     {
       "id": "string",
@@ -88,13 +79,11 @@ Your output MUST be valid JSON matching this exact schema:
       "bullets": ["string"] (for bullet points - will be rendered as separate text elements),
       "complexity": "string (for complexity info like 'Time: O(n), Space: O(1)')",
       "keyIdeas": ["string"] (for concept lists),
-      "gridPosition": {"colStart": number, "colSpan": number, "rowStart": number, "rowSpan": number},
       "visuals": [
         {
           "kind": "array",
           "values": [number|string],
-          "purpose": "string",
-          "gridPosition": {"colStart": number, "colSpan": number, "rowStart": number, "rowSpan": number}
+          "purpose": "string"
         }
       ]
     }
@@ -102,24 +91,22 @@ Your output MUST be valid JSON matching this exact schema:
 }
 
 CRITICAL RULES:
-1. Use canvas 1920x1080 with a 12-column, 8-row grid system
-2. Always specify gridPosition for ALL elements (title, text, bullets, complexity, keyIdeas, visuals)
-3. Distribute content across rows to avoid stacking everything vertically
-4. Arrays are ONLY for actual data visualization (numbers/strings that represent array elements)
-5. All other content (titles, descriptions, complexity, concepts) goes in text/bullets/complexity/keyIdeas fields
-6. Use appropriate colSpan (1-12) and rowSpan (usually 1) for each element
-7. Start from row 1, distribute elements across multiple rows
+1. Focus on content structure, not positioning
+2. Arrays are ONLY for actual data visualization (numbers/strings that represent array elements)
+3. All other content (titles, descriptions, complexity, concepts) goes in text/bullets/complexity/keyIdeas fields
+4. The procedural system will handle layout automatically
 
-Grid Layout Strategy:
-- Row 1-2: Problem title and description  
-- Row 3-4: Example arrays and explanations
-- Row 5-6: Approach comparisons
-- Row 7-8: Edge cases and complexity info
+Content Organization Strategy:
+- Problem title and description
+- Example arrays and explanations  
+- Approach comparisons
+- Edge cases and complexity info
 
-Example gridPosition usage:
-- Title: {"colStart": 1, "colSpan": 12, "rowStart": 1, "rowSpan": 1}
-- Array visual: {"colStart": 3, "colSpan": 6, "rowStart": 3, "rowSpan": 1}
-- Complexity text: {"colStart": 1, "colSpan": 6, "rowStart": 7, "rowSpan": 1}`
+The procedural system will automatically:
+- Create appropriate layout
+- Position elements for optimal visual flow
+- Handle spacing and alignment
+- Ensure no overlapping or cramped layouts`
       },
       {
         role: 'user',
@@ -139,22 +126,19 @@ Example gridPosition usage:
 
 STRICT RULES:
 1. Output ONLY the DSL inside one \`\`\`dsl fenced block
-2. Always emit a grid setup command first
-3. Always specify grid positions for ALL elements
-4. Use text command for titles, descriptions, bullets, complexity info, keyIdeas
-5. Use array command ONLY for actual data arrays (numbers/strings representing array elements)
-6. No prose, comments, or explanations outside the DSL block
+2. Do NOT specify grid positions - the procedural system will handle layout automatically
+3. Use text command for titles, descriptions, bullets, complexity info, keyIdeas
+4. Use array command ONLY for actual data arrays (numbers/strings representing array elements)
+5. No prose, comments, or explanations outside the DSL block
 
 DSL Syntax:
 \`\`\`dsl
 seed <int>
-canvas <width>x<height>
 style <auto|Minimal|Monospace|...>
-grid <cols> cols <rows> rows <gutterX> gutter <marginX> margin
 
-text "<content>" grid <colStart> <colSpan> <rowStart> <rowSpan>
-text "<content>" size <px> weight <int> grid <colStart> <colSpan> <rowStart> <rowSpan>
-array [v1,v2,v3] grid <colStart> <colSpan> <rowStart> <rowSpan>
+text "<content>"
+text "<content>" size <px> weight <int>
+array [v1,v2,v3]
 \`\`\`
 
 CRITICAL: 
@@ -162,16 +146,18 @@ CRITICAL:
 - Do NOT put explanatory text in array commands
 - Arrays are ONLY for visualizing actual data: [1,2,3], ["a","b","c"], [5,10,15]
 - Text like "Time: O(n)" or "Binary search concept" goes in text commands, NOT arrays
+- Do NOT include grid positioning - the system will handle layout automatically
 
 Example of CORRECT usage:
-text "Binary Search Problem" size 32 weight 700 grid 1 12 1 1
-text "Find target in sorted array" grid 1 12 2 1  
-array [1,3,5,7,9] grid 3 6 3 1
-text "Time: O(log n), Space: O(1)" grid 1 6 7 1
+text "Binary Search Problem" size 32 weight 700
+text "Find target in sorted array"
+array [1,3,5,7,9]
+text "Time: O(log n), Space: O(1)"
 
 Example of INCORRECT usage:
-array ["Binary Search Problem"] grid 1 12 1 1  ❌ - This is a title, use text
-array ["Time: O(log n)","Space: O(1)"] grid 1 6 7 1  ❌ - This is complexity info, use text`
+array ["Binary Search Problem"]  ❌ - This is a title, use text
+array ["Time: O(log n)","Space: O(1)"]  ❌ - This is complexity info, use text
+text "Title" grid 1 12 1 1  ❌ - No grid positioning needed`
       },
       {
         role: 'user',

@@ -91,12 +91,11 @@ export class Orchestrator {
   private static generateSummary(program: ActionProgram, scene: Scene): string {
     const setup = program.find(a => a.kind === 'SETUP');
     const seed = setup && setup.kind === 'SETUP' ? setup.seed : 0;
-    const canvas = setup && setup.kind === 'SETUP' ? setup.canvas : { width: 1920, height: 1080 };
 
     const arrayElements = scene.elements.filter(el => el.type === 'rectangle').length;
     const textElements = scene.elements.filter(el => el.type === 'text').length;
 
-    return `Generated visualization with ${arrayElements} array elements and ${textElements} text elements on ${canvas.width}x${canvas.height} canvas using seed ${seed}.`;
+    return `Generated visualization with ${arrayElements} array elements and ${textElements} text elements using seed ${seed}.`;
   }
 
   /**
