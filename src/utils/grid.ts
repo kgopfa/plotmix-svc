@@ -160,3 +160,42 @@ export function centeredIndexToCenterY(
   const y = index * stepY; // 0 at center; positive is down
   return Math.min(Math.max(y, -usableHalf), usableHalf);
 }
+
+/**
+ * High-level helpers: compute center-based positions for a sequence
+ */
+export function computeCenteredXPositions(
+  count: number,
+  stepX: number,
+  canvasWidth: number,
+  marginX: number
+): number[] {
+  const indices = generateCenteredIndices(count);
+  return indices.map(i => centeredIndexToCenterX(i, stepX, canvasWidth, marginX));
+}
+
+export function computeCenteredYPositions(
+  count: number,
+  stepY: number,
+  canvasHeight: number,
+  marginY: number
+): number[] {
+  const indices = generateCenteredIndices(count);
+  return indices.map(i => centeredIndexToCenterY(i, stepY, canvasHeight, marginY));
+}
+
+export function computeCenteredXYGrid(
+  countX: number,
+  stepX: number,
+  canvasWidth: number,
+  marginX: number,
+  countY: number,
+  stepY: number,
+  canvasHeight: number,
+  marginY: number
+): { x: number[]; y: number[] } {
+  return {
+    x: computeCenteredXPositions(countX, stepX, canvasWidth, marginX),
+    y: computeCenteredYPositions(countY, stepY, canvasHeight, marginY),
+  };
+}

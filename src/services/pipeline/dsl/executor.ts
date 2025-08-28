@@ -4,6 +4,7 @@ import { pickStyle } from '../procedural/seed';
 import STYLES from '../procedural/layout/styles';
 import { randomUUID } from 'crypto';
 // Use center-origin helpers for array placement aligned to a center-based grid
+import { computeCenteredXPositions } from '../../../utils/grid';
  
 // Calculate optimal cell dimensions based on content
 function calculateOptimalCellDimensions(
@@ -183,12 +184,13 @@ export function execute(program: ActionProgram): Scene {
 
       // Place middle item at x=0 using symmetric spacing (gap + cell width as step)
       const stepX = cellWidth + gap;
-      const startIndex = -(act.values.length - 1) / 2; // e.g., 5 -> -2 .. 2
       const arrayY = 0; // center row per requirement
+      const canvasWidth = 1920;
+      const marginX = 40;
+      const centerXs = computeCenteredXPositions(act.values.length, stepX, canvasWidth, marginX);
       
       act.values.forEach((v, i) => {
-        const logicalIndex = startIndex + i; // symmetric around 0
-        const centerX = logicalIndex * stepX;
+        const centerX = centerXs[i]!;
         const centerY = arrayY;
         const { group, rect, text } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight);
         groups.push(group);
