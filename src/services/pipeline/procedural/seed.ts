@@ -1,5 +1,5 @@
 import type { StylePack } from "../../../types";
-import STYLES from "../../../specs/styles";
+import STYLES from "./layout/styles";
 
 // Simple PRNG
 function mulberry32(seed: number){ 
