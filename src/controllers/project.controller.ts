@@ -1,11 +1,14 @@
 import { Response } from 'express';
 import { ProjectService } from '../services/project.service';
-import { OrchestrationService } from '../services/orchestration.service';
+// import { OrchestrationService } from '../services/orchestration.service';
+import { Orchestrator } from '../services/pipeline/orchestrator';
+import { ConversationService } from '../services/conversation.service';
+import { MESSAGE_TYPES } from '../types';
 import { logger } from '../utils/logger';
 import { createDefaultProjectConfiguration } from '../utils/project-config';
 import { AuthenticatedRequest, CreateProjectWithConversationRequest, ProjectConfigurationResponse, BatchDeleteRequest } from '../types';
-import { enqueueRenderJob } from '../services/render-queue.service';
-import { buildRenderObjectKey } from '../services/render-storage.service';
+// import { enqueueRenderJob } from '../services/render-queue.service';
+// import { buildRenderObjectKey } from '../services/render-storage.service';
 
 export class ProjectController {
   static async createProject(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -88,12 +91,42 @@ export class ProjectController {
         return;
       }
 
-      // Use the chained generation pipeline directly
-      const result: ProjectConfigurationResponse = await OrchestrationService.generateProjectConfiguration(req.user.userId, data);
+      // New pipeline: generate mainState via orchestrator, then create project
+      const generated = await Orchestrator.generateFromPrompt(data.prompt);
+      const project = await ProjectService.createProject(req.user.userId, {
+        name: data.name || 'Generated Project',
+        title: data.title,
+        source: 'GENERATED',
+        mainState: generated.mainState,
+        configuration: createDefaultProjectConfiguration(),
+        features: {
+          attachments: { enabled: false },
+          audio: { enabled: false },
+          music: { enabled: false },
+          webSearch: { enabled: false },
+        },
+      } as any);
+      // Create a conversation linked to the new project and seed messages
+      let conversationId = '';
+      try {
+        const conversation = await ConversationService.createConversation(req.user.userId, { projectId: project.id });
+        conversationId = conversation.id;
+        await ConversationService.addMessage(conversationId, req.user.userId, { content: data.prompt } as any, MESSAGE_TYPES.USER);
+        await ConversationService.addMessage(conversationId, req.user.userId, { content: generated.summary || 'Generated via pipeline' } as any, MESSAGE_TYPES.LLM);
+      } catch (e) {
+        logger.error('Failed to create conversation/messages for generated project', { error: e instanceof Error ? e.message : String(e) });
+      }
 
+      const result: ProjectConfigurationResponse = {
+        project,
+        conversationId,
+        user: { id: req.user.userId!, name: (req.user as any).name, email: (req.user as any).email }
+      };
+
+      /*
       // Precompute render key and URL (using existing helper: same key format as renderer)
       try {
-        const key = buildRenderObjectKey(result.project.id);
+        const key = buildRenderObjectKey(project.id);
         const publicBase = process.env['R2_PUBLIC_BASE'] || process.env['R2_PUBLIC_ENDPOINT'] || process.env['R2_ENDPOINT'];
         if (!publicBase) {
           throw new Error('Missing required environment variable for public render URL: set R2_PUBLIC_BASE or R2_ENDPOINT');
@@ -117,7 +150,7 @@ export class ProjectController {
         }
 
         // Update project with pending status and URL if we could compute it
-        await ProjectService.updateProject(result.project.id, req.user.userId, {
+        await ProjectService.updateProject(project.id, req.user.userId, {
           contentVideoKey: key,
           contentVideoUrl: url,
           contentVideoStatus: 'pending',
@@ -125,7 +158,7 @@ export class ProjectController {
 
         // Enqueue async render (fire-and-forget)
         void enqueueRenderJob({
-          projectId: result.project.id,
+          projectId: project.id,
           fps: 30,
           width: 1920,
           height: 1080,
@@ -135,11 +168,12 @@ export class ProjectController {
         logger.error('Failed to enqueue render job', { err });
         // If we cannot enqueue or compute a public URL, ensure project reflects failure state
         try {
-          await ProjectService.updateProject(result.project.id, req.user.userId, {
+          await ProjectService.updateProject(project.id, req.user.userId, {
             contentVideoStatus: 'failed',
           } as any);
         } catch {}
       }
+      */
 
       res.status(201).json({
         success: true,
@@ -170,7 +204,7 @@ export class ProjectController {
     
     try {
       if (!req.user || !req.user.userId) {
-        logger.warn('❌ User not authenticated for getProject', {
+        logger.warn('User not authenticated for getProject', {
           projectId: req.params['projectId'],
         });
         res.status(401).json({
@@ -188,6 +222,7 @@ export class ProjectController {
         });
         return;
       }
+      
       const project = await ProjectService.getProjectById(projectId, req.user.userId);
 
       if (!project) {
@@ -197,12 +232,6 @@ export class ProjectController {
         });
         return;
       }
-
-      logger.info('Project current state', {
-        projectId,
-        userId: req.user?.userId,
-        project: project.mainState,
-      });
 
       res.json({
         success: true,

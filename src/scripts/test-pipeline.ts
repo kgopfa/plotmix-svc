@@ -1,41 +1,41 @@
-import { PipelineGenerationService } from '../services/pipeline-generation.service';
-import { logger } from '../utils/logger';
+/*
+  Usage:
+    pnpm ts-node src/scripts/test-pipeline.ts "Design a rate limiter"
 
-async function testPipeline() {
+  Requires env:
+    - OPENAI_API_KEY
+    - LLM_ROUTER_PROVIDER=openai
+    - LLM_MODEL_PLANNER, LLM_MODEL_ENTITIES, LLM_MODEL_ACTIONS
+*/
+
+import { Orchestrator } from '../services/pipeline/orchestrator';
+
+async function main() {
+  const prompt = process.argv.slice(2).join(' ').trim() || 'Illustrate how to solve Search in a rotated sorted array';
+  console.log('▶️  Running pipeline for prompt:', JSON.stringify(prompt));
+  console.time('pipeline.total');
+
   try {
-    logger.info('Testing pipeline generation service...');
-    
-    const testPrompt = 'Explain how a web application processes user authentication requests';
-    
-    logger.info('Generating scene with prompt:', { prompt: testPrompt });
-    
-    const result = await PipelineGenerationService.generateScene(testPrompt);
-    
-    logger.info('Pipeline generation completed successfully', {
-      name: result.name,
-      title: result.title,
-      description: result.description,
-      elementCount: result.mainState.scenes[0]?.sceneCanvas?.elements?.length || 0,
-      groupCount: result.mainState.scenes[0]?.sceneCanvas?.groups?.length || 0,
-      timeline: result.mainState.scenes[0]?.sceneCanvas?.timeline,
-    });
-    
-    logger.info('Test completed successfully');
-    process.exit(0);
-    
-  } catch (error) {
-    logger.error('Pipeline test failed', {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    });
-    process.exit(1);
+    console.time('pipeline.run');
+    const { mainState, summary } = await Orchestrator.generateFromPrompt(prompt);
+    console.timeEnd('pipeline.run');
+    const elements = Array.isArray(mainState?.elements) ? mainState.elements.length : 0;
+    const groups = Array.isArray(mainState?.groups) ? mainState.groups.length : 0;
+    const duration = Number(mainState?.timeline?.duration) || 0;
+    console.log('✅ Pipeline completed');
+    console.log('Summary:', summary);
+    console.log('Result:', { elements, groups, duration });
+    // Print first few element ids for sanity
+    const ids = (mainState?.elements || []).slice(0, 5).map((e: any) => e.id);
+    console.log('Preview element ids:', ids);
+    console.timeEnd('pipeline.total');
+  } catch (err) {
+    console.error('❌ Pipeline failed:', err instanceof Error ? err.message : String(err));
+    console.timeEnd('pipeline.total');
+    process.exitCode = 1;
   }
 }
 
-// Run the test if this file is executed directly
-if (require.main === module) {
-  testPipeline().catch((error) => {
-    logger.error('Unhandled error in test pipeline', { error });
-    process.exit(1);
-  });
-}
+main();
+
+

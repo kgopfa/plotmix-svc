@@ -200,32 +200,26 @@ Global rules:
   - Shadows: shadowColor must be hex if provided; other shadow fields are numeric.
   - Text stroke: textStroke must be hex if provided; set textStrokeWidth to 0 (or omit) to disable.
   - Gradients: for textGradient.colors, each color must be hex.
-- For "line", include lineOptions.points.start and .end; include controlPoint for curves; arrow/dotted booleans allowed. Set width/height to 0.
-- For "path" elements, include pathPoints with at least 2 points. Set width/height to 0.
-- For "polygon" elements, include polygonOptions.points with at least 3 points and isClosed boolean. Set width/height to 0.
-- Each element MUST include "animations" (can be []). If you add animations, include both id and displayName as defined above.
-- Dimension rules:
-  - For ALL elements: you MUST include both width and height with numbers >= 0.
-  - For line, path, and polygon: typically set width/height to 0 since dimensions are defined by points.
-  - For text elements: set a reasonable width to enable wrapping; if wordWrap is true, set wordWrapWidth equal to width.
-  - For circle: width/height define the bounding box; radius is optional.
-- Type-specific rules:
-  - text: MUST include "text" (string). Use "fill" as the text color (hex). Provide fontFamily from the supported list and fontSize.
-  - line: MUST include x and y (numbers). Set fill: "none". Provide stroke (hex) and strokeWidth (number). Provide lineOptions.points.start/end. If isCurved: true, include a valid controlPoint.
-  - path: typically set fill: "none" and provide stroke (hex) and strokeWidth for visible paths; include at least 2 pathPoints.
-  - polygon: typically set fill: "none" and provide stroke (hex) and strokeWidth for visible polygons; include at least 3 pathPoints.
-- Font support (allowed values for element.fontFamily):
-  - Sans-serif: "Inter", "Roboto", "Libre Franklin", "Raleway", "Source Sans Pro", "Poppins", "Open Sans", "Lato", "Arial", "Helvetica", "Verdana", "Tahoma", "Trebuchet MS".
-  - Serif: "Playfair Display", "Merriweather", "Lora", "Times New Roman", "Georgia", "Garamond", "Palatino".
-  - Script: "Dancing Script", "Pacifico", "Great Vibes", "Satisfy", "Kaushan Script", "Allura", "Alex Brush".
-  - Monospace: "Geist Mono", "Source Code Pro", "Fira Code", "JetBrains Mono", "Inconsolata", "Courier New", "Consolas", "Monaco", "Menlo".
-  - Choose from the above. Default to "Inter" for general text unless a different style is clearly needed (e.g., "Geist Mono" for code-like text).
-- Timeline constraints:
-  - Each scene duration must be between 1-120 seconds
-  - Timeline scale should be between 10-1000 pixels per second
-  - All animations must complete within the scene duration
-- Do NOT include unknown fields.
-- Return ONLY the JSON object with shape: { "name": string, "title": string, "description": string, "mainState": {"dimensions": {"width": number, "height": number}, "scenes": [{"sceneId": string, "sceneName": string, "sceneCanvas": {"elements": [...], "groups": [...], "timeline": {...}}}]} }.
+- For "line", include lineOptions.points.start and .end; include controlPoint for curves; arrow/dotted booleans allowed. Width/height are not used for rendering lines.
+- For "path" elements, include pathPoints with at least 2 points. Width/height are not used for rendering paths.
+  - Each element MUST include "animations" (can be []). If you add animations, include both id and displayName as defined above.
+  - Dimension rules:
+    - For ALL non-line/non-path elements (rectangle, circle, triangle, arc, image, text): you MUST include both width and height with positive numbers.
+    - For text elements: set a reasonable width to enable wrapping; if wordWrap is true, set wordWrapWidth equal to width.
+    - For circle: width/height define the bounding box; radius is optional.
+  - Type-specific rules:
+    - text: MUST include "text" (string). Use "fill" as the text color (hex). Provide fontFamily from the supported list and fontSize.
+    - line: MUST include x and y (numbers). Set fill: "none". Provide stroke (hex) and strokeWidth (number). Provide lineOptions.points.start/end. If isCurved: true, include a valid controlPoint.
+    - path: typically set fill: "none" and provide stroke (hex) and strokeWidth for visible paths; include at least 2 pathPoints.
+  - Font support (allowed values for element.fontFamily):
+    - Sans-serif: "Inter", "Roboto", "Libre Franklin", "Raleway", "Source Sans Pro", "Poppins", "Open Sans", "Lato", "Arial", "Helvetica", "Helvetica Neue", "Segoe UI", "Montserrat", "Nunito", "Geist", "Verdana", "Tahoma", "Trebuchet MS".
+    - Serif: "Playfair Display", "Merriweather", "Lora", "Times New Roman", "Georgia", "Garamond", "Palatino".
+    - Script: "Dancing Script", "Pacifico", "Great Vibes", "Satisfy", "Kaushan Script", "Allura", "Alex Brush".
+    - Monospace: "Geist Mono", "Source Code Pro", "Fira Code", "JetBrains Mono", "Inconsolata", "Courier New", "Consolas", "Monaco", "Menlo".
+    - Choose from the above. Default to "Inter" for general text unless a different style is clearly needed (e.g., "Geist Mono" for code-like text).
+ - Do NOT include unknown fields.
+  - Return ONLY the JSON object with shape: { "name": string, "title": string, "description": string, "mainState": { "elements": [...], "groups": [...], "timeline": {...} } }.
+
 `;
 
 
