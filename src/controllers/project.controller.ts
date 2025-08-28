@@ -183,7 +183,7 @@ export class ProjectController {
     
     try {
       if (!req.user || !req.user.userId) {
-        logger.warn('❌ User not authenticated for getProject', {
+        logger.warn('User not authenticated for getProject', {
           projectId: req.params['projectId'],
         });
         res.status(401).json({
@@ -201,9 +201,8 @@ export class ProjectController {
         });
         return;
       }
+      
       const project = await ProjectService.getProjectById(projectId, req.user.userId);
-
-      logger.info('🔍 XXL: Project current state: ', { project });
 
       if (!project) {
         res.status(404).json({
@@ -212,12 +211,6 @@ export class ProjectController {
         });
         return;
       }
-
-      logger.info('Project current state', {
-        projectId,
-        userId: req.user?.userId,
-        project: project.mainState,
-      });
 
       res.json({
         success: true,

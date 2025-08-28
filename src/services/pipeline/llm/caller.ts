@@ -1,6 +1,6 @@
 import { logger } from '../../../utils/logger';
 import { LlmFactory } from '../../../clients/llm/factory';
-import { PromptTemplates } from '../../../specs/pipeline';
+import { PromptTemplates } from './prompts';
 import type { LlmClient, ContentPlan, ScenePlan, Stage } from '../../../types';
 
 export interface ChainedExecutionResult {
@@ -12,7 +12,7 @@ export interface ChainedExecutionResult {
   stage?: Stage;
 }
 
-export class ChainedExecutionPipeline {
+export class ChainedCaller {
   private client: LlmClient;
 
   constructor() {

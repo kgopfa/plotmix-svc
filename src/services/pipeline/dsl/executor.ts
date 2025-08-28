@@ -1,11 +1,9 @@
 import type { ActionProgram, Scene, Group, Rect, TextEl, GridSpec } from '../../../types';
 import type { StylePack } from '../../../types';
 import { pickStyle } from '../procedural/seed';
-import STYLES from '../../../specs/styles';
+import STYLES from '../procedural/layout/styles';
 import { randomUUID } from 'crypto';
-import { gridToRect } from '../../../utils/grid';
-
-
+import { gridToCenter } from '../../../utils/grid';
 
 // Calculate optimal cell dimensions based on content
 function calculateOptimalCellDimensions(
@@ -39,12 +37,12 @@ function calculateOptimalCellDimensions(
   return { width: optimalWidth, height: optimalHeight };
 }
 
-// Element builders (cell group)
+// Element builders (cell group) - CORRECTED to use consistent center-origin positioning
 function makeCell(
   style: StylePack, 
   value: string|number, 
-  x: number, 
-  y: number,
+  centerX: number, 
+  centerY: number,
   cellWidth: number,
   cellHeight: number
 ): { group: Group; rect: Rect; text: TextEl } {
@@ -52,17 +50,19 @@ function makeCell(
   const rid = randomUUID();
   const tid = randomUUID();
 
+  // Rectangle positioned at center with center pivots
   const rect: Rect = {
     animations: [],
     fill: style.cell.fill,
-    x, y,
+    x: centerX, 
+    y: centerY,
     id: rid,
     name: `Rectangle ${value}`,
     type: "rectangle",
     width: cellWidth, 
     height: cellHeight,
-    pivotX: cellWidth / 2, 
-    pivotY: cellHeight / 2,
+    pivotX: cellWidth / 2,  // Center pivot
+    pivotY: cellHeight / 2, // Center pivot
     stroke: style.cell.stroke,
     zIndex: 1,
     groupId: gid,
@@ -87,19 +87,20 @@ function makeCell(
   const textWidth = Math.min(estimatedTextWidth, cellWidth * 0.9); // Cap at 90% of cell width
   const textHeight = style.typography.size * 1.2; // Line height based on font size
 
+  // Text positioned at center with center pivots
   const text: TextEl = {
     animations: [],
     fill: style.palette.text,
-    x: x, // Same as cell center
-    y: y, // Same as cell center
+    x: centerX, // Center position
+    y: centerY, // Center position
     id: tid,
     name: `Text ${value}`,
     text: textStr,
     type: "text",
     width: textWidth,
     height: textHeight,
-    pivotX: 0, // No pivot offset - we calculate exact position
-    pivotY: 0, // No pivot offset - we calculate exact position
+    pivotX: textWidth / 2,  // Center pivot for text
+    pivotY: textHeight / 2, // Center pivot for text
     zIndex: 2,
     groupId: gid,
     opacity: 1, 
@@ -109,7 +110,7 @@ function makeCell(
     fontStyle: "normal",
     textAlign: style.typography.align,
     fontFamily: style.typography.family,
-    fontWeight: style.typography.weight, // Now a string, no conversion needed
+    fontWeight: style.typography.weight,
     lineHeight: 1.2,
     shadowBlur: 0, 
     shadowColor: "#000000",
@@ -120,7 +121,7 @@ function makeCell(
     shadowOffsetX: 10, 
     shadowOffsetY: 10,
     shadowOpacity: 0.5,
-    wordWrapWidth: textWidth, // Match actual text width
+    wordWrapWidth: textWidth,
     textStrokeJoin: "round",
     isAnimationPath: false,
     textStrokeWidth: 0,
@@ -129,7 +130,8 @@ function makeCell(
   const group: Group = {
     animations: [],
     elementIds: [rid, tid],
-    x, y,
+    x: centerX, 
+    y: centerY,
     id: gid,
     name: `Cell ${value}`,
     type: "custom",
@@ -141,7 +143,65 @@ function makeCell(
   return { group, rect, text };
 }
 
-// Executor core
+// CORRECTED text element creation function
+function makeTextElement(
+  text: string,
+  centerX: number,
+  centerY: number,
+  width: number,
+  size: number,
+  weight: number,
+  align: string,
+  style: StylePack
+): TextEl {
+  // Calculate actual text dimensions for proper centering
+  const isMonospace = style.typography.family.includes('monospace');
+  const charWidth = isMonospace ? 0.6 : 0.7;
+  const estimatedTextWidth = text.length * size * charWidth;
+  const textWidth = Math.min(estimatedTextWidth, width);
+  const textHeight = Math.max(size * 1.2, 40);
+
+  return {
+    animations: [],
+    fill: style.palette.text,
+    x: centerX,
+    y: centerY,
+    id: randomUUID(),
+    name: `Text ${text.slice(0, 20)}`,
+    text: text,
+    type: "text",
+    width: textWidth,
+    height: textHeight,
+    pivotX: textWidth / 2,  // Center pivot
+    pivotY: textHeight / 2, // Center pivot
+    zIndex: 3,
+    groupId: "",
+    opacity: 1,
+    visible: true,
+    fontSize: size,
+    wordWrap: false,
+    fontStyle: "normal",
+    textAlign: align as "left" | "center" | "right",
+    fontFamily: style.typography.family,
+    fontWeight: String(weight),
+    lineHeight: 1.2,
+    shadowBlur: 0,
+    shadowColor: "#000000",
+    strokeWidth: 0,
+    cornerRadius: 0,
+    letterSpacing: 0,
+    shadowEnabled: false,
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
+    shadowOpacity: 0,
+    wordWrapWidth: width,
+    textStrokeJoin: "round",
+    isAnimationPath: false,
+    textStrokeWidth: 0,
+  };
+}
+
+// Executor core - CORRECTED coordinate handling
 export function execute(program: ActionProgram): Scene {
   // Defaults
   let seed = 0;
@@ -181,20 +241,24 @@ export function execute(program: ActionProgram): Scene {
 
     if (act.kind === "DRAW_ARRAY") {
       if (act.gridPosition && grid) {
-        // Use grid-based positioning
-        const rect = gridToRect(grid, act.gridPosition, canvasWidth, canvasHeight);
-        const cellWidth = rect.width / act.values.length;
-        const cellHeight = rect.height;
+        // CORRECTED: Use grid-based positioning with consistent center coordinates
+        const gridCenter = gridToCenter(grid, act.gridPosition, canvasWidth, canvasHeight);
+        const cellWidth = gridCenter.width / act.values.length;
+        const cellHeight = gridCenter.height;
+        
+        // Calculate starting X position for array (leftmost cell center)
+        const arrayWidth = act.values.length * cellWidth;
+        const startX = gridCenter.x - arrayWidth / 2 + cellWidth / 2;
         
         act.values.forEach((v, i) => {
-          const x = rect.x + i * cellWidth + cellWidth / 2;
-          const y = rect.y + cellHeight / 2;
-          const { group, rect: cellRect, text } = makeCell(style, v, x, y, cellWidth, cellHeight);
+          const centerX = startX + i * cellWidth;
+          const centerY = gridCenter.y;
+          const { group, rect: cellRect, text } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight);
           groups.push(group);
           elements.push(cellRect, text);
         });
       } else {
-        // Fallback to automatic positioning
+        // Automatic positioning (already correct - uses center-origin consistently)
         const gap = act.gap ?? 16; // Default gap
         const minCellSize = act.cell ?? style.cell.w;
 
@@ -210,9 +274,9 @@ export function execute(program: ActionProgram): Scene {
         const startX = -totalWidth / 2; // Center the array horizontally
 
         act.values.forEach((v, i) => {
-          const x = startX + i * (cellWidth + gap) + cellWidth / 2;
-          const y = currentY;
-          const { group, rect, text } = makeCell(style, v, x, y, cellWidth, cellHeight);
+          const centerX = startX + i * (cellWidth + gap) + cellWidth / 2;
+          const centerY = currentY;
+          const { group, rect, text } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight);
           groups.push(group);
           elements.push(rect, text);
         });
@@ -223,114 +287,42 @@ export function execute(program: ActionProgram): Scene {
 
     if (act.kind === "DRAW_TEXT") {
       if (act.gridPosition && grid) {
-        // Use grid-based positioning
-        const rect = gridToRect(grid, act.gridPosition, canvasWidth, canvasHeight);
-        const width = act.width ?? rect.width;
+        // CORRECTED: Use grid-based positioning with consistent center coordinates
+        const gridCenter = gridToCenter(grid, act.gridPosition, canvasWidth, canvasHeight);
+        const width = act.width ?? gridCenter.width;
         const size = act.size ?? 28;
         const weight = act.weight ?? 600;
         const align = act.align ?? "left";
         
-        // Calculate actual text dimensions for proper centering
-        const textStr = act.text;
-        const isMonospace = style.typography.family.includes('monospace');
-        const charWidth = isMonospace ? 0.6 : 0.7;
-        const estimatedTextWidth = textStr.length * size * charWidth;
-        const textWidth = Math.min(estimatedTextWidth, width);
-        const textHeight = Math.max(size * 1.2, 40);
-
-        const textEl: TextEl = {
-          animations: [],
-          fill: style.palette.text,
-          x: rect.x + rect.width / 2, // Center of grid cell
-          y: rect.y + rect.height / 2, // Center of grid cell
-          id: randomUUID(),
-          name: `Text ${act.text.slice(0, 20)}`,
-          text: textStr,
-          type: "text",
-          width: textWidth,
-          height: textHeight,
-          pivotX: 0, // No pivot offset - we calculate exact position
-          pivotY: 0,
-          zIndex: 3,
-          groupId: "",
-          opacity: 1,
-          visible: true,
-          fontSize: size,
-          wordWrap: false, // Disable word wrap for single-line text
-          fontStyle: "normal",
-          textAlign: align,
-          fontFamily: style.typography.family,
-          fontWeight: String(weight),
-          lineHeight: 1.2,
-          shadowBlur: 0,
-          shadowColor: "#000000",
-          strokeWidth: 0,
-          cornerRadius: 0,
-          letterSpacing: 0,
-          shadowEnabled: false,
-          shadowOffsetX: 0,
-          shadowOffsetY: 0,
-          shadowOpacity: 0,
-          wordWrapWidth: width,
-          textStrokeJoin: "round",
-          isAnimationPath: false,
-          textStrokeWidth: 0,
-        };
+        const textEl = makeTextElement(
+          act.text,
+          gridCenter.x,
+          gridCenter.y,
+          width,
+          size,
+          weight,
+          align,
+          style
+        );
         
         elements.push(textEl);
       } else {
-        // Fallback to automatic positioning
+        // Automatic positioning (already correct)
         const width = act.width ?? 600;
         const size = act.size ?? 28;
         const weight = act.weight ?? 600;
         const align = act.align ?? "left";
         
-        // Calculate actual text dimensions for proper centering
-        const textStr = act.text;
-        const isMonospace = style.typography.family.includes('monospace');
-        const charWidth = isMonospace ? 0.6 : 0.7;
-        const estimatedTextWidth = textStr.length * size * charWidth;
-        const textWidth = Math.min(estimatedTextWidth, width);
-        const textHeight = Math.max(size * 1.2, 40);
-        
-        const textEl: TextEl = {
-          animations: [],
-          fill: style.palette.text,
-          x: 0, // Center horizontally
-          y: currentY,
-          id: randomUUID(),
-          name: `Text ${act.text.slice(0, 20)}`,
-          text: textStr,
-          type: "text",
-          width: textWidth,
-          height: textHeight,
-          pivotX: 0, // No pivot offset - we calculate exact position
-          pivotY: 0,
-          zIndex: 3,
-          groupId: "",
-          opacity: 1,
-          visible: true,
-          fontSize: size,
-          wordWrap: false, // Disable word wrap for single-line text
-          fontStyle: "normal",
-          textAlign: align,
-          fontFamily: style.typography.family,
-          fontWeight: String(weight),
-          lineHeight: 1.2,
-          shadowBlur: 0,
-          shadowColor: "#000000",
-          strokeWidth: 0,
-          cornerRadius: 0,
-          letterSpacing: 0,
-          shadowEnabled: false,
-          shadowOffsetX: 0,
-          shadowOffsetY: 0,
-          shadowOpacity: 0,
-          wordWrapWidth: width,
-          textStrokeJoin: "round",
-          isAnimationPath: false,
-          textStrokeWidth: 0,
-        };
+        const textEl = makeTextElement(
+          act.text,
+          0, // Center horizontally
+          currentY,
+          width,
+          size,
+          weight,
+          align,
+          style
+        );
         
         elements.push(textEl);
         currentY += verticalSpacing; // Move down for next element

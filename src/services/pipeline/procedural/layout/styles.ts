@@ -1,4 +1,4 @@
-import type { StylePack } from "../types";
+import type { StylePack } from "../../../../types";
 
 const STYLES: StylePack[] = [
   {
