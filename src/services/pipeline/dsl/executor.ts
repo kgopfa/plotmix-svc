@@ -3,7 +3,8 @@ import type { StylePack } from '../../../types';
 import { pickStyle } from '../procedural/seed';
 import STYLES from '../procedural/layout/styles';
 import { randomUUID } from 'crypto';
-
+// Use center-origin helpers for array placement aligned to a center-based grid
+ 
 // Calculate optimal cell dimensions based on content
 function calculateOptimalCellDimensions(
   values: (string | number)[], 
@@ -142,71 +143,18 @@ function makeCell(
   return { group, rect, text };
 }
 
-function makeTextElement(
-  text: string,
-  centerX: number,
-  centerY: number,
-  width: number,
-  size: number,
-  weight: number,
-  align: string,
-  style: StylePack
-): TextEl {
-  const tid = randomUUID();
-  const gid = randomUUID();
+// Text element function removed - only arrays are processed
 
-  return {
-    animations: [],
-    fill: style.palette.text,
-    x: centerX,
-    y: centerY,
-    id: tid,
-    name: `Text ${text}`,
-    text: text,
-    type: "text",
-    width: width,
-    height: size * 1.2,
-    pivotX: width / 2,
-    pivotY: (size * 1.2) / 2,
-    zIndex: 1,
-    groupId: gid,
-    opacity: 1,
-    visible: true,
-    fontSize: size,
-    wordWrap: true,
-    fontStyle: "normal",
-    textAlign: align as "left"|"center"|"right",
-    fontFamily: style.typography.family,
-    fontWeight: String(weight),
-    lineHeight: 1.2,
-    shadowBlur: style.shadow.shadowBlur,
-    shadowColor: style.shadow.shadowColor,
-    strokeWidth: 0,
-    cornerRadius: 0,
-    letterSpacing: 0,
-    shadowEnabled: style.shadow.shadowEnabled,
-    shadowOffsetX: style.shadow.shadowOffsetX,
-    shadowOffsetY: style.shadow.shadowOffsetY,
-    shadowOpacity: style.shadow.shadowOpacity,
-    wordWrapWidth: width,
-    textStrokeJoin: "round",
-    isAnimationPath: false,
-    textStrokeWidth: 0,
-  };
-}
-
-// Executor core - Simplified automatic positioning
+// Executor core - Grid-based automatic positioning
 export function execute(program: ActionProgram): Scene {
   // Defaults
   let seed = 0;
   let style: StylePack = STYLES[0]!;
-
+  
   const groups: Group[] = [];
   const elements: (Rect|TextEl)[] = [];
   
-  // Automatic layout state
-  let currentY = -400; // Start near the top of the canvas (center is 0)
-  const verticalSpacing = 120; // Space between different elements
+  // Canvas constants (center-origin) not needed for center placement
 
   for (const act of program) {
     if (act.kind === "SETUP") {
@@ -222,7 +170,7 @@ export function execute(program: ActionProgram): Scene {
     }
 
     if (act.kind === "DRAW_ARRAY") {
-      // Automatic positioning for arrays
+      // Center-origin positioning for arrays aligned to center-start grid lines
       const minCellSize = act.cell ?? style.cell.w;
       const gap = act.gap ?? 16;
 
@@ -233,42 +181,24 @@ export function execute(program: ActionProgram): Scene {
         minCellSize
       );
 
-      // Calculate total width and position array at center
-      const totalWidth = act.values.length * cellWidth + (act.values.length - 1) * gap;
-      const startX = -totalWidth / 2; // Center the array horizontally
+      // Place middle item at x=0 using symmetric spacing (gap + cell width as step)
+      const stepX = cellWidth + gap;
+      const startIndex = -(act.values.length - 1) / 2; // e.g., 5 -> -2 .. 2
+      const arrayY = 0; // center row per requirement
       
       act.values.forEach((v, i) => {
-        const centerX = startX + i * (cellWidth + gap) + cellWidth / 2;
-        const centerY = currentY;
+        const logicalIndex = startIndex + i; // symmetric around 0
+        const centerX = logicalIndex * stepX;
+        const centerY = arrayY;
         const { group, rect, text } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight);
         groups.push(group);
         elements.push(rect, text);
       });
       
-      currentY += verticalSpacing; // Move down for next element
+      // All arrays share center row
     }
 
-    if (act.kind === "DRAW_TEXT") {
-      // Automatic positioning for text
-      const width = act.width ?? 600;
-      const size = act.size ?? 28;
-      const weight = act.weight ?? 600;
-      const align = act.align ?? "left";
-      
-      const textEl = makeTextElement(
-        act.text,
-        0, // Center horizontally
-        currentY,
-        width,
-        size,
-        weight,
-        align,
-        style
-      );
-      
-      elements.push(textEl);
-      currentY += verticalSpacing; // Move down for next element
-    }
+    // Only process arrays for now - text elements are ignored
 
     // (future) DRAW_STACK, DRAW_QUEUE, DRAW_LINKED_LIST, DRAW_TREE...
   }
