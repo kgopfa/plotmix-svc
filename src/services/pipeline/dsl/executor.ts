@@ -173,7 +173,7 @@ export function execute(program: ActionProgram): Scene {
     if (act.kind === "DRAW_ARRAY") {
       // Center-origin positioning for arrays aligned to center-start grid lines
       const minCellSize = act.cell ?? style.cell.w;
-      const gap = act.gap ?? 16;
+      const gap = 80;
 
       // Calculate optimal cell dimensions based on content
       const { width: cellWidth, height: cellHeight } = calculateOptimalCellDimensions(

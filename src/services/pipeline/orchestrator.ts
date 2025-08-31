@@ -42,12 +42,17 @@ export class Orchestrator {
    */
   private static generateFromDsl(dsl: string): PipelineResult {
     try {
+      logger.info(`Generating from DSL: ${dsl}`);
       const program = DslCompiler.compile(dsl);
       if (program.length === 0) {
         return { success: false, error: 'No valid actions found in DSL' };
       }
 
+      logger.info(`Compiled program: ${program}`);
+
       const scene = execute(program);
+
+      logger.info(`Executed program: ${scene}`);
 
       // Validate elements using schema validation
       const validationResult = validateElementsArray(scene.elements);
