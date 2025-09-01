@@ -1,7 +1,44 @@
 export type Action =
   | { kind: "SETUP"; seed: number; style: "auto"|string }
   | { kind: "DRAW_ARRAY"; values: (number|string)[]; gap?: number; cell?: number }
-  | { kind: "DRAW_TEXT"; text: string; width?: number; size?: number; weight?: number; align?: "left"|"center"|"right" };
+  | { kind: "DRAW_TEXT"; text: string; width?: number; size?: number; weight?: number; align?: "left"|"center"|"right" }
+  | { kind: "ANIMATE"; type: "highlight"|"select"|"focus"|"compare"; elements: (number|string)[]; startTime: number; duration: number };
+
+export type AnimationPack = {
+  name: string;
+  highlight: {
+    type: string;
+    properties: Record<string, any>;
+    duration: number;
+    easing: string;
+    yoyo: boolean;
+    repeat: number;
+  };
+  select: {
+    type: string;
+    properties: Record<string, any>;
+    duration: number;
+    easing: string;
+    yoyo: boolean;
+    repeat: number;
+  };
+  focus: {
+    type: string;
+    properties: Record<string, any>;
+    duration: number;
+    easing: string;
+    yoyo: boolean;
+    repeat: number;
+  };
+  compare: {
+    type: string;
+    properties: Record<string, any>;
+    duration: number;
+    easing: string;
+    yoyo: boolean;
+    repeat: number;
+  };
+};
 
 export type ActionProgram = Action[];
 

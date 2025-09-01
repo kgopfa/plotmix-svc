@@ -32,6 +32,8 @@ export class DslCompiler {
         return this.parseText(line);
       case 'array':
         return this.parseArray(line);
+      case 'animate':
+        return this.parseAnimate(line);
       default:
         logger.error(`Unknown DSL command: ${command}`);
         throw new Error(`Unknown DSL command: ${command}`);
@@ -112,6 +114,34 @@ export class DslCompiler {
       ...(size !== undefined && { size }),
       ...(weight !== undefined && { weight }),
       ...(align !== undefined && { align })
+    };
+  }
+
+  private static parseAnimate(line: string): Action | null {
+    const animateMatch = line.match(/^animate\s+(highlight|select|focus|compare)\s+\[([^\]]+)\]\s+(\d+)\s+(\d+)/);
+    
+    if (!animateMatch) {
+      return null;
+    }
+
+    const type = animateMatch[1] as "highlight"|"select"|"focus"|"compare";
+    const elementsStr = animateMatch[2]!;
+    const startTime = parseInt(animateMatch[3]!);
+    const duration = parseInt(animateMatch[4]!);
+
+    const elements = elementsStr.split(',').map(v => {
+      const trimmed = v.trim();
+      return trimmed.startsWith('"') && trimmed.endsWith('"') 
+        ? trimmed.slice(1, -1) 
+        : isNaN(Number(trimmed)) ? trimmed : Number(trimmed);
+    });
+
+    return {
+      kind: "ANIMATE",
+      type,
+      elements,
+      startTime,
+      duration
     };
   }
 }

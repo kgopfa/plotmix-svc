@@ -2,6 +2,7 @@ import type { ActionProgram, Scene, Group, Rect, TextEl } from '../../../types';
 import type { StylePack } from '../../../types';
 import { pickStyle } from '../procedural/seed';
 import STYLES from '../procedural/layout/styles';
+import { getAnimationConfig } from '../procedural/animation';
 import { randomUUID } from 'crypto';
 // Use center-origin helpers for array placement aligned to a center-based grid
 import { computeCenteredXPositions } from '../../../utils/grid';
@@ -146,6 +147,8 @@ function makeCell(
 
 // Text element function removed - only arrays are processed
 
+
+
 // Executor core - Grid-based automatic positioning
 export function execute(program: ActionProgram): Scene {
   // Defaults
@@ -198,6 +201,78 @@ export function execute(program: ActionProgram): Scene {
       });
       
       // All arrays share center row
+    }
+
+    if (act.kind === "ANIMATE") {
+      // Handle animation commands - create animation timeline entries
+      // This will be processed by the frontend to show step-by-step progression
+      const animationId = randomUUID();
+      
+      // Get animation configuration from procedural system
+      const animConfig = getAnimationConfig(seed, act.type);
+      
+      // Create proper animation object using procedural configuration
+      const animationEntry = {
+        id: animationId,
+        type: animConfig.type,
+        yoyo: animConfig.yoyo,
+        easing: animConfig.easing,
+        repeat: animConfig.repeat,
+        duration: act.duration, // Use DSL duration, but could override with config
+        startTime: act.startTime,
+        properties: animConfig.properties,
+        displayName: `${act.type}-1`,
+        repeatDelay: 0
+      };
+
+      // Find the target elements that match the animation values
+      const targetElements = elements.filter(el => {
+        if (el.type === "rectangle") {
+          // For rectangles, we need to find the group and check the text element's value
+          const group = groups.find(g => g.id === el.groupId);
+          if (group) {
+            const textElement = elements.find(e => e.type === "text" && e.groupId === group.id);
+            if (textElement && textElement.type === "text") {
+              // Convert text to number for comparison, since act.elements might be numbers
+              const textValue = Number(textElement.text);
+              const matches = act.elements.some(target => {
+                if (typeof target === 'number') {
+                  return target === textValue;
+                } else {
+                  return target === textElement.text;
+                }
+              });
+              
+              return matches;
+            }
+          }
+        }
+        return false;
+      });
+
+      // Apply animations based on type
+      if (animConfig.type === "color") {
+        // Color animations go to individual rectangle elements (background)
+        targetElements.forEach(element => {
+          element.animations.push(animationEntry);
+        });
+      } else if (animConfig.type === "scale") {
+        // Scale animations go to the group (affects entire cell)
+        targetElements.forEach(element => {
+          const group = groups.find(g => g.id === element.groupId);
+          if (group) {
+            group.animations.push(animationEntry);
+          }
+        });
+      } else {
+        // Default: add to group
+        targetElements.forEach(element => {
+          const group = groups.find(g => g.id === element.groupId);
+          if (group) {
+            group.animations.push(animationEntry);
+          }
+        });
+      }
     }
 
     // Only process arrays for now - text elements are ignored
