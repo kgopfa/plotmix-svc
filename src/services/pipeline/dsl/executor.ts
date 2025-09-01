@@ -1,4 +1,4 @@
-import type { ActionProgram, Scene, Group, Rect, TextEl } from '../../../types';
+import type { ActionProgram, Scene, Group, Rect, TextEl, CaptionConfig } from '../../../types';
 import type { StylePack } from '../../../types';
 import { pickStyle } from '../procedural/seed';
 import STYLES from '../procedural/layout/styles';
@@ -6,6 +6,14 @@ import { getAnimationConfig } from '../procedural/animation';
 import { randomUUID } from 'crypto';
 // Use center-origin helpers for array placement aligned to a center-based grid
 import { computeCenteredXPositions } from '../../../utils/grid';
+
+// Default caption configuration
+const DEFAULT_CAPTION_CONFIG: CaptionConfig = {
+  visibleTime: 3, // 3 seconds visible time
+  fadeInDuration: 0.5, // 0.5 seconds fade in
+  fadeOutDuration: 0.5, // 0.5 seconds fade out
+  transitionType: "fade" // Use fade transitions
+};
  
 // Calculate optimal cell dimensions based on content
 function calculateOptimalCellDimensions(
@@ -161,6 +169,8 @@ export function execute(program: ActionProgram): Scene {
   // Text positioning removed - only arrays and captions supported
   
   // Canvas constants (center-origin) not needed for center placement
+
+
 
   for (const act of program) {
     if (act.kind === "SETUP") {
@@ -327,120 +337,40 @@ export function execute(program: ActionProgram): Scene {
         textStrokeWidth: 0
       };
 
-      // Create transition animations based on transition type
-      const fadeInDuration = 0.5; // Quick fade in
-      const fadeOutDuration = 0.5; // Quick fade out
+      // Calculate timing based on caption order
+      // Each caption gets: fadeIn + visibleTime + fadeOut
+      const totalCaptionDuration = DEFAULT_CAPTION_CONFIG.fadeInDuration + DEFAULT_CAPTION_CONFIG.visibleTime + DEFAULT_CAPTION_CONFIG.fadeOutDuration;
+      const startTime = (act.order - 1) * totalCaptionDuration;
+      const fadeInEndTime = startTime + DEFAULT_CAPTION_CONFIG.fadeInDuration;
+      const fadeOutStartTime = fadeInEndTime + DEFAULT_CAPTION_CONFIG.visibleTime;
       
-      if (act.transition === "fade-in") {
-        // Fade in animation
-        caption.animations.push({
-          id: randomUUID(),
-          type: "fade",
-          startTime: act.startTime,
-          duration: fadeInDuration,
-          properties: { alpha: 1 },
-          easing: "power1.inOut",
-          yoyo: false,
-          repeat: 0,
-          displayName: `caption-${act.order}-fade-in`,
-          repeatDelay: 0
-        });
-        
-        // Fade out animation (starts at exitTime)
-        caption.animations.push({
-          id: randomUUID(),
-          type: "fade",
-          startTime: act.exitTime,
-          duration: fadeOutDuration,
-          properties: { alpha: 0 },
-          easing: "power1.inOut",
-          yoyo: false,
-          repeat: 0,
-          displayName: `caption-${act.order}-fade-out`,
-          repeatDelay: 0
-        });
-      } else if (act.transition === "fade-out") {
-        // Start visible, then fade out
-        caption.opacity = 1;
-        
-        // Fade out animation
-        caption.animations.push({
-          id: randomUUID(),
-          type: "fade",
-          startTime: act.exitTime,
-          duration: fadeOutDuration,
-          properties: { alpha: 0 },
-          easing: "power1.inOut",
-          yoyo: false,
-          repeat: 0,
-          displayName: `caption-${act.order}-fade-out`,
-          repeatDelay: 0
-        });
-      } else if (act.transition === "slide-up") {
-        // Slide up from below
-        caption.y = captionY + 50; // Start below final position
-        caption.opacity = 0;
-        
-        // Slide up and fade in
-        caption.animations.push({
-          id: randomUUID(),
-          type: "move",
-          startTime: act.startTime,
-          duration: fadeInDuration,
-          properties: { y: captionY, alpha: 1 },
-          easing: "power1.out",
-          yoyo: false,
-          repeat: 0,
-          displayName: `caption-${act.order}-slide-up`,
-          repeatDelay: 0
-        });
-        
-        // Slide down and fade out
-        caption.animations.push({
-          id: randomUUID(),
-          type: "move",
-          startTime: act.exitTime,
-          duration: fadeOutDuration,
-          properties: { y: captionY - 50, alpha: 0 },
-          easing: "power1.in",
-          yoyo: false,
-          repeat: 0,
-          displayName: `caption-${act.order}-slide-down`,
-          repeatDelay: 0
-        });
-      } else if (act.transition === "slide-down") {
-        // Slide down from above
-        caption.y = captionY - 50; // Start above final position
-        caption.opacity = 0;
-        
-        // Slide down and fade in
-        caption.animations.push({
-          id: randomUUID(),
-          type: "move",
-          startTime: act.startTime,
-          duration: fadeInDuration,
-          properties: { y: captionY, alpha: 1 },
-          easing: "power1.out",
-          yoyo: false,
-          repeat: 0,
-          displayName: `caption-${act.order}-slide-down`,
-          repeatDelay: 0
-        });
-        
-        // Slide up and fade out
-        caption.animations.push({
-          id: randomUUID(),
-          type: "move",
-          startTime: act.exitTime,
-          duration: fadeOutDuration,
-          properties: { y: captionY + 50, alpha: 0 },
-          easing: "power1.in",
-          yoyo: false,
-          repeat: 0,
-          displayName: `caption-${act.order}-slide-up`,
-          repeatDelay: 0
-        });
-      }
+      // Create fade-in animation
+      caption.animations.push({
+        id: randomUUID(),
+        type: "fade",
+        startTime: startTime,
+        duration: DEFAULT_CAPTION_CONFIG.fadeInDuration,
+        properties: { alpha: 1 },
+        easing: "power1.inOut",
+        yoyo: false,
+        repeat: 0,
+        displayName: `caption-${act.order}-fade-in`,
+        repeatDelay: 0
+      });
+      
+      // Create fade-out animation
+      caption.animations.push({
+        id: randomUUID(),
+        type: "fade",
+        startTime: fadeOutStartTime,
+        duration: DEFAULT_CAPTION_CONFIG.fadeOutDuration,
+        properties: { alpha: 0 },
+        easing: "power1.inOut",
+        yoyo: false,
+        repeat: 0,
+        displayName: `caption-${act.order}-fade-out`,
+        repeatDelay: 0
+      });
 
       elements.push(caption);
     }

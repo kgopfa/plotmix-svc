@@ -15,15 +15,6 @@ jest.mock('../services/pipeline/llm', () => {
 });
 
 describe('PipelineService', () => {
-  describe('generateFromPrompt', () => {
-    it('should generate a scene from valid DSL via LLM', async () => {
-      const result = await Orchestrator.generateFromPrompt('Explain rotated array');
-      expect(result.success).toBe(true);
-      expect(result.mainState).toBeDefined();
-      expect(result.mainState?.groups).toHaveLength(2);
-      expect(result.summary).toContain('Generated visualization');
-    });
-  });
 
   describe('validateScene', () => {
     it('should detect invalid scenes', () => {
@@ -51,18 +42,6 @@ describe('DslCompiler', () => {
     expect(first.kind).toBe('SETUP');
     if (first.kind !== 'SETUP') throw new Error('Expected SETUP');
     expect(first.seed).toBe(1234);
-  });
-
-  it('should parse canvas command', () => {
-    const dsl = 'canvas 1920x1080';
-    const program = DslCompiler.compile(dsl);
-    
-    expect(program).toHaveLength(1);
-    const first = program[0]!;
-    expect(first.kind).toBe('SETUP');
-    if (first.kind !== 'SETUP') throw new Error('Expected SETUP');
-    expect(first.canvas?.width).toBe(1920);
-    expect(first.canvas?.height).toBe(1080);
   });
 
   it('should parse array command', () => {

@@ -122,7 +122,7 @@ export class DslCompiler {
   }
 
   private static parseCaption(line: string): Action | null {
-    const captionMatch = line.match(/^caption\s+(\d+)\s+"([^"]+)"\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s+(fade-in|fade-out|slide-up|slide-down)/);
+    const captionMatch = line.match(/^caption\s+(\d+)\s+"([^"]+)"/);
     
     if (!captionMatch) {
       return null;
@@ -130,19 +130,11 @@ export class DslCompiler {
 
     const order = parseInt(captionMatch[1]!);
     const text = captionMatch[2]!;
-    const startTime = parseFloat(captionMatch[3]!);
-    const duration = parseFloat(captionMatch[4]!);
-    const exitTime = parseFloat(captionMatch[5]!);
-    const transition = captionMatch[6] as "fade-in"|"fade-out"|"slide-up"|"slide-down";
 
     return {
       kind: "CAPTION",
       order,
-      text,
-      startTime,
-      duration,
-      exitTime,
-      transition
+      text
     };
   }
 }

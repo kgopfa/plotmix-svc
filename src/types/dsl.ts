@@ -2,7 +2,15 @@ export type Action =
   | { kind: "SETUP"; seed: number; style: "auto"|string }
   | { kind: "DRAW_ARRAY"; values: (number|string)[]; gap?: number; cell?: number }
   | { kind: "ANIMATE"; type: "highlight"|"select"|"focus"|"compare"; elements: (number|string)[]; startTime: number; duration: number }
-  | { kind: "CAPTION"; order: number; text: string; startTime: number; duration: number; exitTime: number; transition: "fade-in"|"fade-out"|"slide-up"|"slide-down" };
+  | { kind: "CAPTION"; order: number; text: string };
+
+// Configuration for caption timing
+export interface CaptionConfig {
+  visibleTime: number; // How long each caption stays visible (default: 3s)
+  fadeInDuration: number; // Duration of fade-in animation (default: 0.5s)
+  fadeOutDuration: number; // Duration of fade-out animation (default: 0.5s)
+  transitionType: "fade" | "slide"; // Type of transition animation
+}
 
 export type AnimationPack = {
   name: string;

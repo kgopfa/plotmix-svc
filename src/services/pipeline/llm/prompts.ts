@@ -238,10 +238,9 @@ DSL Syntax:
 seed <int>
 style <auto|Minimal|Monospace|...>
 
-
 array [v1,v2,v3]
 animate <type> [elements] <startTime> <duration>
-caption <order> "<text>" <startTime> <duration> <exitTime> <transition>
+caption <order> "<text>"
 \`\`\`
 
 Animation Types (for any 1-D array problem):
@@ -250,11 +249,17 @@ Animation Types (for any 1-D array problem):
 - focus: Focus state (subtle scaling for attention)
 - compare: Comparison state (background color for comparison)
 
-Caption Types (for synchronized text explanations):
-- fade-in: Caption fades in at start, fades out at end
-- fade-out: Caption starts visible, fades out at end
-- slide-up: Caption slides up from below, slides down at end
-- slide-down: Caption slides down from above, slides up at end
+Caption Rules - CRITICAL:
+- Captions are simplified to only include order and text
+- DO NOT include any timing parameters, transition types, or animation specifications
+- DO NOT include "fade-in", "fade-out", "slide-up", "slide-down" or any other transition keywords
+- DO NOT include startTime, duration, exitTime, or any timing values
+- Caption format is EXACTLY: caption <order> "<text>"
+- Timing is automatically calculated based on caption order
+- Each caption gets: fadeIn (0.5s) + visibleTime (3s) + fadeOut (0.5s) = 4s total
+- Only one caption is visible at a time
+- Captions appear sequentially: caption 1, then caption 2, then caption 3, etc.
+- Entry/exit animations (fade in/out) are handled automatically by the system
 
 Note: Animation styling (colors, scale factors, easing, duration) is procedurally generated based on the seed for consistent, theme-appropriate results.
 
@@ -268,14 +273,8 @@ CRITICAL:
 - Duration should be consistent (usually 5 seconds per step)
 - Use caption commands for synchronized text explanations that appear during animations
 - Caption order should be sequential (1, 2, 3, etc.)
-- Caption timing should align with animation steps
-- Only one caption should be visible at a time (careful with transitions and duration)
-- Caption timing uses startTime, duration, and exitTime for precise control:
-  - startTime: when fade-in begins
-  - duration: time for fade-in/fade-out effects (usually 0.5s)
-  - exitTime: when fade-out begins
-- Captions should stay visible for 3-5 seconds between fade-in and fade-out
-- IMPORTANT: Captions must not overlap - each caption should exit before the next one starts
+- Caption timing is automatically synchronized with animation steps
+- Only one caption should be visible at a time (handled automatically)
 
 GENERIC ANIMATION GUIDELINES:
 - Use animations for any algorithm that involves step-by-step progression through an array
@@ -289,20 +288,20 @@ GENERIC ANIMATION GUIDELINES:
 Example Pattern (works for any 1-D array problem):
 array [1,2,3,4,5,6,7,8,9]
 animate highlight [1,9] 0 5
-caption 1 "Step 1: [Description]" 0 0.5 5 fade-in
+caption 1 "Step 1: [Description]"
 animate select [5] 5 5
-caption 2 "Step 2: [Description]" 5 0.5 10 fade-in
+caption 2 "Step 2: [Description]"
 animate highlight [6,9] 10 5
-caption 3 "Step 3: [Description]" 10 0.5 15 fade-in
+caption 3 "Step 3: [Description]"
 
-Note: Each caption uses startTime, duration (0.5s), and exitTime to prevent overlap.
+Note: Caption timing is automatically calculated - caption 1 appears at 0s, caption 2 at 4s, caption 3 at 8s, etc.
 
 Example of CORRECT usage:
 array [1,3,5,7,9]
 animate highlight [1,9] 0 5
-caption 1 "Initial search range: entire array" 0 0.5 5 fade-in
+caption 1 "Initial search range: entire array"
 animate select [5] 5 5
-caption 2 "Check middle element: 5" 5 0.5 10 fade-in
+caption 2 "Check middle element: 5"
 
 Example of INCORRECT usage:
 array ["Binary Search Problem"]  ❌ - This is a title, not array data
@@ -310,6 +309,8 @@ array ["Time: O(log n)","Space: O(1)"]  ❌ - This is complexity info, not array
 array ["Divide and conquer", "Efficient searching"]  ❌ - These are key ideas, not array data
 array ["Target not found", "Array empty"]  ❌ - These are edge cases, not array data
 animate highlight [10,11] 0 2  ❌ - Elements don't exist in array
+caption 1 "Text" fade-in  ❌ - DO NOT include transition types
+caption 1 "Text" 0 0.5 5  ❌ - DO NOT include timing parameters
 
 ANIMATION INTEGRATION:
 - Use animation steps from the animation plan to generate animate commands
