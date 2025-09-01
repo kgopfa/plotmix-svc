@@ -1,7 +1,7 @@
 export type Role = 'system' | 'user' | 'assistant';
 
 // Pipeline-specific types
-export type PipelineStage = 'planner' | 'visual' | 'dsl';
+export type PipelineStage = 'planner' | 'visual' | 'animation' | 'dsl';
 
 // Scene Plan JSON Schema (LLM #2 output)
 export interface ScenePlan {

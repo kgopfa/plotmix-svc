@@ -43,7 +43,7 @@ const ANIMATION_PACKS: AnimationPack[] = [
       type: "color",
       properties: { fillColor: "#4ecdc4" }, // Teal
       duration: 1.5,
-      easing: "back.out(1.4)",
+      easing: "back.out",
       yoyo: true,
       repeat: 1
     },
@@ -51,7 +51,7 @@ const ANIMATION_PACKS: AnimationPack[] = [
       type: "scale",
       properties: { scaleX: 1.4, scaleY: 1.4 }, // More dramatic
       duration: 1.5,
-      easing: "elastic.out(1.2)",
+      easing: "elastic.out",
       yoyo: true,
       repeat: 1
     },
@@ -59,7 +59,7 @@ const ANIMATION_PACKS: AnimationPack[] = [
       type: "scale",
       properties: { scaleX: 1.25, scaleY: 1.25 },
       duration: 1.5,
-      easing: "back.out(1.2)",
+      easing: "back.out",
       yoyo: false,
       repeat: 0
     },
@@ -86,7 +86,7 @@ const ANIMATION_PACKS: AnimationPack[] = [
       type: "scale",
       properties: { scaleX: 1.5, scaleY: 1.5 }, // Large scale
       duration: 1.0,
-      easing: "back.out(1.7)",
+      easing: "back.out",
       yoyo: false,
       repeat: 0
     },

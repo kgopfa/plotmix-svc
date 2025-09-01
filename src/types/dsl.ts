@@ -40,6 +40,25 @@ export type AnimationPack = {
   };
 };
 
+export interface AnimationStep {
+  id: string;
+  description: string;
+  targetElements: (number | string)[];
+  animationType: "highlight" | "select" | "focus" | "compare";
+  startTime: number;
+  duration: number;
+  explanation: string;
+}
+
+export interface AnimationPlan {
+  algorithm: string;
+  steps: AnimationStep[];
+  timing: {
+    totalDuration: number;
+    stepDuration: number;
+  };
+}
+
 export type ActionProgram = Action[];
 
 export type Group = {

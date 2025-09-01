@@ -1,6 +1,6 @@
 export type Role = 'system' | 'user' | 'assistant';
 
-export type Stage = 'planner' | 'visual' | 'dsl';
+export type Stage = 'planner' | 'visual' | 'animation' | 'dsl';
 
 export interface LlmMessage {
   role: Role;

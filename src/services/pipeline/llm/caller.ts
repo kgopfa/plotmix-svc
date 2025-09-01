@@ -1,12 +1,13 @@
 import { logger } from '../../../utils/logger';
 import { LlmFactory } from '../../../clients/llm/factory';
 import { PromptTemplates } from './prompts';
-import type { LlmClient, ContentPlan, ScenePlan, Stage } from '../../../types';
+import type { LlmClient, ContentPlan, ScenePlan, Stage, AnimationPlan } from '../../../types';
 
 export interface ChainedExecutionResult {
   success: boolean;
   contentPlan?: ContentPlan;
   scenePlan?: ScenePlan;
+  animationPlan?: AnimationPlan;
   dsl?: string;
   error?: string;
   stage?: Stage;
@@ -58,8 +59,25 @@ export class ChainedCaller {
         canvas: scenePlan.canvas 
       });
 
-      // Stage 3: DSL Emitter
-      const dslResult = await this.executeDslEmitter(scenePlan);
+      // Stage 3: Animation Planner
+      const animationPlanResult = await this.executeAnimationPlanner(scenePlan, contentPlan);
+      if (!animationPlanResult.success) {
+        return {
+          success: false,
+          error: `Animation Planner failed: ${animationPlanResult.error}`,
+          stage: 'animation'
+        };
+      }
+
+      const animationPlan = animationPlanResult.content as AnimationPlan;
+      logger.info('llm-pipeline:animation_planned', { 
+        algorithm: animationPlan.algorithm,
+        stepsCount: animationPlan.steps.length,
+        totalDuration: animationPlan.timing.totalDuration
+      });
+
+      // Stage 4: DSL Emitter
+      const dslResult = await this.executeDslEmitter(scenePlan, animationPlan);
       if (!dslResult.success) {
         return {
           success: false,
@@ -76,6 +94,7 @@ export class ChainedCaller {
         success: true,
         contentPlan,
         scenePlan,
+        animationPlan,
         dsl
       };
 
@@ -105,10 +124,18 @@ export class ChainedCaller {
   }
 
   /**
-   * Execute Stage 3: DSL Emitter
+   * Execute Stage 3: Animation Planner
    */
-  private async executeDslEmitter(scenePlan: ScenePlan): Promise<any> {
-    const messages = PromptTemplates.dslEmitter(scenePlan);
+  private async executeAnimationPlanner(scenePlan: ScenePlan, contentPlan: ContentPlan): Promise<any> {
+    const messages = PromptTemplates.animationPlanner(scenePlan, contentPlan);
+    return await this.client.callStage('animation', messages, { temperature: 0.1, json: true });
+  }
+
+  /**
+   * Execute Stage 4: DSL Emitter
+   */
+  private async executeDslEmitter(scenePlan: ScenePlan, animationPlan?: AnimationPlan): Promise<any> {
+    const messages = PromptTemplates.dslEmitter(scenePlan, animationPlan);
     return await this.client.callStage('dsl', messages, { temperature: 0.0, json: false });
   }
 

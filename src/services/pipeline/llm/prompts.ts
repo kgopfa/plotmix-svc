@@ -144,20 +144,91 @@ The procedural system will automatically:
   }
 
   /**
-   * DSL Emitter (LLM #3) - turns Scene Plan JSON into DSL program
+   * Animation Planner (LLM #3) - creates step-by-step animations for algorithm explanations
    */
-  static dslEmitter(scenePlan: any): LlmMessage[] {
+  static animationPlanner(scenePlan: any, contentPlan: any): LlmMessage[] {
     return [
       {
         role: 'system',
-        content: `You are a DSL Emitter that translates Scene Plan JSON to DSL commands.
+        content: `You are an Animation Planner that creates step-by-step animations for algorithm explanations.
+
+Your task:
+1. Analyze the algorithm being explained
+2. Create a logical sequence of animations that demonstrate the algorithm
+3. Map each animation step to specific array elements
+4. Ensure animations tell a clear story
+
+Your output MUST be valid JSON matching this exact schema:
+{
+  "algorithm": "string (algorithm name, e.g., 'binary search', 'two sum', 'sliding window')",
+  "steps": [
+    {
+      "id": "string (unique identifier)",
+      "description": "string (what this step demonstrates)",
+      "targetElements": [number|string] (array elements to animate),
+      "animationType": "highlight|select|focus|compare",
+      "startTime": number (seconds from start),
+      "duration": number (seconds for this animation),
+      "explanation": "string (text to show during this step)"
+    }
+  ],
+  "timing": {
+    "totalDuration": number (total animation duration),
+    "stepDuration": number (default duration per step)
+  }
+}
+
+ANIMATION TYPES:
+- highlight: Show ranges/areas being considered (e.g., search space, window)
+- select: Emphasize current element being examined (e.g., middle element, pivot)
+- focus: Draw attention to specific element (e.g., target found, comparison result)
+- compare: Show elements being compared side-by-side (e.g., two sum pairs)
+
+ALGORITHM PATTERNS:
+- Binary Search: highlight search range → select middle → highlight new range → repeat
+- Two Sum: highlight pair → compare with target → highlight next pair
+- Sliding Window: highlight window → select elements → slide window → repeat
+- Linear Search: select current → compare → select next → repeat
+
+TIMING GUIDELINES:
+- Start times should be sequential (0, 2, 4, 6, etc.)
+- Duration should be consistent (usually 2 seconds per step)
+- Total duration should accommodate all steps with some buffer
+- Elements in targetElements must exist in the arrays from the scene plan
+
+CRITICAL RULES:
+- Only animate elements that exist in the scene plan arrays
+- Each step should have a clear purpose in explaining the algorithm
+- Animation sequence should follow the logical flow of the algorithm
+- Use appropriate animation types for each step's purpose`
+      },
+      {
+        role: 'user',
+        content: `Create animation plan for this algorithm explanation:
+
+Content Plan: ${JSON.stringify(contentPlan, null, 2)}
+
+Scene Plan: ${JSON.stringify(scenePlan, null, 2)}`
+      }
+    ];
+  }
+
+  /**
+   * DSL Emitter (LLM #4) - turns Scene Plan JSON + Animation Plan into DSL program
+   */
+  static dslEmitter(scenePlan: any, animationPlan?: any): LlmMessage[] {
+    return [
+      {
+        role: 'system',
+        content: `You are a DSL Emitter that translates Scene Plan JSON + Animation Plan to DSL commands.
 
 STRICT RULES:
 1. Output ONLY the DSL inside one \`\`\`dsl fenced block
 2. Do NOT specify grid positions - the procedural system will handle layout automatically
 3. Use text command for titles, descriptions, bullets, complexity info, keyIdeas
 4. Use array command ONLY for actual data arrays (numbers/strings representing array elements)
-5. No prose, comments, or explanations outside the DSL block
+5. Use animate command for animation steps from the animation plan
+6. No prose, comments, or explanations outside the DSL block
 
 DSL Syntax:
 \`\`\`dsl
@@ -222,11 +293,21 @@ Example of INCORRECT usage:
 array ["Binary Search Problem"]  ❌ - This is a title, use text
 array ["Time: O(log n)","Space: O(1)"]  ❌ - This is complexity info, use text
 text "Title" grid 1 12 1 1  ❌ - No grid positioning needed
-animate highlight [10,11] 0 2  ❌ - Elements don't exist in array`
+animate highlight [10,11] 0 2  ❌ - Elements don't exist in array
+
+ANIMATION INTEGRATION:
+- Use animation steps from the animation plan to generate animate commands
+- Each animation step should become an animate command with the specified timing
+- Add explanatory text before each animation step
+- Ensure animation elements match the arrays in the scene plan`
       },
       {
         role: 'user',
-        content: `Convert this Scene Plan JSON to DSL:\n\n${JSON.stringify(scenePlan, null, 2)}`
+        content: `Convert this Scene Plan JSON and Animation Plan to DSL:
+
+Scene Plan: ${JSON.stringify(scenePlan, null, 2)}
+
+${animationPlan ? `Animation Plan: ${JSON.stringify(animationPlan, null, 2)}` : 'No animation plan provided - generate static content only'}`
       }
     ];
   }
