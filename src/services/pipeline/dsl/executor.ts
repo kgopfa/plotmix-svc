@@ -346,11 +346,11 @@ export function execute(program: ActionProgram): Scene {
           repeatDelay: 0
         });
         
-        // Fade out animation (starts after duration - fade out time)
+        // Fade out animation (starts at exitTime)
         caption.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: act.startTime + act.duration - fadeOutDuration,
+          startTime: act.exitTime,
           duration: fadeOutDuration,
           properties: { alpha: 0 },
           easing: "power1.inOut",
@@ -367,7 +367,7 @@ export function execute(program: ActionProgram): Scene {
         caption.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: act.startTime + act.duration - fadeOutDuration,
+          startTime: act.exitTime,
           duration: fadeOutDuration,
           properties: { alpha: 0 },
           easing: "power1.inOut",
@@ -399,7 +399,7 @@ export function execute(program: ActionProgram): Scene {
         caption.animations.push({
           id: randomUUID(),
           type: "move",
-          startTime: act.startTime + act.duration - fadeOutDuration,
+          startTime: act.exitTime,
           duration: fadeOutDuration,
           properties: { y: captionY - 50, alpha: 0 },
           easing: "power1.in",
@@ -431,7 +431,7 @@ export function execute(program: ActionProgram): Scene {
         caption.animations.push({
           id: randomUUID(),
           type: "move",
-          startTime: act.startTime + act.duration - fadeOutDuration,
+          startTime: act.exitTime,
           duration: fadeOutDuration,
           properties: { y: captionY + 50, alpha: 0 },
           easing: "power1.in",

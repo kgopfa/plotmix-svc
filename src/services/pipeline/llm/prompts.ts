@@ -241,7 +241,7 @@ style <auto|Minimal|Monospace|...>
 
 array [v1,v2,v3]
 animate <type> [elements] <startTime> <duration>
-caption <order> "<text>" <startTime> <duration> <transition>
+caption <order> "<text>" <startTime> <duration> <exitTime> <transition>
 \`\`\`
 
 Animation Types (for any 1-D array problem):
@@ -270,7 +270,12 @@ CRITICAL:
 - Caption order should be sequential (1, 2, 3, etc.)
 - Caption timing should align with animation steps
 - Only one caption should be visible at a time (careful with transitions and duration)
-- Captions should stay visible for 3-5 seconds to give users time to read and process
+- Caption timing uses startTime, duration, and exitTime for precise control:
+  - startTime: when fade-in begins
+  - duration: time for fade-in/fade-out effects (usually 0.5s)
+  - exitTime: when fade-out begins
+- Captions should stay visible for 3-5 seconds between fade-in and fade-out
+- IMPORTANT: Captions must not overlap - each caption should exit before the next one starts
 
 GENERIC ANIMATION GUIDELINES:
 - Use animations for any algorithm that involves step-by-step progression through an array
@@ -284,18 +289,20 @@ GENERIC ANIMATION GUIDELINES:
 Example Pattern (works for any 1-D array problem):
 array [1,2,3,4,5,6,7,8,9]
 animate highlight [1,9] 0 5
-caption 1 "Step 1: [Description]" 0 5 fade-in
+caption 1 "Step 1: [Description]" 0 0.5 5 fade-in
 animate select [5] 5 5
-caption 2 "Step 2: [Description]" 5 5 fade-in
+caption 2 "Step 2: [Description]" 5 0.5 10 fade-in
 animate highlight [6,9] 10 5
-caption 3 "Step 3: [Description]" 10 5 fade-in
+caption 3 "Step 3: [Description]" 10 0.5 15 fade-in
+
+Note: Each caption uses startTime, duration (0.5s), and exitTime to prevent overlap.
 
 Example of CORRECT usage:
 array [1,3,5,7,9]
 animate highlight [1,9] 0 5
-caption 1 "Initial search range: entire array" 0 5 fade-in
+caption 1 "Initial search range: entire array" 0 0.5 5 fade-in
 animate select [5] 5 5
-caption 2 "Check middle element: 5" 5 5 fade-in
+caption 2 "Check middle element: 5" 5 0.5 10 fade-in
 
 Example of INCORRECT usage:
 array ["Binary Search Problem"]  ❌ - This is a title, not array data
