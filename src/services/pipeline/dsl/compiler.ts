@@ -28,12 +28,13 @@ export class DslCompiler {
         return this.parseSeed(parts);
       case 'style':
         return this.parseStyle(parts);
-      case 'text':
-        return this.parseText(line);
+              // Text commands removed - only arrays and captions supported
       case 'array':
         return this.parseArray(line);
       case 'animate':
         return this.parseAnimate(line);
+      case 'caption':
+        return this.parseCaption(line);
       default:
         logger.error(`Unknown DSL command: ${command}`);
         throw new Error(`Unknown DSL command: ${command}`);
@@ -90,32 +91,7 @@ export class DslCompiler {
     };
   }
 
-  private static parseText(line: string): Action | null {
-    const textMatch = line.match(/^text\s+"([^"]+)"/);
-    const widthMatch = line.match(/width\s+(\d+)/);
-    const sizeMatch = line.match(/size\s+(\d+)/);
-    const weightMatch = line.match(/weight\s+(\d+)/);
-    const alignMatch = line.match(/align\s+(left|center|right)/);
-
-    if (!textMatch) {
-      return null;
-    }
-
-    const text = textMatch[1]!;
-    const width = widthMatch ? parseInt(widthMatch[1]!) : undefined;
-    const size = sizeMatch ? parseInt(sizeMatch[1]!) : undefined;
-    const weight = weightMatch ? parseInt(weightMatch[1]!) : undefined;
-    const align = alignMatch ? alignMatch[1] as "left"|"center"|"right" : undefined;
-
-    return { 
-      kind: "DRAW_TEXT", 
-      text, 
-      ...(width !== undefined && { width }),
-      ...(size !== undefined && { size }),
-      ...(weight !== undefined && { weight }),
-      ...(align !== undefined && { align })
-    };
-  }
+  // Text commands removed - only arrays and captions supported
 
   private static parseAnimate(line: string): Action | null {
     const animateMatch = line.match(/^animate\s+(highlight|select|focus|compare)\s+\[([^\]]+)\]\s+(\d+)\s+(\d+)/);
@@ -142,6 +118,29 @@ export class DslCompiler {
       elements,
       startTime,
       duration
+    };
+  }
+
+  private static parseCaption(line: string): Action | null {
+    const captionMatch = line.match(/^caption\s+(\d+)\s+"([^"]+)"\s+(\d+)\s+(\d+)\s+(fade-in|fade-out|slide-up|slide-down)/);
+    
+    if (!captionMatch) {
+      return null;
+    }
+
+    const order = parseInt(captionMatch[1]!);
+    const text = captionMatch[2]!;
+    const startTime = parseInt(captionMatch[3]!);
+    const duration = parseInt(captionMatch[4]!);
+    const transition = captionMatch[5] as "fade-in"|"fade-out"|"slide-up"|"slide-down";
+
+    return {
+      kind: "CAPTION",
+      order,
+      text,
+      startTime,
+      duration,
+      transition
     };
   }
 }

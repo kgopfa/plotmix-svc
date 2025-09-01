@@ -158,6 +158,8 @@ export function execute(program: ActionProgram): Scene {
   const groups: Group[] = [];
   const elements: (Rect|TextEl)[] = [];
   
+  // Text positioning removed - only arrays and captions supported
+  
   // Canvas constants (center-origin) not needed for center placement
 
   for (const act of program) {
@@ -202,6 +204,8 @@ export function execute(program: ActionProgram): Scene {
       
       // All arrays share center row
     }
+
+    // Text commands removed - only arrays and captions supported
 
     if (act.kind === "ANIMATE") {
       // Handle animation commands - create animation timeline entries
@@ -273,6 +277,172 @@ export function execute(program: ActionProgram): Scene {
           }
         });
       }
+    }
+
+    if (act.kind === "CAPTION") {
+      // Handle caption commands - create timed text elements with transitions
+      const captionId = randomUUID();
+      
+      // Position caption at the bottom of the canvas, near the end
+      const captionY = 400; // Bottom area of 1920x1080 canvas (center is 0, so bottom is around 400-500)
+      const captionX = 0; // Center horizontally
+      
+      // Create caption text element
+      const caption: TextEl = {
+        animations: [],
+        fill: style.palette.text,
+        x: captionX,
+        y: captionY,
+        id: captionId,
+        name: `Caption ${act.order}`,
+        text: act.text,
+        type: "text",
+        width: 800, // Fixed width for captions
+        height: style.typography.size * 1.5,
+        fontFamily: style.typography.family,
+        fontSize: style.typography.size,
+        fontWeight: style.typography.weight,
+        textAlign: "center",
+        pivotX: 400, // Center pivot
+        pivotY: (style.typography.size * 1.5) / 2,
+        zIndex: 10, // High z-index to appear above other elements
+        opacity: 0, // Start invisible
+        visible: true,
+        groupId: "",
+        wordWrap: true,
+        fontStyle: "normal",
+        lineHeight: 1.2,
+        shadowBlur: 0,
+        shadowColor: "#000000",
+        strokeWidth: 0,
+        cornerRadius: 0,
+        letterSpacing: 0,
+        shadowEnabled: false,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowOpacity: 0,
+        wordWrapWidth: 800,
+        textStrokeJoin: "round",
+        isAnimationPath: false,
+        textStrokeWidth: 0
+      };
+
+      // Create transition animations based on transition type
+      const fadeInDuration = 0.5; // Quick fade in
+      const fadeOutDuration = 0.5; // Quick fade out
+      
+      if (act.transition === "fade-in") {
+        // Fade in animation
+        caption.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: act.startTime,
+          duration: fadeInDuration,
+          properties: { alpha: 1 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `caption-${act.order}-fade-in`,
+          repeatDelay: 0
+        });
+        
+        // Fade out animation (starts after duration - fade out time)
+        caption.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: act.startTime + act.duration - fadeOutDuration,
+          duration: fadeOutDuration,
+          properties: { alpha: 0 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `caption-${act.order}-fade-out`,
+          repeatDelay: 0
+        });
+      } else if (act.transition === "fade-out") {
+        // Start visible, then fade out
+        caption.opacity = 1;
+        
+        // Fade out animation
+        caption.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: act.startTime + act.duration - fadeOutDuration,
+          duration: fadeOutDuration,
+          properties: { alpha: 0 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `caption-${act.order}-fade-out`,
+          repeatDelay: 0
+        });
+      } else if (act.transition === "slide-up") {
+        // Slide up from below
+        caption.y = captionY + 50; // Start below final position
+        caption.opacity = 0;
+        
+        // Slide up and fade in
+        caption.animations.push({
+          id: randomUUID(),
+          type: "move",
+          startTime: act.startTime,
+          duration: fadeInDuration,
+          properties: { y: captionY, alpha: 1 },
+          easing: "power1.out",
+          yoyo: false,
+          repeat: 0,
+          displayName: `caption-${act.order}-slide-up`,
+          repeatDelay: 0
+        });
+        
+        // Slide down and fade out
+        caption.animations.push({
+          id: randomUUID(),
+          type: "move",
+          startTime: act.startTime + act.duration - fadeOutDuration,
+          duration: fadeOutDuration,
+          properties: { y: captionY - 50, alpha: 0 },
+          easing: "power1.in",
+          yoyo: false,
+          repeat: 0,
+          displayName: `caption-${act.order}-slide-down`,
+          repeatDelay: 0
+        });
+      } else if (act.transition === "slide-down") {
+        // Slide down from above
+        caption.y = captionY - 50; // Start above final position
+        caption.opacity = 0;
+        
+        // Slide down and fade in
+        caption.animations.push({
+          id: randomUUID(),
+          type: "move",
+          startTime: act.startTime,
+          duration: fadeInDuration,
+          properties: { y: captionY, alpha: 1 },
+          easing: "power1.out",
+          yoyo: false,
+          repeat: 0,
+          displayName: `caption-${act.order}-slide-down`,
+          repeatDelay: 0
+        });
+        
+        // Slide up and fade out
+        caption.animations.push({
+          id: randomUUID(),
+          type: "move",
+          startTime: act.startTime + act.duration - fadeOutDuration,
+          duration: fadeOutDuration,
+          properties: { y: captionY + 50, alpha: 0 },
+          easing: "power1.in",
+          yoyo: false,
+          repeat: 0,
+          displayName: `caption-${act.order}-slide-up`,
+          repeatDelay: 0
+        });
+      }
+
+      elements.push(caption);
     }
 
     // Only process arrays for now - text elements are ignored

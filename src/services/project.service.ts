@@ -453,24 +453,54 @@ export class ProjectService {
 
     const diffPatcher = new DiffPatcher();
 
-    // Get current state - must use new schema format
+    // Get current state and handle both schema formats
     const currentState = (project.mainState as any) ?? {};
     const safeDiff = (changeData.diff ?? {}) as any;
 
-    // Validate that project has elements (simple mainState format)
-    if (!currentState.elements) {
-      throw new Error('Invalid mainState format: missing elements');
-    }
+    // Handle both new multi-scene schema and legacy flat schema
+    let normalizedState: any;
     
-    // Ensure we have the basic structure - mainState should directly contain elements, groups, timeline
-    if (!Array.isArray(currentState.elements)) {
-      currentState.elements = [];
+    if (currentState.scenes && Array.isArray(currentState.scenes)) {
+      // New multi-scene schema - extract first scene or create default
+      const firstScene = currentState.scenes[0] || {
+        sceneId: 'default',
+        sceneName: 'Default Scene',
+        sceneCanvas: { elements: [], groups: [], timeline: {} }
+      };
+      
+      normalizedState = {
+        elements: firstScene.sceneCanvas.elements || [],
+        groups: firstScene.sceneCanvas.groups || [],
+        timeline: firstScene.sceneCanvas.timeline || {},
+        dimensions: currentState.dimensions || { width: 1920, height: 1080 }
+      };
+    } else if (currentState.elements) {
+      // Legacy flat schema - use as is
+      normalizedState = { ...currentState };
+    } else {
+      // No valid structure found - create default
+      normalizedState = {
+        elements: [],
+        groups: [],
+        timeline: {
+          duration: 10,
+          scale: 1,
+          currentTime: 0,
+          animationStates: {}
+        },
+        dimensions: { width: 1920, height: 1080 }
+      };
     }
-    if (!Array.isArray(currentState.groups)) {
-      currentState.groups = [];
+
+    // Ensure we have the basic structure
+    if (!Array.isArray(normalizedState.elements)) {
+      normalizedState.elements = [];
     }
-    if (!currentState.timeline || typeof currentState.timeline !== 'object') {
-      currentState.timeline = {
+    if (!Array.isArray(normalizedState.groups)) {
+      normalizedState.groups = [];
+    }
+    if (!normalizedState.timeline || typeof normalizedState.timeline !== 'object') {
+      normalizedState.timeline = {
         duration: 10,
         scale: 1,
         currentTime: 0,
@@ -479,8 +509,8 @@ export class ProjectService {
     }
     
     // Add default dimensions if missing
-    if (!currentState.dimensions) {
-      currentState.dimensions = {
+    if (!normalizedState.dimensions) {
+      normalizedState.dimensions = {
         width: 1920,
         height: 1080
       };
@@ -493,27 +523,13 @@ export class ProjectService {
       diffType: 'mainState_modification',
       hasElementsDiff: !!safeDiff.elements,
       hasGroupsDiff: !!safeDiff.groups,
-      hasTimelineDiff: !!safeDiff.timeline
+      hasTimelineDiff: !!safeDiff.timeline,
+      originalSchema: currentState.scenes ? 'multi-scene' : 'flat',
+      normalizedElementsCount: normalizedState.elements.length
     });
     
-    // Apply diff directly to the main state
-    let baseState = { ...currentState };
-    
-    // Ensure required properties exist before applying diff
-    if (!Array.isArray(baseState.elements)) {
-      baseState.elements = [];
-    }
-    if (!Array.isArray(baseState.groups)) {
-      baseState.groups = [];
-    }
-    if (!baseState.timeline || typeof baseState.timeline !== 'object') {
-      baseState.timeline = {
-        duration: 10,
-        scale: 1,
-        currentTime: 0,
-        animationStates: {}
-      };
-    }
+    // Apply diff directly to the normalized state
+    let baseState = { ...normalizedState };
     
     let newState: any;
     
@@ -553,23 +569,46 @@ export class ProjectService {
       },
     });
 
-    // Update project version and mainState - simple structure with elements, groups, timeline
-    const finalMainState = {
-      // Ensure the basic structure is maintained
-      elements: newState.elements || currentState.elements || [],
-      groups: newState.groups || currentState.groups || [],
-      timeline: newState.timeline || currentState.timeline || {
-        duration: 10,
-        scale: 1,
-        currentTime: 0,
-        animationStates: {}
-      },
-      // Ensure dimensions exist
-      dimensions: currentState.dimensions || {
-        width: 1920,
-        height: 1080
+    // Update project version and mainState - preserve original schema format
+    let finalMainState: any;
+    
+    if (currentState.scenes && Array.isArray(currentState.scenes)) {
+      // Preserve multi-scene schema - update first scene with new state
+      const updatedScenes = [...currentState.scenes];
+      if (updatedScenes.length > 0) {
+        updatedScenes[0] = {
+          ...updatedScenes[0],
+          sceneCanvas: {
+            elements: newState.elements || normalizedState.elements || [],
+            groups: newState.groups || normalizedState.groups || [],
+            timeline: newState.timeline || normalizedState.timeline || {
+              duration: 10,
+              scale: 1,
+              currentTime: 0,
+              animationStates: {}
+            }
+          }
+        };
       }
-    };
+      
+      finalMainState = {
+        dimensions: currentState.dimensions || { width: 1920, height: 1080 },
+        scenes: updatedScenes
+      };
+    } else {
+      // Use flat schema - simple structure with elements, groups, timeline
+      finalMainState = {
+        elements: newState.elements || normalizedState.elements || [],
+        groups: newState.groups || normalizedState.groups || [],
+        timeline: newState.timeline || normalizedState.timeline || {
+          duration: 10,
+          scale: 1,
+          currentTime: 0,
+          animationStates: {}
+        },
+        dimensions: currentState.dimensions || { width: 1920, height: 1080 }
+      };
+    }
 
     // Log the structure being saved
     logger.info('Saving project with mainState structure', {
@@ -582,6 +621,7 @@ export class ProjectService {
         elementsCount: finalMainState.elements?.length || 0,
         groupsCount: finalMainState.groups?.length || 0,
         hasTimeline: !!finalMainState.timeline,
+        schemaType: currentState.scenes ? 'multi-scene' : 'flat'
       }
     });
 

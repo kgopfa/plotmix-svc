@@ -1,8 +1,8 @@
 export type Action =
   | { kind: "SETUP"; seed: number; style: "auto"|string }
   | { kind: "DRAW_ARRAY"; values: (number|string)[]; gap?: number; cell?: number }
-  | { kind: "DRAW_TEXT"; text: string; width?: number; size?: number; weight?: number; align?: "left"|"center"|"right" }
-  | { kind: "ANIMATE"; type: "highlight"|"select"|"focus"|"compare"; elements: (number|string)[]; startTime: number; duration: number };
+  | { kind: "ANIMATE"; type: "highlight"|"select"|"focus"|"compare"; elements: (number|string)[]; startTime: number; duration: number }
+  | { kind: "CAPTION"; order: number; text: string; startTime: number; duration: number; transition: "fade-in"|"fade-out"|"slide-up"|"slide-down" };
 
 export type AnimationPack = {
   name: string;

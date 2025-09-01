@@ -57,8 +57,11 @@ CRITICAL: In visualRequirements.arrays, include ONLY actual data arrays that sho
 Examples of what goes in arrays:
 ✓ [1, 3, 5, 7, 9] - actual data to visualize
 ✓ [2, 4, 6, 8] - another data example
+✓ [true, false, true] - boolean data
 ✗ ["Time: O(n)", "Space: O(1)"] - this is text, not array data
 ✗ ["Binary search", "Divide and conquer"] - these are concepts, not array elements
+✗ ["Target not found", "Array empty"] - these are explanations, not array data
+✗ ["Divide and conquer", "Efficient searching"] - these are key ideas, not array data
 
 ANIMATION GUIDELINES:
 - Use animations for algorithms that involve step-by-step progression through an array
@@ -225,9 +228,9 @@ Scene Plan: ${JSON.stringify(scenePlan, null, 2)}`
 STRICT RULES:
 1. Output ONLY the DSL inside one \`\`\`dsl fenced block
 2. Do NOT specify grid positions - the procedural system will handle layout automatically
-3. Use text command for titles, descriptions, bullets, complexity info, keyIdeas
-4. Use array command ONLY for actual data arrays (numbers/strings representing array elements)
-5. Use animate command for animation steps from the animation plan
+3. Use array command ONLY for actual data arrays (numbers/strings representing array elements)
+4. Use animate command for animation steps from the animation plan
+5. Use caption command for synchronized text explanations during animations
 6. No prose, comments, or explanations outside the DSL block
 
 DSL Syntax:
@@ -235,10 +238,10 @@ DSL Syntax:
 seed <int>
 style <auto|Minimal|Monospace|...>
 
-text "<content>"
-text "<content>" size <px> weight <int>
+
 array [v1,v2,v3]
 animate <type> [elements] <startTime> <duration>
+caption <order> "<text>" <startTime> <duration> <transition>
 \`\`\`
 
 Animation Types (for any 1-D array problem):
@@ -247,58 +250,64 @@ Animation Types (for any 1-D array problem):
 - focus: Focus state (subtle scaling for attention)
 - compare: Comparison state (background color for comparison)
 
+Caption Types (for synchronized text explanations):
+- fade-in: Caption fades in at start, fades out at end
+- fade-out: Caption starts visible, fades out at end
+- slide-up: Caption slides up from below, slides down at end
+- slide-down: Caption slides down from above, slides up at end
+
 Note: Animation styling (colors, scale factors, easing, duration) is procedurally generated based on the seed for consistent, theme-appropriate results.
 
 CRITICAL: 
-- Emit ONE text command per piece of content (title, description, each bullet point, complexity info, each key idea)
-- Do NOT put explanatory text in array commands
-- Arrays are ONLY for visualizing actual data: [1,2,3], ["a","b","c"], [5,10,15]
-- Text like "Time: O(n)" or "Binary search concept" goes in text commands, NOT arrays
+- Arrays are ONLY for visualizing actual data: [1,2,3], [5,10,15], [true,false]
+- Arrays are NEVER for concepts, explanations, or text content
 - Do NOT include grid positioning - the system will handle layout automatically
 - Use animate commands to show step-by-step algorithm progression
 - Elements in animate commands must match values in the array
-- Start times should be sequential (0, 2, 4, 6, etc.) for smooth progression
-- Duration should be consistent (usually 2 seconds per step)
+- Start times should be sequential (0, 5, 10, 15, etc.) for smooth progression
+- Duration should be consistent (usually 5 seconds per step)
+- Use caption commands for synchronized text explanations that appear during animations
+- Caption order should be sequential (1, 2, 3, etc.)
+- Caption timing should align with animation steps
+- Only one caption should be visible at a time (careful with transitions and duration)
+- Captions should stay visible for 3-5 seconds to give users time to read and process
 
 GENERIC ANIMATION GUIDELINES:
 - Use animations for any algorithm that involves step-by-step progression through an array
 - Show current focus/selection at each step
 - Highlight relevant ranges or elements being processed
 - Demonstrate comparisons, swaps, or other operations
-- Use consistent timing: start times should be sequential (0, 2, 4, 6...)
-- Use consistent duration: usually 2 seconds per step
+- Use consistent timing: start times should be sequential (0, 5, 10, 15...)
+- Use consistent duration: usually 5 seconds per step
 - Elements in animate commands must exist in the array
 
 Example Pattern (works for any 1-D array problem):
-text "Algorithm: [Problem Name]"
 array [1,2,3,4,5,6,7,8,9]
-animate highlight [1,9] 0 2
-text "Step 1: [Description]"
-animate select [5] 2 2
-text "Step 2: [Description]"
-animate highlight [6,9] 4 2
-text "Step 3: [Description]"
+animate highlight [1,9] 0 5
+caption 1 "Step 1: [Description]" 0 5 fade-in
+animate select [5] 5 5
+caption 2 "Step 2: [Description]" 5 5 fade-in
+animate highlight [6,9] 10 5
+caption 3 "Step 3: [Description]" 10 5 fade-in
 
 Example of CORRECT usage:
-text "Binary Search Problem" size 32 weight 700
-text "Find target in sorted array"
 array [1,3,5,7,9]
-animate highlight [1,9] 0 2
-text "Initial search range: entire array"
-animate select [5] 2 2
-text "Check middle element: 5"
-text "Time: O(log n), Space: O(1)"
+animate highlight [1,9] 0 5
+caption 1 "Initial search range: entire array" 0 5 fade-in
+animate select [5] 5 5
+caption 2 "Check middle element: 5" 5 5 fade-in
 
 Example of INCORRECT usage:
-array ["Binary Search Problem"]  ❌ - This is a title, use text
-array ["Time: O(log n)","Space: O(1)"]  ❌ - This is complexity info, use text
-text "Title" grid 1 12 1 1  ❌ - No grid positioning needed
+array ["Binary Search Problem"]  ❌ - This is a title, not array data
+array ["Time: O(log n)","Space: O(1)"]  ❌ - This is complexity info, not array data
+array ["Divide and conquer", "Efficient searching"]  ❌ - These are key ideas, not array data
+array ["Target not found", "Array empty"]  ❌ - These are edge cases, not array data
 animate highlight [10,11] 0 2  ❌ - Elements don't exist in array
 
 ANIMATION INTEGRATION:
 - Use animation steps from the animation plan to generate animate commands
 - Each animation step should become an animate command with the specified timing
-- Add explanatory text before each animation step
+- Use captions to provide explanations during animations
 - Ensure animation elements match the arrays in the scene plan`
       },
       {
