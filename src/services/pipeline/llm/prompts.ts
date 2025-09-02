@@ -238,6 +238,8 @@ DSL Syntax:
 seed <int>
 style <auto|Minimal|Monospace|...>
 
+heading "<title>"
+subtitle "<description>"
 array [v1,v2,v3]
 animate <type> [elements] <startTime> <duration>
 caption <order> "<text>"
@@ -248,6 +250,19 @@ Animation Types (for any 1-D array problem):
 - select: Selection state (scaling for emphasis)
 - focus: Focus state (subtle scaling for attention)
 - compare: Comparison state (background color for comparison)
+
+Heading Rules:
+- Generate a clear, descriptive title for the algorithm or concept being demonstrated
+- Keep headings concise but informative (e.g., "Binary Search Algorithm", "Bubble Sort Visualization")
+- Use title case formatting
+- Positioned at the top of the canvas, same distance from center as captions
+
+Subtitle Rules:
+- Generate a short, concise description of what the algorithm does
+- Keep subtitles very brief - maximum 6-8 words (e.g., "Finding target value in sorted array", "Sorting by swapping adjacent pairs")
+- Use sentence case formatting
+- Avoid full sentences - use phrases instead
+- Positioned below the heading, between heading and array content
 
 Caption Rules - CRITICAL:
 - Captions are simplified to only include order and text
@@ -286,6 +301,8 @@ GENERIC ANIMATION GUIDELINES:
 - Elements in animate commands must exist in the array
 
 Example Pattern (works for any 1-D array problem):
+heading "Binary Search Algorithm"
+subtitle "Finding target value in sorted array"
 array [1,2,3,4,5,6,7,8,9]
 animate highlight [1,9] 0 5
 caption 1 "Step 1: [Description]"
@@ -297,6 +314,8 @@ caption 3 "Step 3: [Description]"
 Note: Caption timing is automatically calculated - caption 1 appears at 0s, caption 2 at 4s, caption 3 at 8s, etc.
 
 Example of CORRECT usage:
+heading "Binary Search Algorithm"
+subtitle "Finding target value in sorted array"
 array [1,3,5,7,9]
 animate highlight [1,9] 0 5
 caption 1 "Initial search range: entire array"

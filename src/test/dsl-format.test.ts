@@ -82,27 +82,27 @@ caption 3 "Third caption"
     const caption1FadeIn = caption1?.animations.find(a => a.displayName?.includes('fade-in'));
     const caption1FadeOut = caption1?.animations.find(a => a.displayName?.includes('fade-out'));
     
-    expect(caption1FadeIn?.startTime).toBe(0);
+    expect(caption1FadeIn?.startTime).toBe(1.5); // 0 + 1.5 delay
     expect(caption1FadeIn?.duration).toBe(0.5);
-    expect(caption1FadeOut?.startTime).toBe(3.5); // 0.5 + 3
+    expect(caption1FadeOut?.startTime).toBe(5); // 1.5 + 0.5 + 3
     expect(caption1FadeOut?.duration).toBe(0.5);
     
     // Check timing for caption 2
     const caption2FadeIn = caption2?.animations.find(a => a.displayName?.includes('fade-in'));
     const caption2FadeOut = caption2?.animations.find(a => a.displayName?.includes('fade-out'));
     
-    expect(caption2FadeIn?.startTime).toBe(4); // 4s after caption 1 starts
+    expect(caption2FadeIn?.startTime).toBe(5.5); // 1.5 + 4
     expect(caption2FadeIn?.duration).toBe(0.5);
-    expect(caption2FadeOut?.startTime).toBe(7.5); // 4 + 0.5 + 3
+    expect(caption2FadeOut?.startTime).toBe(9); // 1.5 + 7.5
     expect(caption2FadeOut?.duration).toBe(0.5);
     
     // Check timing for caption 3
     const caption3FadeIn = caption3?.animations.find(a => a.displayName?.includes('fade-in'));
     const caption3FadeOut = caption3?.animations.find(a => a.displayName?.includes('fade-out'));
     
-    expect(caption3FadeIn?.startTime).toBe(8); // 8s after caption 1 starts
+    expect(caption3FadeIn?.startTime).toBe(9.5); // 1.5 + 8
     expect(caption3FadeIn?.duration).toBe(0.5);
-    expect(caption3FadeOut?.startTime).toBe(11.5); // 8 + 0.5 + 3
+    expect(caption3FadeOut?.startTime).toBe(13); // 1.5 + 11.5
     expect(caption3FadeOut?.duration).toBe(0.5);
   });
 
@@ -186,9 +186,104 @@ caption 2 "Step 2: The middle element is 5, which we will compare with our targe
     const caption2FadeIn = caption2?.animations.find(a => a.displayName?.includes('fade-in'));
     const caption2FadeOut = caption2?.animations.find(a => a.displayName?.includes('fade-out'));
     
-    expect(caption1FadeIn?.startTime).toBe(0);
-    expect(caption1FadeOut?.startTime).toBe(3.5);
-    expect(caption2FadeIn?.startTime).toBe(4);
-    expect(caption2FadeOut?.startTime).toBe(7.5);
+    expect(caption1FadeIn?.startTime).toBe(1.5); // 0 + 1.5 delay
+    expect(caption1FadeOut?.startTime).toBe(5); // 1.5 + 0.5 + 3
+    expect(caption2FadeIn?.startTime).toBe(5.5); // 1.5 + 4
+    expect(caption2FadeOut?.startTime).toBe(9); // 1.5 + 7.5
+  });
+
+  test('should parse and execute heading commands', () => {
+    const dsl = `
+      seed 12345
+      style auto
+      heading "Binary Search Algorithm"
+      array [1,3,5,7,9]
+      animate highlight [1,3,5,7,9] 0 2
+      caption 1 "Start with entire array"
+    `;
+
+    const program = DslCompiler.compile(dsl);
+    expect(program).toBeDefined();
+    
+    // Check that heading action is parsed
+    const headingActions = program.filter(action => action.kind === 'HEADING');
+    expect(headingActions).toHaveLength(1);
+    expect(headingActions[0]).toEqual({
+      kind: 'HEADING',
+      text: 'Binary Search Algorithm'
+    });
+
+    const scene = execute(program);
+    expect(scene).toBeDefined();
+    
+    // Check that heading element is created
+    const headingElements = scene.elements.filter(el => 
+      el.type === 'text' && el.name === 'Heading'
+    );
+    expect(headingElements).toHaveLength(1);
+    
+    const heading = headingElements[0] as any;
+    expect(heading.text).toBe('Binary Search Algorithm');
+    expect(heading.y).toBe(-400); // Positioned at top
+    expect(heading.x).toBe(0); // Centered horizontally
+    expect(heading.fontSize).toBeGreaterThan(44); // Larger than captions
+    expect(heading.fontWeight).toBe('bold');
+    expect(heading.opacity).toBe(0); // Starts invisible for fade-in
+    expect(heading.animations).toHaveLength(1); // Has fade-in animation
+    
+    // Verify heading fade-in animation
+    const headingFadeIn = heading.animations.find((a: any) => a.displayName === 'heading-fade-in');
+    expect(headingFadeIn).toBeDefined();
+    expect(headingFadeIn.startTime).toBe(0.5);
+    expect(headingFadeIn.duration).toBe(1);
+    expect(headingFadeIn.properties.alpha).toBe(1);
+  });
+
+  test('should parse and execute subtitle commands', () => {
+    const dsl = `
+      seed 12345
+      style auto
+      heading "Binary Search Algorithm"
+      subtitle "Finding target value in sorted array"
+      array [1,3,5,7,9]
+      animate highlight [1,3,5,7,9] 0 2
+      caption 1 "Start with entire array"
+    `;
+
+    const program = DslCompiler.compile(dsl);
+    expect(program).toBeDefined();
+    
+    // Check that subtitle action is parsed
+    const subtitleActions = program.filter(action => action.kind === 'SUBTITLE');
+    expect(subtitleActions).toHaveLength(1);
+    expect(subtitleActions[0]).toEqual({
+      kind: 'SUBTITLE',
+      text: 'Finding target value in sorted array'
+    });
+
+    const scene = execute(program);
+    expect(scene).toBeDefined();
+    
+    // Check that subtitle element is created
+    const subtitleElements = scene.elements.filter(el => 
+      el.type === 'text' && el.name === 'Subtitle'
+    );
+    expect(subtitleElements).toHaveLength(1);
+    
+    const subtitle = subtitleElements[0] as any;
+    expect(subtitle.text).toBe('Finding target value in sorted array');
+    expect(subtitle.y).toBe(-320); // Positioned below heading
+    expect(subtitle.x).toBe(0); // Centered horizontally
+    expect(subtitle.fontSize).toBeLessThan(66); // Smaller than heading
+    expect(subtitle.fontWeight).toBe('normal');
+    expect(subtitle.opacity).toBe(0); // Starts invisible for fade-in
+    expect(subtitle.animations).toHaveLength(1); // Has fade-in animation
+    
+    // Verify subtitle fade-in animation
+    const subtitleFadeIn = subtitle.animations.find((a: any) => a.displayName === 'subtitle-fade-in');
+    expect(subtitleFadeIn).toBeDefined();
+    expect(subtitleFadeIn.startTime).toBe(1); // Starts at 1s
+    expect(subtitleFadeIn.duration).toBe(1);
+    expect(subtitleFadeIn.properties.alpha).toBe(1);
   });
 });

@@ -14,6 +14,9 @@ const DEFAULT_CAPTION_CONFIG: CaptionConfig = {
   fadeOutDuration: 0.5, // 0.5 seconds fade out
   transitionType: "fade" // Use fade transitions
 };
+
+// Delay for main algorithm animations (after title sequence)
+const ALGORITHM_START_DELAY = 1.5;
  
 // Calculate optimal cell dimensions based on content
 function calculateOptimalCellDimensions(
@@ -233,7 +236,7 @@ export function execute(program: ActionProgram): Scene {
         easing: animConfig.easing,
         repeat: animConfig.repeat,
         duration: act.duration, // Use DSL duration, but could override with config
-        startTime: act.startTime,
+        startTime: act.startTime + ALGORITHM_START_DELAY, // Add delay for title sequence
         properties: animConfig.properties,
         displayName: `${act.type}-1`,
         repeatDelay: 0
@@ -340,7 +343,7 @@ export function execute(program: ActionProgram): Scene {
       // Calculate timing based on caption order
       // Each caption gets: fadeIn + visibleTime + fadeOut
       const totalCaptionDuration = DEFAULT_CAPTION_CONFIG.fadeInDuration + DEFAULT_CAPTION_CONFIG.visibleTime + DEFAULT_CAPTION_CONFIG.fadeOutDuration;
-      const startTime = (act.order - 1) * totalCaptionDuration;
+      const startTime = (act.order - 1) * totalCaptionDuration + ALGORITHM_START_DELAY; // Add delay for title sequence
       const fadeInEndTime = startTime + DEFAULT_CAPTION_CONFIG.fadeInDuration;
       const fadeOutStartTime = fadeInEndTime + DEFAULT_CAPTION_CONFIG.visibleTime;
       
@@ -373,6 +376,136 @@ export function execute(program: ActionProgram): Scene {
       });
 
       elements.push(caption);
+    }
+
+    if (act.kind === "HEADING") {
+      // Handle heading commands - create static text element at top of canvas
+      const headingId = randomUUID();
+      
+      // Position heading at the top of the canvas, same distance from center as captions
+      const headingY = -400; // Top area of 1920x1080 canvas (center is 0, so top is around -400)
+      const headingX = 0; // Center horizontally
+      
+      // Create heading text element
+      const heading: TextEl = {
+        animations: [],
+        fill: style.palette.text,
+        x: headingX,
+        y: headingY,
+        id: headingId,
+        name: `Heading`,
+        text: act.text,
+        type: "text",
+        width: 800, // Fixed width for headings
+        height: style.typography.size * 2, // Larger than captions
+        fontFamily: style.typography.family,
+        fontSize: style.typography.size * 1.5, // Larger font size for headings
+        fontWeight: "bold", // Bold for headings
+        textAlign: "center",
+        pivotX: 400, // Center pivot (half of width)
+        pivotY: (style.typography.size * 2) / 2, // Center pivot (half of height)
+        zIndex: 10, // High z-index to appear above other elements
+        opacity: 0, // Start invisible for fade-in
+        visible: true,
+        groupId: "",
+        wordWrap: true,
+        fontStyle: "normal",
+        lineHeight: 1.2,
+        shadowBlur: 0,
+        shadowColor: "#000000",
+        strokeWidth: 0,
+        cornerRadius: 0,
+        letterSpacing: 0,
+        shadowEnabled: false,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowOpacity: 0,
+        wordWrapWidth: 800,
+        textStrokeJoin: "round",
+        isAnimationPath: false,
+        textStrokeWidth: 0
+      };
+
+      // Add fade-in animation for heading
+      heading.animations.push({
+        id: randomUUID(),
+        type: "fade",
+        startTime: 0.5, // Start at 0.5s
+        duration: 1, // 1 second fade-in
+        properties: { alpha: 1 },
+        easing: "power1.inOut",
+        yoyo: false,
+        repeat: 0,
+        displayName: "heading-fade-in",
+        repeatDelay: 0
+      });
+
+      elements.push(heading);
+    }
+
+    if (act.kind === "SUBTITLE") {
+      // Handle subtitle commands - create static text element below heading
+      const subtitleId = randomUUID();
+      
+      // Position subtitle below the heading, same distance from center as captions
+      const subtitleY = -320; // Below heading, positioned between heading and array
+      const subtitleX = 0; // Center horizontally
+      
+      // Create subtitle text element
+      const subtitle: TextEl = {
+        animations: [],
+        fill: style.palette.text,
+        x: subtitleX,
+        y: subtitleY,
+        id: subtitleId,
+        name: `Subtitle`,
+        text: act.text,
+        type: "text",
+        width: 800, // Fixed width for subtitles
+        height: style.typography.size * 1.5, // Smaller than heading
+        fontFamily: style.typography.family,
+        fontSize: style.typography.size * 0.9, // Smaller than heading, similar to captions
+        fontWeight: "normal", // Normal weight for subtitles
+        textAlign: "center",
+        pivotX: 400, // Center pivot (half of width)
+        pivotY: (style.typography.size * 1.5) / 2, // Center pivot (half of height)
+        zIndex: 10, // High z-index to appear above other elements
+        opacity: 0, // Start invisible for fade-in
+        visible: true,
+        groupId: "",
+        wordWrap: true,
+        fontStyle: "normal",
+        lineHeight: 1.2,
+        shadowBlur: 0,
+        shadowColor: "#000000",
+        strokeWidth: 0,
+        cornerRadius: 0,
+        letterSpacing: 0,
+        shadowEnabled: false,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowOpacity: 0,
+        wordWrapWidth: 800,
+        textStrokeJoin: "round",
+        isAnimationPath: false,
+        textStrokeWidth: 0
+      };
+
+      // Add fade-in animation for subtitle (starts after heading)
+      subtitle.animations.push({
+        id: randomUUID(),
+        type: "fade",
+        startTime: 1, // Start at 1s
+        duration: 1, // 1 second fade-in
+        properties: { alpha: 1 },
+        easing: "power1.inOut",
+        yoyo: false,
+        repeat: 0,
+        displayName: "subtitle-fade-in",
+        repeatDelay: 0
+      });
+
+      elements.push(subtitle);
     }
 
     // Only process arrays for now - text elements are ignored

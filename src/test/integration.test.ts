@@ -76,10 +76,12 @@ describe('Full Integration Test', () => {
     console.log('System Prompt:', systemPrompt);
     console.log('User Prompt:', userPrompt);
 
-    // Simulate LLM response with the new simplified format
+    // Simulate LLM response with the new simplified format including heading and subtitle
     const simulatedLlmResponse = `\`\`\`dsl
 seed 12345
 style auto
+heading "Binary Search Algorithm"
+subtitle "Finding target value in sorted array"
 array [1,3,5,7,9]
 animate highlight [1,3,5,7,9] 0 2
 caption 1 "We start with the entire array as our search range."
@@ -109,11 +111,15 @@ caption 4 "Since the target is equal to the middle element, we found the target.
 
     // Check that we have the expected actions
     const setupActions = program.filter(action => action.kind === 'SETUP');
+    const headingActions = program.filter(action => action.kind === 'HEADING');
+    const subtitleActions = program.filter(action => action.kind === 'SUBTITLE');
     const arrayActions = program.filter(action => action.kind === 'DRAW_ARRAY');
     const animateActions = program.filter(action => action.kind === 'ANIMATE');
     const captionActions = program.filter(action => action.kind === 'CAPTION');
 
     expect(setupActions).toHaveLength(2); // There are 2 setup actions due to parsing
+    expect(headingActions).toHaveLength(1);
+    expect(subtitleActions).toHaveLength(1);
     expect(arrayActions).toHaveLength(1);
     expect(animateActions).toHaveLength(4);
     expect(captionActions).toHaveLength(4);
@@ -123,6 +129,18 @@ caption 4 "Since the target is equal to the middle element, we found the target.
       kind: 'SETUP',
       seed: 12345,
       style: 'auto'
+    });
+
+    // Verify heading
+    expect(headingActions[0]).toEqual({
+      kind: 'HEADING',
+      text: 'Binary Search Algorithm'
+    });
+
+    // Verify subtitle
+    expect(subtitleActions[0]).toEqual({
+      kind: 'SUBTITLE',
+      text: 'Finding target value in sorted array'
     });
 
     // Verify array
@@ -202,10 +220,18 @@ caption 4 "Since the target is equal to the middle element, we found the target.
     const captionElements = scene.elements.filter(el => 
       el.type === 'text' && el.name.startsWith('Caption ')
     );
+    const headingElements = scene.elements.filter(el => 
+      el.type === 'text' && el.name === 'Heading'
+    );
+    const subtitleElements = scene.elements.filter(el => 
+      el.type === 'text' && el.name === 'Subtitle'
+    );
 
     // Should have 5 array elements (1 rectangle + 1 text per array value)
     expect(arrayElements).toHaveLength(10); // 5 rectangles + 5 text elements
     expect(captionElements).toHaveLength(4); // 4 captions
+    expect(headingElements).toHaveLength(1); // 1 heading
+    expect(subtitleElements).toHaveLength(1); // 1 subtitle
 
     // Verify caption timing
     const caption1 = captionElements.find(el => el.name === 'Caption 1');
@@ -224,10 +250,46 @@ caption 4 "Since the target is equal to the middle element, we found the target.
     const caption2FadeIn = caption2?.animations.find(a => a.displayName?.includes('fade-in'));
     const caption2FadeOut = caption2?.animations.find(a => a.displayName?.includes('fade-out'));
 
-    expect(caption1FadeIn?.startTime).toBe(0);
-    expect(caption1FadeOut?.startTime).toBe(3.5);
-    expect(caption2FadeIn?.startTime).toBe(4);
-    expect(caption2FadeOut?.startTime).toBe(7.5);
+    expect(caption1FadeIn?.startTime).toBe(1.5);
+    expect(caption1FadeOut?.startTime).toBe(5);
+    expect(caption2FadeIn?.startTime).toBe(5.5);
+    expect(caption2FadeOut?.startTime).toBe(9);
+
+    // Verify heading positioning and properties
+    const heading = headingElements[0] as any; // Type assertion for heading element
+    expect(heading).toBeDefined();
+    expect(heading?.text).toBe('Binary Search Algorithm');
+    expect(heading?.y).toBe(-400); // Positioned at top, same distance from center as captions
+    expect(heading?.x).toBe(0); // Centered horizontally
+    expect(heading?.fontSize).toBeGreaterThan(44); // Larger than captions
+    expect(heading?.fontWeight).toBe('bold');
+    expect(heading?.opacity).toBe(0); // Starts invisible for fade-in
+    expect(heading?.animations).toHaveLength(1); // Has fade-in animation
+    
+    // Verify heading fade-in animation
+    const headingFadeIn = heading?.animations.find((a: any) => a.displayName === 'heading-fade-in');
+    expect(headingFadeIn).toBeDefined();
+    expect(headingFadeIn?.startTime).toBe(0.5);
+    expect(headingFadeIn?.duration).toBe(1);
+    expect(headingFadeIn?.properties.alpha).toBe(1);
+
+    // Verify subtitle positioning and properties
+    const subtitle = subtitleElements[0] as any; // Type assertion for subtitle element
+    expect(subtitle).toBeDefined();
+    expect(subtitle?.text).toBe('Finding target value in sorted array');
+    expect(subtitle?.y).toBe(-320); // Positioned below heading, between heading and array
+    expect(subtitle?.x).toBe(0); // Centered horizontally
+    expect(subtitle?.fontSize).toBeLessThan(heading?.fontSize); // Smaller than heading
+    expect(subtitle?.fontWeight).toBe('normal'); // Normal weight
+    expect(subtitle?.opacity).toBe(0); // Starts invisible for fade-in
+    expect(subtitle?.animations).toHaveLength(1); // Has fade-in animation
+    
+    // Verify subtitle fade-in animation
+    const subtitleFadeIn = subtitle?.animations.find((a: any) => a.displayName === 'subtitle-fade-in');
+    expect(subtitleFadeIn).toBeDefined();
+    expect(subtitleFadeIn?.startTime).toBe(1); // Starts at 1s
+    expect(subtitleFadeIn?.duration).toBe(1);
+    expect(subtitleFadeIn?.properties.alpha).toBe(1);
 
     // Verify array animations are present
     const arrayAnimations = arrayElements.flatMap(el => el.animations);
@@ -239,6 +301,8 @@ caption 4 "Since the target is equal to the middle element, we found the target.
     console.log('- Elements:', scene.elements.length);
     console.log('- Array elements:', arrayElements.length);
     console.log('- Caption elements:', captionElements.length);
+    console.log('- Heading elements:', headingElements.length);
+    console.log('- Subtitle elements:', subtitleElements.length);
     console.log('- Total animations:', scene.elements.flatMap(el => el.animations).length);
   });
 });

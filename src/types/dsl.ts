@@ -2,7 +2,9 @@ export type Action =
   | { kind: "SETUP"; seed: number; style: "auto"|string }
   | { kind: "DRAW_ARRAY"; values: (number|string)[]; gap?: number; cell?: number }
   | { kind: "ANIMATE"; type: "highlight"|"select"|"focus"|"compare"; elements: (number|string)[]; startTime: number; duration: number }
-  | { kind: "CAPTION"; order: number; text: string };
+  | { kind: "CAPTION"; order: number; text: string }
+  | { kind: "HEADING"; text: string }
+  | { kind: "SUBTITLE"; text: string };
 
 // Configuration for caption timing
 export interface CaptionConfig {

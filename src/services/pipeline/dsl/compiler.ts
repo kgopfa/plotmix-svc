@@ -35,6 +35,10 @@ export class DslCompiler {
         return this.parseAnimate(line);
       case 'caption':
         return this.parseCaption(line);
+      case 'heading':
+        return this.parseHeading(line);
+      case 'subtitle':
+        return this.parseSubtitle(line);
       default:
         logger.error(`Unknown DSL command: ${command}`);
         throw new Error(`Unknown DSL command: ${command}`);
@@ -134,6 +138,36 @@ export class DslCompiler {
     return {
       kind: "CAPTION",
       order,
+      text
+    };
+  }
+
+  private static parseHeading(line: string): Action | null {
+    const headingMatch = line.match(/^heading\s+"([^"]+)"/);
+    
+    if (!headingMatch) {
+      return null;
+    }
+
+    const text = headingMatch[1]!;
+
+    return {
+      kind: "HEADING",
+      text
+    };
+  }
+
+  private static parseSubtitle(line: string): Action | null {
+    const subtitleMatch = line.match(/^subtitle\s+"([^"]+)"/);
+    
+    if (!subtitleMatch) {
+      return null;
+    }
+
+    const text = subtitleMatch[1]!;
+
+    return {
+      kind: "SUBTITLE",
       text
     };
   }
