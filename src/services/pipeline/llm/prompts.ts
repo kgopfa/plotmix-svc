@@ -243,6 +243,7 @@ subtitle "<description>"
 array [v1,v2,v3]
 animate <type> [elements] <startTime> <duration>
 caption <order> "<text>"
+conclusion "<timeComplexity>" "<spaceComplexity>" "<useCase>"
 \`\`\`
 
 Animation Types (for any 1-D array problem):
@@ -290,6 +291,8 @@ CRITICAL:
 - Caption order should be sequential (1, 2, 3, etc.)
 - Caption timing is automatically synchronized with animation steps
 - Only one caption should be visible at a time (handled automatically)
+- Use conclusion command at the end to show time/space complexity and use cases
+- Conclusion automatically fades out the array and displays complexity information
 
 GENERIC ANIMATION GUIDELINES:
 - Use animations for any algorithm that involves step-by-step progression through an array
@@ -310,8 +313,10 @@ animate select [5] 5 5
 caption 2 "Step 2: [Description]"
 animate highlight [6,9] 10 5
 caption 3 "Step 3: [Description]"
+conclusion "O(log n)" "O(1)" "Searching in sorted arrays"
 
 Note: Caption timing is automatically calculated - caption 1 appears at 0s, caption 2 at 4s, caption 3 at 8s, etc.
+Conclusion appears after all animations complete and fades out the array to show complexity information.
 
 Example of CORRECT usage:
 heading "Binary Search Algorithm"
@@ -321,6 +326,7 @@ animate highlight [1,9] 0 5
 caption 1 "Initial search range: entire array"
 animate select [5] 5 5
 caption 2 "Check middle element: 5"
+conclusion "O(log n)" "O(1)" "Searching in sorted arrays"
 
 Example of INCORRECT usage:
 array ["Binary Search Problem"]  ❌ - This is a title, not array data

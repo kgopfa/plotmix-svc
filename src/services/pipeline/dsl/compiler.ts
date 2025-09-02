@@ -39,6 +39,8 @@ export class DslCompiler {
         return this.parseHeading(line);
       case 'subtitle':
         return this.parseSubtitle(line);
+      case 'conclusion':
+        return this.parseConclusion(line);
       default:
         logger.error(`Unknown DSL command: ${command}`);
         throw new Error(`Unknown DSL command: ${command}`);
@@ -169,6 +171,25 @@ export class DslCompiler {
     return {
       kind: "SUBTITLE",
       text
+    };
+  }
+
+  private static parseConclusion(line: string): Action | null {
+    // Parse: conclusion "O(log n)" "O(1)" "Searching in sorted arrays"
+    const conclusionMatch = line.match(/^conclusion\s+"([^"]+)"\s+"([^"]+)"\s+"([^"]+)"/);
+    if (!conclusionMatch) {
+      return null;
+    }
+    
+    const timeComplexity = conclusionMatch[1]!;
+    const spaceComplexity = conclusionMatch[2]!;
+    const useCase = conclusionMatch[3]!;
+    
+    return {
+      kind: "CONCLUSION",
+      timeComplexity,
+      spaceComplexity,
+      useCase
     };
   }
 }

@@ -508,6 +508,216 @@ export function execute(program: ActionProgram): Scene {
       elements.push(subtitle);
     }
 
+    if (act.kind === "CONCLUSION") {
+      // Handle conclusion commands - fade out array and show complexity info
+      const conclusionStartTime = 20; // Start after all other animations
+      
+      // Fade out all array elements
+      elements.forEach(element => {
+        if (element.type === "rectangle" || (element.type === "text" && element.groupId)) {
+          element.animations.push({
+            id: randomUUID(),
+            type: "fade",
+            startTime: conclusionStartTime,
+            duration: 1,
+            properties: { alpha: 0 },
+            easing: "power1.inOut",
+            yoyo: false,
+            repeat: 0,
+            displayName: "array-fade-out",
+            repeatDelay: 0
+          });
+        }
+      });
+
+      // Fade out all groups
+      groups.forEach(group => {
+        group.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: conclusionStartTime,
+          duration: 1,
+          properties: { alpha: 0 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: "group-fade-out",
+          repeatDelay: 0
+        });
+      });
+
+      // Create time complexity text element
+      const timeComplexityId = randomUUID();
+      const timeComplexity: TextEl = {
+        animations: [],
+        fill: style.palette.text,
+        x: -200, // Left side of array area
+        y: -50, // Center vertically in array area
+        id: timeComplexityId,
+        name: `Time Complexity`,
+        text: `Time: ${act.timeComplexity}`,
+        type: "text",
+        width: 300,
+        height: style.typography.size * 1.5,
+        fontFamily: style.typography.family,
+        fontSize: style.typography.size * 1.2,
+        fontWeight: "bold",
+        textAlign: "center",
+        pivotX: 150,
+        pivotY: (style.typography.size * 1.5) / 2,
+        zIndex: 15,
+        opacity: 0, // Start invisible
+        visible: true,
+        groupId: "",
+        wordWrap: true,
+        fontStyle: "normal",
+        lineHeight: 1.2,
+        shadowBlur: 0,
+        shadowColor: "#000000",
+        strokeWidth: 0,
+        cornerRadius: 0,
+        letterSpacing: 0,
+        shadowEnabled: false,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowOpacity: 0,
+        wordWrapWidth: 300,
+        textStrokeJoin: "round",
+        isAnimationPath: false,
+        textStrokeWidth: 0
+      };
+
+      // Add fade-in animation for time complexity
+      timeComplexity.animations.push({
+        id: randomUUID(),
+        type: "fade",
+        startTime: conclusionStartTime + 1.5, // Start after array fades out
+        duration: 1,
+        properties: { alpha: 1 },
+        easing: "power1.inOut",
+        yoyo: false,
+        repeat: 0,
+        displayName: "time-complexity-fade-in",
+        repeatDelay: 0
+      });
+
+      elements.push(timeComplexity);
+
+      // Create space complexity text element
+      const spaceComplexityId = randomUUID();
+      const spaceComplexity: TextEl = {
+        animations: [],
+        fill: style.palette.text,
+        x: 200, // Right side of array area
+        y: -50, // Center vertically in array area
+        id: spaceComplexityId,
+        name: `Space Complexity`,
+        text: `Space: ${act.spaceComplexity}`,
+        type: "text",
+        width: 300,
+        height: style.typography.size * 1.5,
+        fontFamily: style.typography.family,
+        fontSize: style.typography.size * 1.2,
+        fontWeight: "bold",
+        textAlign: "center",
+        pivotX: 150,
+        pivotY: (style.typography.size * 1.5) / 2,
+        zIndex: 15,
+        opacity: 0, // Start invisible
+        visible: true,
+        groupId: "",
+        wordWrap: true,
+        fontStyle: "normal",
+        lineHeight: 1.2,
+        shadowBlur: 0,
+        shadowColor: "#000000",
+        strokeWidth: 0,
+        cornerRadius: 0,
+        letterSpacing: 0,
+        shadowEnabled: false,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowOpacity: 0,
+        wordWrapWidth: 300,
+        textStrokeJoin: "round",
+        isAnimationPath: false,
+        textStrokeWidth: 0
+      };
+
+      // Add fade-in animation for space complexity
+      spaceComplexity.animations.push({
+        id: randomUUID(),
+        type: "fade",
+        startTime: conclusionStartTime + 1.5, // Start after array fades out
+        duration: 1,
+        properties: { alpha: 1 },
+        easing: "power1.inOut",
+        yoyo: false,
+        repeat: 0,
+        displayName: "space-complexity-fade-in",
+        repeatDelay: 0
+      });
+
+      elements.push(spaceComplexity);
+
+      // Create use case caption
+      const useCaseCaptionId = randomUUID();
+      const useCaseCaption: TextEl = {
+        animations: [],
+        fill: style.palette.text,
+        x: 0, // Center horizontally
+        y: 400, // Bottom area where captions are
+        id: useCaseCaptionId,
+        name: `Use Case Caption`,
+        text: `Use Case: ${act.useCase}`,
+        type: "text",
+        width: 800,
+        height: style.typography.size * 1.5,
+        fontFamily: style.typography.family,
+        fontSize: style.typography.size,
+        fontWeight: style.typography.weight,
+        textAlign: "center",
+        pivotX: 400,
+        pivotY: (style.typography.size * 1.5) / 2,
+        zIndex: 10,
+        opacity: 0, // Start invisible
+        visible: true,
+        groupId: "",
+        wordWrap: true,
+        fontStyle: "normal",
+        lineHeight: 1.2,
+        shadowBlur: 0,
+        shadowColor: "#000000",
+        strokeWidth: 0,
+        cornerRadius: 0,
+        letterSpacing: 0,
+        shadowEnabled: false,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowOpacity: 0,
+        wordWrapWidth: 800,
+        textStrokeJoin: "round",
+        isAnimationPath: false,
+        textStrokeWidth: 0
+      };
+
+      // Add fade-in animation for use case caption
+      useCaseCaption.animations.push({
+        id: randomUUID(),
+        type: "fade",
+        startTime: conclusionStartTime + 1.5, // Start after array fades out
+        duration: 1,
+        properties: { alpha: 1 },
+        easing: "power1.inOut",
+        yoyo: false,
+        repeat: 0,
+        displayName: "use-case-caption-fade-in",
+        repeatDelay: 0
+      });
+
+      elements.push(useCaseCaption);
+    }
+
     // Only process arrays for now - text elements are ignored
 
     // (future) DRAW_STACK, DRAW_QUEUE, DRAW_LINKED_LIST, DRAW_TREE...
