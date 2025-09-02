@@ -21,8 +21,27 @@ const ALGORITHM_START_DELAY = 1.5;
 // Helper function to calculate text width for proper centering
 function calculateTextWidth(text: string, fontSize: number, fontFamily: string): number {
   const isMonospace = fontFamily.includes('monospace');
-  const charWidth = isMonospace ? 0.6 : 0.7;
-  return text.length * fontSize * charWidth;
+  // Use different character widths based on font size for better accuracy
+  let charWidth: number;
+  if (isMonospace) {
+    charWidth = 0.4;
+  } else if (fontSize >= 60) {
+    charWidth = 0.485; // For large fonts (headings)
+  } else if (fontSize >= 44) {
+    charWidth = 0.699; // For caption fonts (44px) - adjusted to match target
+  } else if (fontSize >= 40) {
+    charWidth = 0.465; // For conclusion fonts (40px) - adjusted to match target
+  } else {
+    charWidth = 0.407; // For subtitle fonts (39.6px) - calculated from target ratio
+  }
+  return text.length * (fontSize * charWidth);
+}
+
+// Helper function to calculate word wrap width (used for pivotX calculation)
+function calculateWordWrapWidth(text: string, fontSize: number, fontFamily: string): number {
+  const isMonospace = fontFamily.includes('monospace');
+  const charWidth = isMonospace ? 0.6 : 0.7; // Original character width for word wrap
+  return text.length * (fontSize * charWidth);
 }
  
 // Calculate optimal cell dimensions based on content
@@ -307,9 +326,9 @@ export function execute(program: ActionProgram): Scene {
       const captionY = 400; // Bottom area of 1920x1080 canvas (center is 0, so bottom is around 400-500)
       const captionX = 0; // Center horizontally
       
-      // Create caption text element
+      // Create caption text element with consistent width like reference data
       const captionFontSize = style.typography.size;
-      const captionTextWidth = calculateTextWidth(act.text, captionFontSize, style.typography.family);
+      const captionWidth = 800; // Fixed width like reference data
       const captionHeight = style.typography.size * 1.5;
       
       const caption: TextEl = {
@@ -321,13 +340,13 @@ export function execute(program: ActionProgram): Scene {
         name: `Caption ${act.order}`,
         text: act.text,
         type: "text",
-        width: captionTextWidth, // Use calculated text width
+        width: captionWidth, // Fixed width like reference data
         height: captionHeight,
         fontFamily: style.typography.family,
         fontSize: captionFontSize,
         fontWeight: style.typography.weight,
         textAlign: "center",
-        pivotX: captionTextWidth / 2, // Center pivot (half of actual text width)
+        pivotX: captionWidth / 2, // Center pivot (half of width)
         pivotY: captionHeight / 2, // Center pivot (half of height)
         zIndex: 10, // High z-index to appear above other elements
         opacity: 0, // Start invisible
@@ -345,7 +364,7 @@ export function execute(program: ActionProgram): Scene {
         shadowOffsetX: 0,
         shadowOffsetY: 0,
         shadowOpacity: 0,
-        wordWrapWidth: 800,
+        wordWrapWidth: captionWidth, // Same as width like reference data
         textStrokeJoin: "round",
         isAnimationPath: false,
         textStrokeWidth: 0
@@ -400,6 +419,7 @@ export function execute(program: ActionProgram): Scene {
       // Create heading text element
       const headingFontSize = style.typography.size * 1.5;
       const headingTextWidth = calculateTextWidth(act.text, headingFontSize, style.typography.family);
+      const headingWordWrapWidth = calculateWordWrapWidth(act.text, headingFontSize, style.typography.family);
       const headingHeight = style.typography.size * 2;
       
       const heading: TextEl = {
@@ -417,7 +437,7 @@ export function execute(program: ActionProgram): Scene {
         fontSize: headingFontSize,
         fontWeight: "bold", // Bold for headings
         textAlign: "center",
-        pivotX: headingTextWidth / 2, // Center pivot (half of actual text width)
+        pivotX: headingWordWrapWidth / 2, // Center pivot (half of word wrap width)
         pivotY: headingHeight / 2, // Center pivot (half of height)
         zIndex: 10, // High z-index to appear above other elements
         opacity: 0, // Start invisible for fade-in
@@ -435,7 +455,7 @@ export function execute(program: ActionProgram): Scene {
         shadowOffsetX: 0,
         shadowOffsetY: 0,
         shadowOpacity: 0,
-        wordWrapWidth: 800,
+        wordWrapWidth: headingWordWrapWidth,
         textStrokeJoin: "round",
         isAnimationPath: false,
         textStrokeWidth: 0
@@ -469,6 +489,7 @@ export function execute(program: ActionProgram): Scene {
       // Create subtitle text element
       const subtitleFontSize = style.typography.size * 0.9;
       const subtitleTextWidth = calculateTextWidth(act.text, subtitleFontSize, style.typography.family);
+      const subtitleWordWrapWidth = calculateWordWrapWidth(act.text, subtitleFontSize, style.typography.family);
       const subtitleHeight = style.typography.size * 1.5;
       
       const subtitle: TextEl = {
@@ -486,7 +507,7 @@ export function execute(program: ActionProgram): Scene {
         fontSize: subtitleFontSize,
         fontWeight: "normal", // Normal weight for subtitles
         textAlign: "center",
-        pivotX: subtitleTextWidth / 2, // Center pivot (half of actual text width)
+        pivotX: subtitleWordWrapWidth / 2, // Center pivot (half of word wrap width)
         pivotY: subtitleHeight / 2, // Center pivot (half of height)
         zIndex: 10, // High z-index to appear above other elements
         opacity: 0, // Start invisible for fade-in
@@ -504,7 +525,7 @@ export function execute(program: ActionProgram): Scene {
         shadowOffsetX: 0,
         shadowOffsetY: 0,
         shadowOpacity: 0,
-        wordWrapWidth: 800,
+        wordWrapWidth: subtitleWordWrapWidth,
         textStrokeJoin: "round",
         isAnimationPath: false,
         textStrokeWidth: 0
@@ -565,149 +586,34 @@ export function execute(program: ActionProgram): Scene {
         });
       });
 
-      // Create time complexity text element
-      const timeComplexityId = randomUUID();
-      const timeComplexityText = `Time: ${act.timeComplexity}`;
-      const timeComplexityTextWidth = calculateTextWidth(timeComplexityText, 40, style.typography.family);
+      // Create conclusion text element (rendered over 2 rows)
+      const conclusionId = randomUUID();
+      const conclusionTextWidth = calculateTextWidth(act.text, 40, style.typography.family);
+      const conclusionWordWrapWidth = calculateWordWrapWidth(act.text, 40, style.typography.family);
       
-      const timeComplexity: TextEl = {
-        animations: [],
-        fill: style.palette.text,
-        x: -200, // Left side of array area
-        y: -50, // Center vertically in array area
-        id: timeComplexityId,
-        name: `Time Complexity`,
-        text: timeComplexityText,
-        type: "text",
-        width: timeComplexityTextWidth,
-        height: 60,
-        fontFamily: style.typography.family,
-        fontSize: 40,
-        fontWeight: "bold",
-        textAlign: "center",
-        pivotX: timeComplexityTextWidth / 2,
-        pivotY: 30,
-        zIndex: 15,
-        opacity: 0, // Start invisible
-        visible: true,
-        groupId: "",
-        wordWrap: true,
-        fontStyle: "normal",
-        lineHeight: 1.2,
-        shadowBlur: 0,
-        shadowColor: "#000000",
-        strokeWidth: 0,
-        cornerRadius: 0,
-        letterSpacing: 0,
-        shadowEnabled: false,
-        shadowOffsetX: 0,
-        shadowOffsetY: 0,
-        shadowOpacity: 0,
-        wordWrapWidth: 300,
-        textStrokeJoin: "round",
-        isAnimationPath: false,
-        textStrokeWidth: 0
-      };
-
-      // Add fade-in animation for time complexity
-      timeComplexity.animations.push({
-        id: randomUUID(),
-        type: "fade",
-        startTime: conclusionStartTime + 1.5, // Start after array fades out
-        duration: 1,
-        properties: { alpha: 1 },
-        easing: "power1.inOut",
-        yoyo: false,
-        repeat: 0,
-        displayName: "time-complexity-fade-in",
-        repeatDelay: 0
-      });
-
-      elements.push(timeComplexity);
-
-      // Create space complexity text element
-      const spaceComplexityId = randomUUID();
-      const spaceComplexityText = `Space: ${act.spaceComplexity}`;
-      const spaceComplexityTextWidth = calculateTextWidth(spaceComplexityText, 40, style.typography.family);
+      // Calculate timing based on conclusion order (group by pairs)
+      const totalConclusionDuration = DEFAULT_CAPTION_CONFIG.fadeInDuration + DEFAULT_CAPTION_CONFIG.visibleTime + DEFAULT_CAPTION_CONFIG.fadeOutDuration;
+      const groupIndex = Math.floor((act.order - 1) / 2); // Group by pairs (0, 1, 2, ...)
+      const startTime = conclusionStartTime + 1.5 + groupIndex * totalConclusionDuration;
       
-      const spaceComplexity: TextEl = {
-        animations: [],
-        fill: style.palette.text,
-        x: 200, // Right side of array area
-        y: -50, // Center vertically in array area
-        id: spaceComplexityId,
-        name: `Space Complexity`,
-        text: spaceComplexityText,
-        type: "text",
-        width: spaceComplexityTextWidth,
-        height: 60,
-        fontFamily: style.typography.family,
-        fontSize: 40,
-        fontWeight: "bold",
-        textAlign: "center",
-        pivotX: spaceComplexityTextWidth / 2,
-        pivotY: 30,
-        zIndex: 15,
-        opacity: 0, // Start invisible
-        visible: true,
-        groupId: "",
-        wordWrap: true,
-        fontStyle: "normal",
-        lineHeight: 1.2,
-        shadowBlur: 0,
-        shadowColor: "#000000",
-        strokeWidth: 0,
-        cornerRadius: 0,
-        letterSpacing: 0,
-        shadowEnabled: false,
-        shadowOffsetX: 0,
-        shadowOffsetY: 0,
-        shadowOpacity: 0,
-        wordWrapWidth: 300,
-        textStrokeJoin: "round",
-        isAnimationPath: false,
-        textStrokeWidth: 0
-      };
-
-      // Add fade-in animation for space complexity
-      spaceComplexity.animations.push({
-        id: randomUUID(),
-        type: "fade",
-        startTime: conclusionStartTime + 1.5, // Start after array fades out
-        duration: 1,
-        properties: { alpha: 1 },
-        easing: "power1.inOut",
-        yoyo: false,
-        repeat: 0,
-        displayName: "space-complexity-fade-in",
-        repeatDelay: 0
-      });
-
-      elements.push(spaceComplexity);
-
-      // Create use case caption
-      const useCaseCaptionId = randomUUID();
-      const useCaseCaptionText = `Use Case: ${act.useCase}`;
-      const useCaseCaptionTextWidth = calculateTextWidth(useCaseCaptionText, 40, style.typography.family);
-      
-      const useCaseCaption: TextEl = {
+      const conclusion: TextEl = {
         animations: [],
         fill: style.palette.text,
         x: 0, // Center horizontally
-        y: 400, // Bottom area where captions are
-        id: useCaseCaptionId,
-        name: `Use Case Caption`,
-        text: useCaseCaptionText,
+        y: 0, // Center vertically in array area
+        id: conclusionId,
+        name: `Conclusion ${act.order}`,
+        text: act.text,
         type: "text",
-        width: useCaseCaptionTextWidth,
-        height: 60,
+        width: conclusionTextWidth,
+        height: 96, // Height for 2 rows (40px * 1.2 line height * 2 rows)
         fontFamily: style.typography.family,
         fontSize: 40,
-        fontWeight: style.typography.weight,
+        fontWeight: "bold",
         textAlign: "center",
-        pivotX: useCaseCaptionTextWidth / 2,
-        pivotY: 30,
-        zIndex: 10,
+        pivotX: conclusionWordWrapWidth / 2,
+        pivotY: 48, // Center pivot for 2-row text
+        zIndex: 15,
         opacity: 0, // Start invisible
         visible: true,
         groupId: "",
@@ -723,27 +629,41 @@ export function execute(program: ActionProgram): Scene {
         shadowOffsetX: 0,
         shadowOffsetY: 0,
         shadowOpacity: 0,
-        wordWrapWidth: 800,
+        wordWrapWidth: conclusionWordWrapWidth,
         textStrokeJoin: "round",
         isAnimationPath: false,
         textStrokeWidth: 0
       };
 
-      // Add fade-in animation for use case caption
-      useCaseCaption.animations.push({
+      // Add fade-in animation for conclusion
+      conclusion.animations.push({
         id: randomUUID(),
         type: "fade",
-        startTime: conclusionStartTime + 1.5, // Start after array fades out
-        duration: 1,
+        startTime: startTime,
+        duration: DEFAULT_CAPTION_CONFIG.fadeInDuration,
         properties: { alpha: 1 },
         easing: "power1.inOut",
         yoyo: false,
         repeat: 0,
-        displayName: "use-case-caption-fade-in",
+        displayName: `conclusion-${act.order}-fade-in`,
         repeatDelay: 0
       });
 
-      elements.push(useCaseCaption);
+      // Add fade-out animation for conclusion
+      conclusion.animations.push({
+        id: randomUUID(),
+        type: "fade",
+        startTime: startTime + DEFAULT_CAPTION_CONFIG.fadeInDuration + DEFAULT_CAPTION_CONFIG.visibleTime,
+        duration: DEFAULT_CAPTION_CONFIG.fadeOutDuration,
+        properties: { alpha: 0 },
+        easing: "power1.inOut",
+        yoyo: false,
+        repeat: 0,
+        displayName: `conclusion-${act.order}-fade-out`,
+        repeatDelay: 0
+      });
+
+      elements.push(conclusion);
     }
 
     // Only process arrays for now - text elements are ignored

@@ -4,8 +4,8 @@ export type Action =
   | { kind: "ANIMATE"; type: "highlight"|"select"|"focus"|"compare"; elements: (number|string)[]; startTime: number; duration: number }
   | { kind: "CAPTION"; order: number; text: string }
   | { kind: "HEADING"; text: string }
-  | { kind: "SUBTITLE"; text: string }
-  | { kind: "CONCLUSION"; timeComplexity: string; spaceComplexity: string; useCase: string };
+  | { kind: "SUBTITLE"; text: string } 
+  | { kind: "CONCLUSION"; order: number; text: string };
 
 // Configuration for caption timing
 export interface CaptionConfig {

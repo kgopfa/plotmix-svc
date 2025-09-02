@@ -9,20 +9,27 @@ describe('Conclusion DSL Commands', () => {
       heading "Test Algorithm"
       subtitle "Test description"
       array [1,2,3]
-      conclusion "O(log n)" "O(1)" "Searching in sorted arrays"
+      conclusion 1 "Time Complexity: O(log n)"
+      conclusion 2 "Space Complexity: O(1)"
     `;
 
     const program = DslCompiler.compile(dsl);
     
-    expect(program).toHaveLength(6);
+    expect(program).toHaveLength(7); // 6 original + 2 conclusion actions
     
-    const conclusionAction = program.find(action => action.kind === 'CONCLUSION');
-    expect(conclusionAction).toBeDefined();
-    expect(conclusionAction).toEqual({
+    const conclusionActions = program.filter(action => action.kind === 'CONCLUSION');
+    expect(conclusionActions).toHaveLength(2);
+    
+    expect(conclusionActions[0]).toEqual({
       kind: 'CONCLUSION',
-      timeComplexity: 'O(log n)',
-      spaceComplexity: 'O(1)',
-      useCase: 'Searching in sorted arrays'
+      order: 1,
+      text: 'Time Complexity: O(log n)'
+    });
+    
+    expect(conclusionActions[1]).toEqual({
+      kind: 'CONCLUSION',
+      order: 2,
+      text: 'Space Complexity: O(1)'
     });
   });
 
@@ -33,7 +40,8 @@ describe('Conclusion DSL Commands', () => {
       heading "Binary Search Algorithm"
       subtitle "Finding target value in sorted array"
       array [1,3,5,7,9]
-      conclusion "O(log n)" "O(1)" "Searching in sorted arrays"
+      conclusion 1 "Time Complexity: O(log n)"
+      conclusion 2 "Space Complexity: O(1)"
     `;
 
     const program = DslCompiler.compile(dsl);
@@ -43,44 +51,40 @@ describe('Conclusion DSL Commands', () => {
     expect(scene.elements.length).toBeGreaterThan(10);
 
     // Find conclusion elements
-    const timeComplexityElement = scene.elements.find((el: any) => 
-      el.type === 'text' && el.name === 'Time Complexity'
-    );
-    const spaceComplexityElement = scene.elements.find((el: any) => 
-      el.type === 'text' && el.name === 'Space Complexity'
-    );
-    const useCaseElement = scene.elements.find((el: any) => 
-      el.type === 'text' && el.name === 'Use Case Caption'
+    const conclusionElements = scene.elements.filter((el: any) => 
+      el.type === 'text' && el.name.startsWith('Conclusion')
     );
 
-    expect(timeComplexityElement).toBeDefined();
-    expect(spaceComplexityElement).toBeDefined();
-    expect(useCaseElement).toBeDefined();
+    expect(conclusionElements).toHaveLength(2);
 
-    // Check text content
-    expect((timeComplexityElement as any).text).toBe('Time: O(log n)');
-    expect((spaceComplexityElement as any).text).toBe('Space: O(1)');
-    expect((useCaseElement as any).text).toBe('Use Case: Searching in sorted arrays');
+    // Check first conclusion element
+    const conclusion1 = conclusionElements.find((el: any) => el.name === 'Conclusion 1') as any;
+    expect(conclusion1).toBeDefined();
+    expect(conclusion1.text).toBe('Time Complexity: O(log n)');
+    expect(conclusion1.x).toBe(0); // Center
+    expect(conclusion1.y).toBe(0); // Center vertically in array area
+    expect(conclusion1.height).toBe(96); // Height for 2 rows
+    expect(conclusion1.pivotY).toBe(48); // Center pivot for 2-row text
+    expect(conclusion1.animations).toHaveLength(2); // fade-in and fade-out
 
-    // Check positioning
-    expect((timeComplexityElement as any).x).toBe(-200); // Left side
-    expect((spaceComplexityElement as any).x).toBe(200); // Right side
-    expect((useCaseElement as any).x).toBe(0); // Center
-    expect((useCaseElement as any).y).toBe(400); // Bottom area
+    // Check second conclusion element
+    const conclusion2 = conclusionElements.find((el: any) => el.name === 'Conclusion 2') as any;
+    expect(conclusion2).toBeDefined();
+    expect(conclusion2.text).toBe('Space Complexity: O(1)');
+    expect(conclusion2.x).toBe(0); // Center
+    expect(conclusion2.y).toBe(0); // Center vertically in array area
+    expect(conclusion2.height).toBe(96); // Height for 2 rows
+    expect(conclusion2.pivotY).toBe(48); // Center pivot for 2-row text
+    expect(conclusion2.animations).toHaveLength(2); // fade-in and fade-out
 
-    // Check animations
-    expect((timeComplexityElement as any).animations).toHaveLength(1);
-    expect((spaceComplexityElement as any).animations).toHaveLength(1);
-    expect((useCaseElement as any).animations).toHaveLength(1);
-
-    // Check animation timing (should start at 21.5s - 20s + 1.5s delay)
-    const timeComplexityAnimation = (timeComplexityElement as any).animations[0];
-    const spaceComplexityAnimation = (spaceComplexityElement as any).animations[0];
-    const useCaseAnimation = (useCaseElement as any).animations[0];
-
-    expect(timeComplexityAnimation.startTime).toBe(21.5);
-    expect(spaceComplexityAnimation.startTime).toBe(21.5);
-    expect(useCaseAnimation.startTime).toBe(21.5);
+    // Check animation timing (should be grouped by pairs)
+    const conclusion1FadeIn = conclusion1.animations.find((anim: any) => anim.displayName === 'conclusion-1-fade-in');
+    const conclusion2FadeIn = conclusion2.animations.find((anim: any) => anim.displayName === 'conclusion-2-fade-in');
+    
+    expect(conclusion1FadeIn).toBeDefined();
+    expect(conclusion2FadeIn).toBeDefined();
+    expect(conclusion1FadeIn.startTime).toBe(21.5); // First group starts at 21.5s
+    expect(conclusion2FadeIn.startTime).toBe(21.5); // Second conclusion in same group also starts at 21.5s
   });
 
   test('should add fade-out animations to array elements', () => {
@@ -88,7 +92,8 @@ describe('Conclusion DSL Commands', () => {
       seed 12345
       style auto
       array [1,2,3]
-      conclusion "O(n)" "O(1)" "Linear search"
+      conclusion 1 "Time Complexity: O(n)"
+      conclusion 2 "Space Complexity: O(1)"
     `;
 
     const program = DslCompiler.compile(dsl);

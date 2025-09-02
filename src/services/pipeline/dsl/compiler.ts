@@ -175,21 +175,19 @@ export class DslCompiler {
   }
 
   private static parseConclusion(line: string): Action | null {
-    // Parse: conclusion "O(log n)" "O(1)" "Searching in sorted arrays"
-    const conclusionMatch = line.match(/^conclusion\s+"([^"]+)"\s+"([^"]+)"\s+"([^"]+)"/);
+    // Parse: conclusion 1 "Time Complexity: O(log n)"
+    const conclusionMatch = line.match(/^conclusion\s+(\d+)\s+"([^"]+)"/);
     if (!conclusionMatch) {
       return null;
     }
     
-    const timeComplexity = conclusionMatch[1]!;
-    const spaceComplexity = conclusionMatch[2]!;
-    const useCase = conclusionMatch[3]!;
+    const order = parseInt(conclusionMatch[1]!);
+    const text = conclusionMatch[2]!;
     
     return {
       kind: "CONCLUSION",
-      timeComplexity,
-      spaceComplexity,
-      useCase
+      order,
+      text
     };
   }
 }

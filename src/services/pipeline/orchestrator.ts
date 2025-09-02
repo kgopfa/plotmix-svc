@@ -16,8 +16,6 @@ export class Orchestrator {
   static async generateFromPrompt(prompt: string): Promise<PipelineResult> {
     const llm = new LlmPipeline();
     const result = await llm.execute(prompt);
-    // TEMPORARY DEBUG LOG - log the LLM pipeline result
-    logger.info('🔍 DEBUG: LLM pipeline result:', { result });
 
     if (!result.success) {
       throw new Error(`LLM pipeline failed: ${result.error}`);
