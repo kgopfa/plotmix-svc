@@ -326,9 +326,10 @@ export function execute(program: ActionProgram): Scene {
       const captionY = 400; // Bottom area of 1920x1080 canvas (center is 0, so bottom is around 400-500)
       const captionX = 0; // Center horizontally
       
-      // Create caption text element with consistent width like reference data
+      // Create caption text element with dynamic width based on content
       const captionFontSize = style.typography.size;
-      const captionWidth = 800; // Fixed width like reference data
+      const calculatedCaptionWidth = calculateTextWidth(act.text, captionFontSize, style.typography.family);
+      const captionWidth = Math.min(calculatedCaptionWidth, 700); // Use calculated width, max 700px
       const captionHeight = style.typography.size * 1.5;
       
       const caption: TextEl = {
@@ -346,7 +347,7 @@ export function execute(program: ActionProgram): Scene {
         fontSize: captionFontSize,
         fontWeight: style.typography.weight,
         textAlign: "center",
-        pivotX: captionWidth / 2, // Center pivot (half of width)
+        pivotX: captionWidth / 2, // Center pivot (half of dynamic width)
         pivotY: captionHeight / 2, // Center pivot (half of height)
         zIndex: 10, // High z-index to appear above other elements
         opacity: 0, // Start invisible

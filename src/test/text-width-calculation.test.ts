@@ -87,21 +87,21 @@ describe('Text Width Calculation', () => {
     expect(subtitle.width).toBeCloseTo(expectedValues.subtitle.width, -1); // Within 5px
     expect(subtitle.pivotX).toBeCloseTo(expectedValues.subtitle.pivotX, -1); // Within 5px
 
-    // Verify captions (now using fixed width of 800px)
+    // Verify captions (now using dynamic width, max 700px)
     expect(caption1).toBeDefined();
     expect(caption1.text).toBe(expectedValues.caption1.text);
-    expect(caption1.width).toBe(800); // Fixed width
-    expect(caption1.pivotX).toBe(400); // Fixed pivotX (width/2)
+    expect(caption1.width).toBeLessThanOrEqual(700); // Dynamic width, max 700px
+    expect(caption1.pivotX).toBe(caption1.width / 2); // Dynamic pivotX (width/2)
 
     expect(caption2).toBeDefined();
     expect(caption2.text).toBe(expectedValues.caption2.text);
-    expect(caption2.width).toBe(800); // Fixed width
-    expect(caption2.pivotX).toBe(400); // Fixed pivotX (width/2)
+    expect(caption2.width).toBeLessThanOrEqual(700); // Dynamic width, max 700px
+    expect(caption2.pivotX).toBe(caption2.width / 2); // Dynamic pivotX (width/2)
 
     expect(caption3).toBeDefined();
     expect(caption3.text).toBe(expectedValues.caption3.text);
-    expect(caption3.width).toBe(800); // Fixed width
-    expect(caption3.pivotX).toBe(400); // Fixed pivotX (width/2)
+    expect(caption3.width).toBeLessThanOrEqual(700); // Dynamic width, max 700px
+    expect(caption3.pivotX).toBe(caption3.width / 2); // Dynamic pivotX (width/2)
 
     // Verify conclusion elements
     expect(timeComplexity).toBeDefined();
