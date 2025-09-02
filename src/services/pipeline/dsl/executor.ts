@@ -17,6 +17,13 @@ const DEFAULT_CAPTION_CONFIG: CaptionConfig = {
 
 // Delay for main algorithm animations (after title sequence)
 const ALGORITHM_START_DELAY = 1.5;
+
+// Helper function to calculate text width for proper centering
+function calculateTextWidth(text: string, fontSize: number, fontFamily: string): number {
+  const isMonospace = fontFamily.includes('monospace');
+  const charWidth = isMonospace ? 0.6 : 0.7;
+  return text.length * fontSize * charWidth;
+}
  
 // Calculate optimal cell dimensions based on content
 function calculateOptimalCellDimensions(
@@ -301,6 +308,10 @@ export function execute(program: ActionProgram): Scene {
       const captionX = 0; // Center horizontally
       
       // Create caption text element
+      const captionFontSize = style.typography.size;
+      const captionTextWidth = calculateTextWidth(act.text, captionFontSize, style.typography.family);
+      const captionHeight = style.typography.size * 1.5;
+      
       const caption: TextEl = {
         animations: [],
         fill: style.palette.text,
@@ -310,14 +321,14 @@ export function execute(program: ActionProgram): Scene {
         name: `Caption ${act.order}`,
         text: act.text,
         type: "text",
-        width: 800, // Fixed width for captions
-        height: style.typography.size * 1.5,
+        width: captionTextWidth, // Use calculated text width
+        height: captionHeight,
         fontFamily: style.typography.family,
-        fontSize: style.typography.size,
+        fontSize: captionFontSize,
         fontWeight: style.typography.weight,
         textAlign: "center",
-        pivotX: 400, // Center pivot
-        pivotY: (style.typography.size * 1.5) / 2,
+        pivotX: captionTextWidth / 2, // Center pivot (half of actual text width)
+        pivotY: captionHeight / 2, // Center pivot (half of height)
         zIndex: 10, // High z-index to appear above other elements
         opacity: 0, // Start invisible
         visible: true,
@@ -387,6 +398,10 @@ export function execute(program: ActionProgram): Scene {
       const headingX = 0; // Center horizontally
       
       // Create heading text element
+      const headingFontSize = style.typography.size * 1.5;
+      const headingTextWidth = calculateTextWidth(act.text, headingFontSize, style.typography.family);
+      const headingHeight = style.typography.size * 2;
+      
       const heading: TextEl = {
         animations: [],
         fill: style.palette.text,
@@ -396,14 +411,14 @@ export function execute(program: ActionProgram): Scene {
         name: `Heading`,
         text: act.text,
         type: "text",
-        width: 800, // Fixed width for headings
-        height: style.typography.size * 2, // Larger than captions
+        width: headingTextWidth, // Use calculated text width
+        height: headingHeight,
         fontFamily: style.typography.family,
-        fontSize: style.typography.size * 1.5, // Larger font size for headings
+        fontSize: headingFontSize,
         fontWeight: "bold", // Bold for headings
         textAlign: "center",
-        pivotX: 400, // Center pivot (half of width)
-        pivotY: (style.typography.size * 2) / 2, // Center pivot (half of height)
+        pivotX: headingTextWidth / 2, // Center pivot (half of actual text width)
+        pivotY: headingHeight / 2, // Center pivot (half of height)
         zIndex: 10, // High z-index to appear above other elements
         opacity: 0, // Start invisible for fade-in
         visible: true,
@@ -452,6 +467,10 @@ export function execute(program: ActionProgram): Scene {
       const subtitleX = 0; // Center horizontally
       
       // Create subtitle text element
+      const subtitleFontSize = style.typography.size * 0.9;
+      const subtitleTextWidth = calculateTextWidth(act.text, subtitleFontSize, style.typography.family);
+      const subtitleHeight = style.typography.size * 1.5;
+      
       const subtitle: TextEl = {
         animations: [],
         fill: style.palette.text,
@@ -461,14 +480,14 @@ export function execute(program: ActionProgram): Scene {
         name: `Subtitle`,
         text: act.text,
         type: "text",
-        width: 800, // Fixed width for subtitles
-        height: style.typography.size * 1.5, // Smaller than heading
+        width: subtitleTextWidth, // Use calculated text width
+        height: subtitleHeight,
         fontFamily: style.typography.family,
-        fontSize: style.typography.size * 0.9, // Smaller than heading, similar to captions
+        fontSize: subtitleFontSize,
         fontWeight: "normal", // Normal weight for subtitles
         textAlign: "center",
-        pivotX: 400, // Center pivot (half of width)
-        pivotY: (style.typography.size * 1.5) / 2, // Center pivot (half of height)
+        pivotX: subtitleTextWidth / 2, // Center pivot (half of actual text width)
+        pivotY: subtitleHeight / 2, // Center pivot (half of height)
         zIndex: 10, // High z-index to appear above other elements
         opacity: 0, // Start invisible for fade-in
         visible: true,
@@ -548,6 +567,9 @@ export function execute(program: ActionProgram): Scene {
 
       // Create time complexity text element
       const timeComplexityId = randomUUID();
+      const timeComplexityText = `Time: ${act.timeComplexity}`;
+      const timeComplexityTextWidth = calculateTextWidth(timeComplexityText, 40, style.typography.family);
+      
       const timeComplexity: TextEl = {
         animations: [],
         fill: style.palette.text,
@@ -555,16 +577,16 @@ export function execute(program: ActionProgram): Scene {
         y: -50, // Center vertically in array area
         id: timeComplexityId,
         name: `Time Complexity`,
-        text: `Time: ${act.timeComplexity}`,
+        text: timeComplexityText,
         type: "text",
-        width: 300,
-        height: style.typography.size * 1.5,
+        width: timeComplexityTextWidth,
+        height: 60,
         fontFamily: style.typography.family,
-        fontSize: style.typography.size * 1.2,
+        fontSize: 40,
         fontWeight: "bold",
         textAlign: "center",
-        pivotX: 150,
-        pivotY: (style.typography.size * 1.5) / 2,
+        pivotX: timeComplexityTextWidth / 2,
+        pivotY: 30,
         zIndex: 15,
         opacity: 0, // Start invisible
         visible: true,
@@ -605,6 +627,9 @@ export function execute(program: ActionProgram): Scene {
 
       // Create space complexity text element
       const spaceComplexityId = randomUUID();
+      const spaceComplexityText = `Space: ${act.spaceComplexity}`;
+      const spaceComplexityTextWidth = calculateTextWidth(spaceComplexityText, 40, style.typography.family);
+      
       const spaceComplexity: TextEl = {
         animations: [],
         fill: style.palette.text,
@@ -612,16 +637,16 @@ export function execute(program: ActionProgram): Scene {
         y: -50, // Center vertically in array area
         id: spaceComplexityId,
         name: `Space Complexity`,
-        text: `Space: ${act.spaceComplexity}`,
+        text: spaceComplexityText,
         type: "text",
-        width: 300,
-        height: style.typography.size * 1.5,
+        width: spaceComplexityTextWidth,
+        height: 60,
         fontFamily: style.typography.family,
-        fontSize: style.typography.size * 1.2,
+        fontSize: 40,
         fontWeight: "bold",
         textAlign: "center",
-        pivotX: 150,
-        pivotY: (style.typography.size * 1.5) / 2,
+        pivotX: spaceComplexityTextWidth / 2,
+        pivotY: 30,
         zIndex: 15,
         opacity: 0, // Start invisible
         visible: true,
@@ -662,6 +687,9 @@ export function execute(program: ActionProgram): Scene {
 
       // Create use case caption
       const useCaseCaptionId = randomUUID();
+      const useCaseCaptionText = `Use Case: ${act.useCase}`;
+      const useCaseCaptionTextWidth = calculateTextWidth(useCaseCaptionText, 40, style.typography.family);
+      
       const useCaseCaption: TextEl = {
         animations: [],
         fill: style.palette.text,
@@ -669,16 +697,16 @@ export function execute(program: ActionProgram): Scene {
         y: 400, // Bottom area where captions are
         id: useCaseCaptionId,
         name: `Use Case Caption`,
-        text: `Use Case: ${act.useCase}`,
+        text: useCaseCaptionText,
         type: "text",
-        width: 800,
-        height: style.typography.size * 1.5,
+        width: useCaseCaptionTextWidth,
+        height: 60,
         fontFamily: style.typography.family,
-        fontSize: style.typography.size,
+        fontSize: 40,
         fontWeight: style.typography.weight,
         textAlign: "center",
-        pivotX: 400,
-        pivotY: (style.typography.size * 1.5) / 2,
+        pivotX: useCaseCaptionTextWidth / 2,
+        pivotY: 30,
         zIndex: 10,
         opacity: 0, // Start invisible
         visible: true,
