@@ -551,7 +551,10 @@ export function execute(program: ActionProgram): Scene {
 
     if (act.kind === "CONCLUSION") {
       // Handle conclusion commands - fade out array and show complexity info
-      const conclusionStartTime = 20; // Start after all other animations
+      // Calculate when all captions finish: 1.5s start + (numCaptions * 4s) - 0.5s overlap
+      const captionActions = program.filter(action => action.kind === "CAPTION");
+      const numCaptions = captionActions.length;
+      const conclusionStartTime = 1.5 + (numCaptions * 4) - 0.5; // Start after all captions finish
       
       // Fade out all array elements
       elements.forEach(element => {
@@ -560,7 +563,7 @@ export function execute(program: ActionProgram): Scene {
             id: randomUUID(),
             type: "fade",
             startTime: conclusionStartTime,
-            duration: 1,
+            duration: DEFAULT_CAPTION_CONFIG.fadeOutDuration, // Use same duration as other fade animations
             properties: { alpha: 0 },
             easing: "power1.inOut",
             yoyo: false,
@@ -577,7 +580,7 @@ export function execute(program: ActionProgram): Scene {
           id: randomUUID(),
           type: "fade",
           startTime: conclusionStartTime,
-          duration: 1,
+          duration: DEFAULT_CAPTION_CONFIG.fadeOutDuration, // Use same duration as other fade animations
           properties: { alpha: 0 },
           easing: "power1.inOut",
           yoyo: false,
@@ -589,8 +592,8 @@ export function execute(program: ActionProgram): Scene {
 
       // Create conclusion text element (rendered over 2 rows)
       const conclusionId = randomUUID();
-      const conclusionTextWidth = calculateTextWidth(act.text, 40, style.typography.family);
-      const conclusionWordWrapWidth = calculateWordWrapWidth(act.text, 40, style.typography.family);
+      const calculatedConclusionWidth = calculateTextWidth(act.text, 40, style.typography.family);
+      const conclusionWidth = Math.min(calculatedConclusionWidth, 1200); // Use calculated width, max 1200px
       
       // Calculate timing based on conclusion order (group by pairs)
       const totalConclusionDuration = DEFAULT_CAPTION_CONFIG.fadeInDuration + DEFAULT_CAPTION_CONFIG.visibleTime + DEFAULT_CAPTION_CONFIG.fadeOutDuration;
@@ -611,13 +614,13 @@ export function execute(program: ActionProgram): Scene {
         name: `Conclusion ${act.order}`,
         text: act.text,
         type: "text",
-        width: conclusionTextWidth,
+        width: conclusionWidth, // Use dynamic width (max 1200px)
         height: 96, // Height for 2 rows (40px * 1.2 line height * 2 rows)
         fontFamily: style.typography.family,
         fontSize: 40,
-        fontWeight: "bold",
+        fontWeight: "normal", // Use normal weight instead of bold
         textAlign: "center",
-        pivotX: conclusionWordWrapWidth / 2,
+        pivotX: conclusionWidth / 2, // Center pivot (half of dynamic width)
         pivotY: 48, // Center pivot for 2-row text
         zIndex: 15,
         opacity: 0, // Start invisible
@@ -635,7 +638,7 @@ export function execute(program: ActionProgram): Scene {
         shadowOffsetX: 0,
         shadowOffsetY: 0,
         shadowOpacity: 0,
-        wordWrapWidth: conclusionWordWrapWidth,
+        wordWrapWidth: conclusionWidth, // Use dynamic width for word wrap
         textStrokeJoin: "round",
         isAnimationPath: false,
         textStrokeWidth: 0

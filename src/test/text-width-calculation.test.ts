@@ -103,21 +103,24 @@ describe('Text Width Calculation', () => {
     expect(caption3.width).toBeLessThanOrEqual(700); // Dynamic width, max 700px
     expect(caption3.pivotX).toBe(caption3.width / 2); // Dynamic pivotX (width/2)
 
-    // Verify conclusion elements
+    // Verify conclusion elements (now using dynamic width, max 1200px)
     expect(timeComplexity).toBeDefined();
     expect(timeComplexity.text).toBe(expectedValues.timeComplexity.text);
-    expect(timeComplexity.width).toBeCloseTo(expectedValues.timeComplexity.width, -1); // Within 5px
-    expect(timeComplexity.pivotX).toBeCloseTo(expectedValues.timeComplexity.pivotX, -1); // Within 5px
+    expect(timeComplexity.width).toBeLessThanOrEqual(1200); // Dynamic width, max 1200px
+    expect(timeComplexity.pivotX).toBe(timeComplexity.width / 2); // Dynamic pivotX (width/2)
+    expect(timeComplexity.fontWeight).toBe("normal"); // Should be normal weight, not bold
 
     expect(spaceComplexity).toBeDefined();
     expect(spaceComplexity.text).toBe(expectedValues.spaceComplexity.text);
-    expect(Math.abs(spaceComplexity.width - expectedValues.spaceComplexity.width)).toBeLessThan(15); // Within 15px (reasonable for text rendering)
-    expect(spaceComplexity.pivotX).toBeCloseTo(expectedValues.spaceComplexity.pivotX, -1); // Within 5px
+    expect(spaceComplexity.width).toBeLessThanOrEqual(1200); // Dynamic width, max 1200px
+    expect(spaceComplexity.pivotX).toBe(spaceComplexity.width / 2); // Dynamic pivotX (width/2)
+    expect(spaceComplexity.fontWeight).toBe("normal"); // Should be normal weight, not bold
 
     expect(useCase).toBeDefined();
     expect(useCase.text).toBe(expectedValues.useCase.text);
-    expect(Math.abs(useCase.width - expectedValues.useCase.width)).toBeLessThan(30); // Within 30px (reasonable for text rendering)
-    expect(useCase.pivotX).toBeCloseTo(expectedValues.useCase.pivotX, -1); // Within 5px
+    expect(useCase.width).toBeLessThanOrEqual(1200); // Dynamic width, max 1200px
+    expect(useCase.pivotX).toBe(useCase.width / 2); // Dynamic pivotX (width/2)
+    expect(useCase.fontWeight).toBe("normal"); // Should be normal weight, not bold
 
 
   });

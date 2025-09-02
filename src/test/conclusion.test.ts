@@ -83,8 +83,10 @@ describe('Conclusion DSL Commands', () => {
     
     expect(conclusion1FadeIn).toBeDefined();
     expect(conclusion2FadeIn).toBeDefined();
-    expect(conclusion1FadeIn.startTime).toBe(21.5); // First group starts at 21.5s
-    expect(conclusion2FadeIn.startTime).toBe(21.5); // Second conclusion in same group also starts at 21.5s
+    // With 0 captions: conclusionStartTime = 1.5 + (0 * 4) - 0.5 = 1.0s
+    // First group starts at 1.0 + 1.5 = 2.5s
+    expect(conclusion1FadeIn.startTime).toBe(2.5); // First group starts at 2.5s
+    expect(conclusion2FadeIn.startTime).toBe(2.5); // Second conclusion in same group also starts at 2.5s
   });
 
   test('should add fade-out animations to array elements', () => {
@@ -112,7 +114,7 @@ describe('Conclusion DSL Commands', () => {
         anim.displayName === 'array-fade-out'
       );
       expect(fadeOutAnimation).toBeDefined();
-      expect(fadeOutAnimation.startTime).toBe(20); // Conclusion start time
+      expect(fadeOutAnimation.startTime).toBe(1.0); // Conclusion start time (1.5 + 0*4 - 0.5)
       expect(fadeOutAnimation.properties.alpha).toBe(0);
     });
 
@@ -122,7 +124,7 @@ describe('Conclusion DSL Commands', () => {
         anim.displayName === 'group-fade-out'
       );
       expect(fadeOutAnimation).toBeDefined();
-      expect(fadeOutAnimation.startTime).toBe(20);
+      expect(fadeOutAnimation.startTime).toBe(1.0); // Conclusion start time (1.5 + 0*4 - 0.5)
       expect(fadeOutAnimation.properties.alpha).toBe(0);
     });
   });

@@ -77,6 +77,20 @@ describe('LLM Prompt Format Validation', () => {
     expect(conclusion1.y).toBe(-60); // First conclusion at -60px
     expect(conclusion2.y).toBe(60);  // Second conclusion at 60px
     expect(conclusion3.y).toBe(180); // Third conclusion at 180px
+    
+    // Verify conclusion timing (should start after all 4 captions finish)
+    // With 4 captions: conclusionStartTime = 1.5 + (4 * 4) - 0.5 = 17.0s
+    // First group starts at 17.0 + 1.5 = 18.5s
+    const conclusion1FadeIn = conclusion1.animations.find((anim: any) => anim.displayName === 'conclusion-1-fade-in');
+    const conclusion2FadeIn = conclusion2.animations.find((anim: any) => anim.displayName === 'conclusion-2-fade-in');
+    const conclusion3FadeIn = conclusion3.animations.find((anim: any) => anim.displayName === 'conclusion-3-fade-in');
+    
+    expect(conclusion1FadeIn).toBeDefined();
+    expect(conclusion2FadeIn).toBeDefined();
+    expect(conclusion3FadeIn).toBeDefined();
+    expect(conclusion1FadeIn.startTime).toBe(18.5); // First group starts at 18.5s
+    expect(conclusion2FadeIn.startTime).toBe(18.5); // Second conclusion in same group
+    expect(conclusion3FadeIn.startTime).toBe(22.5); // Third conclusion in next group (18.5 + 4.0)
   });
 
   test('should reject old conclusion format', () => {
