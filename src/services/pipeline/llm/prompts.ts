@@ -243,7 +243,7 @@ subtitle "<description>"
 array [v1,v2,v3]
 animate <type> [elements] <startTime> <duration>
 caption <order> "<text>"
-conclusion "<timeComplexity>" "<spaceComplexity>" "<useCase>"
+conclusion <order> "<text>"
 \`\`\`
 
 Animation Types (for any 1-D array problem):
@@ -277,6 +277,14 @@ Caption Rules - CRITICAL:
 - Captions appear sequentially: caption 1, then caption 2, then caption 3, etc.
 - Entry/exit animations (fade in/out) are handled automatically by the system
 
+Caption Content Guidelines:
+- Captions should explain the ALGORITHMIC APPROACH, not just what's being highlighted
+- Focus on HOW the algorithm solves the problem, not just what's visually happening
+- Explain the reasoning behind each step (e.g., "Compare middle element with target to determine search direction")
+- Avoid generic descriptions like "Highlight the array" or "Select element 5"
+- Instead use: "Compare middle element with target to determine which half to search"
+- Each caption should advance the learner's understanding of the algorithm's logic
+
 Note: Animation styling (colors, scale factors, easing, duration) is procedurally generated based on the seed for consistent, theme-appropriate results.
 
 CRITICAL: 
@@ -294,6 +302,18 @@ CRITICAL:
 - Use conclusion command at the end to show time/space complexity and use cases
 - Conclusion automatically fades out the array and displays complexity information
 
+Conclusion Rules - CRITICAL:
+- Use the new ordered format: conclusion <order> "<text>"
+- Each conclusion renders over 2 rows with proper spacing
+- Conclusions are grouped in pairs and displayed together
+- Be explicit about complexity types: "Time Complexity: O(log n)", "Space Complexity: O(1)"
+- Include use cases: "Use Case: Searching in sorted arrays"
+- Make complexity analysis clear and educational
+- Example format:
+  conclusion 1 "Time Complexity: O(log n)"
+  conclusion 2 "Space Complexity: O(1)" 
+  conclusion 3 "Use Case: Searching in sorted arrays"
+
 GENERIC ANIMATION GUIDELINES:
 - Use animations for any algorithm that involves step-by-step progression through an array
 - Show current focus/selection at each step
@@ -308,12 +328,14 @@ heading "Binary Search Algorithm"
 subtitle "Finding target value in sorted array"
 array [1,2,3,4,5,6,7,8,9]
 animate highlight [1,9] 0 5
-caption 1 "Step 1: [Description]"
+caption 1 "Compare middle element with target to determine search direction"
 animate select [5] 5 5
-caption 2 "Step 2: [Description]"
+caption 2 "If target equals middle, we found our answer"
 animate highlight [6,9] 10 5
-caption 3 "Step 3: [Description]"
-conclusion "O(log n)" "O(1)" "Searching in sorted arrays"
+caption 3 "If target is greater, search the right half"
+conclusion 1 "Time Complexity: O(log n)"
+conclusion 2 "Space Complexity: O(1)"
+conclusion 3 "Use Case: Searching in sorted arrays"
 
 Note: Caption timing is automatically calculated - caption 1 appears at 0s, caption 2 at 4s, caption 3 at 8s, etc.
 Conclusion appears after all animations complete and fades out the array to show complexity information.
@@ -323,10 +345,12 @@ heading "Binary Search Algorithm"
 subtitle "Finding target value in sorted array"
 array [1,3,5,7,9]
 animate highlight [1,9] 0 5
-caption 1 "Initial search range: entire array"
+caption 1 "Compare middle element with target to determine search direction"
 animate select [5] 5 5
-caption 2 "Check middle element: 5"
-conclusion "O(log n)" "O(1)" "Searching in sorted arrays"
+caption 2 "If target equals middle, we found our answer"
+conclusion 1 "Time Complexity: O(log n)"
+conclusion 2 "Space Complexity: O(1)"
+conclusion 3 "Use Case: Searching in sorted arrays"
 
 Example of INCORRECT usage:
 array ["Binary Search Problem"]  ❌ - This is a title, not array data
@@ -336,6 +360,9 @@ array ["Target not found", "Array empty"]  ❌ - These are edge cases, not array
 animate highlight [10,11] 0 2  ❌ - Elements don't exist in array
 caption 1 "Text" fade-in  ❌ - DO NOT include transition types
 caption 1 "Text" 0 0.5 5  ❌ - DO NOT include timing parameters
+caption 1 "Highlight the array"  ❌ - Too generic, explain the algorithmic approach
+conclusion "O(log n)" "O(1)" "Searching in sorted arrays"  ❌ - Old format, use ordered format
+conclusion 1 "O(log n)"  ❌ - Be explicit: "Time Complexity: O(log n)"
 
 ANIMATION INTEGRATION:
 - Use animation steps from the animation plan to generate animate commands

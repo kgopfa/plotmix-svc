@@ -596,11 +596,16 @@ export function execute(program: ActionProgram): Scene {
       const groupIndex = Math.floor((act.order - 1) / 2); // Group by pairs (0, 1, 2, ...)
       const startTime = conclusionStartTime + 1.5 + groupIndex * totalConclusionDuration;
       
+      // Position conclusions vertically to avoid overlap
+      // Each conclusion is 96px high, so space them 120px apart for good spacing
+      const conclusionSpacing = 120;
+      const conclusionY = (act.order - 1) * conclusionSpacing - 60; // Center the group around y=0
+      
       const conclusion: TextEl = {
         animations: [],
         fill: style.palette.text,
         x: 0, // Center horizontally
-        y: 0, // Center vertically in array area
+        y: conclusionY, // Position vertically to avoid overlap
         id: conclusionId,
         name: `Conclusion ${act.order}`,
         text: act.text,
