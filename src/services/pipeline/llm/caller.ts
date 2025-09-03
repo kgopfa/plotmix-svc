@@ -37,6 +37,8 @@ export class ChainedCaller {
         };
       }
 
+      logger.info('llm-pipeline:content_planner output', { contentPlanResult });
+
       const contentPlan = contentPlanResult.content as ContentPlan;
       logger.info('llm-pipeline:content_planned', { 
         problemTitle: contentPlan.problem.title,
@@ -52,6 +54,8 @@ export class ChainedCaller {
           stage: 'visual'
         };
       }
+
+      logger.info('llm-pipeline:visual_planner output', { scenePlanResult });
 
       const scenePlan = scenePlanResult.content as ScenePlan;
       logger.info('llm-pipeline:visual_planned', { 
@@ -69,12 +73,9 @@ export class ChainedCaller {
         };
       }
 
+      logger.info('llm-pipeline:animation_planner output', { animationPlanResult });
+
       const animationPlan = animationPlanResult.content as AnimationPlan;
-      logger.info('llm-pipeline:animation_planned', { 
-        algorithm: animationPlan.algorithm,
-        stepsCount: animationPlan.steps.length,
-        totalDuration: animationPlan.timing.totalDuration
-      });
 
       // Stage 4: DSL Emitter
       const dslResult = await this.executeDslEmitter(scenePlan, animationPlan);
@@ -86,8 +87,9 @@ export class ChainedCaller {
         };
       }
 
+      logger.info('llm-pipeline:dsl_emitter output', { dslResult });
+
       const dsl = dslResult.content as string;
-      logger.info('llm-pipeline:dsl_generated', { dslLength: dsl.length });
 
       // Return only LLM artifacts; compilation is handled by orchestrator
       return {
@@ -136,6 +138,7 @@ export class ChainedCaller {
    */
   private async executeDslEmitter(scenePlan: ScenePlan, animationPlan?: AnimationPlan): Promise<any> {
     const messages = PromptTemplates.dslEmitter(scenePlan, animationPlan);
+    logger.info('llm-pipeline:dsl_emitter output', { messages });
     return await this.client.callStage('dsl', messages, { temperature: 0.0, json: false });
   }
 

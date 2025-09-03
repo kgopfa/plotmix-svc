@@ -100,7 +100,7 @@ export class DslCompiler {
   // Text commands removed - only arrays and captions supported
 
   private static parseAnimate(line: string): Action | null {
-    const animateMatch = line.match(/^animate\s+(highlight|select|focus|compare)\s+\[([^\]]+)\]\s+(\d+)\s+(\d+)/);
+    const animateMatch = line.match(/^animate\s+(highlight|select|focus|compare)\s+\[([^\]]+)\]/);
     
     if (!animateMatch) {
       return null;
@@ -108,8 +108,6 @@ export class DslCompiler {
 
     const type = animateMatch[1] as "highlight"|"select"|"focus"|"compare";
     const elementsStr = animateMatch[2]!;
-    const startTime = parseInt(animateMatch[3]!);
-    const duration = parseInt(animateMatch[4]!);
 
     const elements = elementsStr.split(',').map(v => {
       const trimmed = v.trim();
@@ -122,8 +120,8 @@ export class DslCompiler {
       kind: "ANIMATE",
       type,
       elements,
-      startTime,
-      duration
+      startTime: 0, // Will be calculated automatically by executor
+      duration: 2 // Default duration
     };
   }
 

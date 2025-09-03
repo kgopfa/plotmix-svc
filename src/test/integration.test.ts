@@ -154,7 +154,7 @@ caption 4 "Since the target is equal to the middle element, we found the target.
       kind: 'ANIMATE',
       type: 'highlight',
       elements: [1, 3, 5, 7, 9],
-      startTime: 0,
+      startTime: 0, // Will be calculated automatically by executor
       duration: 2
     });
 
@@ -162,7 +162,7 @@ caption 4 "Since the target is equal to the middle element, we found the target.
       kind: 'ANIMATE',
       type: 'focus',
       elements: [5],
-      startTime: 2,
+      startTime: 0, // Will be calculated automatically by executor
       duration: 2
     });
 
@@ -170,7 +170,7 @@ caption 4 "Since the target is equal to the middle element, we found the target.
       kind: 'ANIMATE',
       type: 'compare',
       elements: [5, 5],
-      startTime: 4,
+      startTime: 0, // Will be calculated automatically by executor
       duration: 2
     });
 
@@ -178,7 +178,7 @@ caption 4 "Since the target is equal to the middle element, we found the target.
       kind: 'ANIMATE',
       type: 'highlight',
       elements: [1, 3, 5],
-      startTime: 6,
+      startTime: 0, // Will be calculated automatically by executor
       duration: 2
     });
 

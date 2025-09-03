@@ -195,12 +195,17 @@ export function execute(program: ActionProgram): Scene {
   const groups: Group[] = [];
   const elements: (Rect|TextEl)[] = [];
   
+  // Track caption timing to sync animations
+  const captionTiming: Map<number, { startTime: number; endTime: number }> = new Map();
+  
+  // Track animation order for synchronization
+  let animationOrder = 0;
+  
   // Text positioning removed - only arrays and captions supported
   
   // Canvas constants (center-origin) not needed for center placement
 
-
-
+  // First pass: process setup and build caption timing map
   for (const act of program) {
     if (act.kind === "SETUP") {
       // Only update seed when it is a meaningful value (non-zero)
@@ -211,110 +216,6 @@ export function execute(program: ActionProgram): Scene {
       // Recompute style if a style directive is present
       if (typeof act.style === 'string') {
         style = act.style === "auto" ? pickStyle(seed) : (STYLES.find(s => s.name === act.style) ?? STYLES[0]!);
-      }
-    }
-
-    if (act.kind === "DRAW_ARRAY") {
-      // Center-origin positioning for arrays aligned to center-start grid lines
-      const minCellSize = act.cell ?? style.cell.w;
-      const gap = 80;
-
-      // Calculate optimal cell dimensions based on content
-      const { width: cellWidth, height: cellHeight } = calculateOptimalCellDimensions(
-        act.values, 
-        style, 
-        minCellSize
-      );
-
-      // Place middle item at x=0 using symmetric spacing (gap + cell width as step)
-      const stepX = cellWidth + gap;
-      const arrayY = 0; // center row per requirement
-      const canvasWidth = 1920;
-      const marginX = 40;
-      const centerXs = computeCenteredXPositions(act.values.length, stepX, canvasWidth, marginX);
-      
-      act.values.forEach((v, i) => {
-        const centerX = centerXs[i]!;
-        const centerY = arrayY;
-        const { group, rect, text } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight);
-        groups.push(group);
-        elements.push(rect, text);
-      });
-      
-      // All arrays share center row
-    }
-
-    // Text commands removed - only arrays and captions supported
-
-    if (act.kind === "ANIMATE") {
-      // Handle animation commands - create animation timeline entries
-      // This will be processed by the frontend to show step-by-step progression
-      const animationId = randomUUID();
-      
-      // Get animation configuration from procedural system
-      const animConfig = getAnimationConfig(seed, act.type);
-      
-      // Create proper animation object using procedural configuration
-      const animationEntry = {
-        id: animationId,
-        type: animConfig.type,
-        yoyo: animConfig.yoyo,
-        easing: animConfig.easing,
-        repeat: animConfig.repeat,
-        duration: act.duration, // Use DSL duration, but could override with config
-        startTime: act.startTime + ALGORITHM_START_DELAY, // Add delay for title sequence
-        properties: animConfig.properties,
-        displayName: `${act.type}-1`,
-        repeatDelay: 0
-      };
-
-      // Find the target elements that match the animation values
-      const targetElements = elements.filter(el => {
-        if (el.type === "rectangle") {
-          // For rectangles, we need to find the group and check the text element's value
-          const group = groups.find(g => g.id === el.groupId);
-          if (group) {
-            const textElement = elements.find(e => e.type === "text" && e.groupId === group.id);
-            if (textElement && textElement.type === "text") {
-              // Convert text to number for comparison, since act.elements might be numbers
-              const textValue = Number(textElement.text);
-              const matches = act.elements.some(target => {
-                if (typeof target === 'number') {
-                  return target === textValue;
-                } else {
-                  return target === textElement.text;
-                }
-              });
-              
-              return matches;
-            }
-          }
-        }
-        return false;
-      });
-
-      // Apply animations based on type
-      if (animConfig.type === "color") {
-        // Color animations go to individual rectangle elements (background)
-        targetElements.forEach(element => {
-          element.animations.push(animationEntry);
-        });
-      } else if (animConfig.type === "scale") {
-        // Scale animations go to the group (affects entire cell)
-        targetElements.forEach(element => {
-          const group = groups.find(g => g.id === element.groupId);
-          if (group) {
-            group.animations.push(animationEntry);
-          }
-        });
-      } else {
-        // Default: add to group
-        targetElements.forEach(element => {
-          const group = groups.find(g => g.id === element.groupId);
-          if (group) {
-            group.animations.push(animationEntry);
-          }
-        });
       }
     }
 
@@ -378,6 +279,12 @@ export function execute(program: ActionProgram): Scene {
       const fadeInEndTime = startTime + DEFAULT_CAPTION_CONFIG.fadeInDuration;
       const fadeOutStartTime = fadeInEndTime + DEFAULT_CAPTION_CONFIG.visibleTime;
       
+      // Store caption timing for animation synchronization
+      captionTiming.set(act.order, {
+        startTime: startTime,
+        endTime: fadeOutStartTime + DEFAULT_CAPTION_CONFIG.fadeOutDuration
+      });
+      
       // Create fade-in animation
       caption.animations.push({
         id: randomUUID(),
@@ -408,6 +315,136 @@ export function execute(program: ActionProgram): Scene {
 
       elements.push(caption);
     }
+  }
+
+  // Second pass: process all other actions
+  for (const act of program) {
+    if (act.kind === "SETUP" || act.kind === "CAPTION") {
+      // Skip these as they were processed in first pass
+      continue;
+    }
+
+    if (act.kind === "DRAW_ARRAY") {
+      // Center-origin positioning for arrays aligned to center-start grid lines
+      const minCellSize = act.cell ?? style.cell.w;
+      const gap = 80;
+
+      // Calculate optimal cell dimensions based on content
+      const { width: cellWidth, height: cellHeight } = calculateOptimalCellDimensions(
+        act.values, 
+        style, 
+        minCellSize
+      );
+
+      // Place middle item at x=0 using symmetric spacing (gap + cell width as step)
+      const stepX = cellWidth + gap;
+      const arrayY = 0; // center row per requirement
+      const canvasWidth = 1920;
+      const marginX = 40;
+      const centerXs = computeCenteredXPositions(act.values.length, stepX, canvasWidth, marginX);
+      
+      act.values.forEach((v, i) => {
+        const centerX = centerXs[i]!;
+        const centerY = arrayY;
+        const { group, rect, text } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight);
+        groups.push(group);
+        elements.push(rect, text);
+      });
+      
+      // All arrays share center row
+    }
+
+    // Text commands removed - only arrays and captions supported
+
+    if (act.kind === "ANIMATE") {
+      // Handle animation commands - create animation timeline entries
+      // This will be processed by the frontend to show step-by-step progression
+      const animationId = randomUUID();
+      
+      // Get animation configuration from procedural system
+      const animConfig = getAnimationConfig(seed, act.type);
+      
+      // Increment animation order for this animation
+      animationOrder++;
+      
+      // Calculate animation timing based on corresponding caption
+      // Animation should start 0.5s after the caption starts (when caption becomes visible)
+      const captionInfo = captionTiming.get(animationOrder);
+      
+      let animationStartTime: number;
+      if (captionInfo) {
+        // Start animation 0.5s after caption starts (when caption becomes visible)
+        animationStartTime = captionInfo.startTime + 0.5;
+      } else {
+        // Fallback: use original timing if no caption found
+        animationStartTime = act.startTime + ALGORITHM_START_DELAY;
+      }
+      
+      // Create proper animation object using procedural configuration
+      const animationEntry = {
+        id: animationId,
+        type: animConfig.type,
+        yoyo: animConfig.yoyo,
+        easing: animConfig.easing,
+        repeat: animConfig.repeat,
+        duration: act.duration, // Use DSL duration, but could override with config
+        startTime: animationStartTime,
+        properties: animConfig.properties,
+        displayName: `${act.type}-1`,
+        repeatDelay: 0
+      };
+
+      // Find the target elements that match the animation values
+      const targetElements = elements.filter(el => {
+        if (el.type === "rectangle") {
+          // For rectangles, we need to find the group and check the text element's value
+          const group = groups.find(g => g.id === el.groupId);
+          if (group) {
+            const textElement = elements.find(e => e.type === "text" && e.groupId === group.id);
+            if (textElement && textElement.type === "text") {
+              // Convert text to number for comparison, since act.elements might be numbers
+              const textValue = Number(textElement.text);
+              const matches = act.elements.some(target => {
+                if (typeof target === 'number') {
+                  return target === textValue;
+                } else {
+                  return target === textElement.text;
+                }
+              });
+              
+              return matches;
+            }
+          }
+        }
+        return false;
+      });
+
+      // Apply animations based on type
+      if (animConfig.type === "color") {
+        // Color animations go to individual rectangle elements (background)
+        targetElements.forEach(element => {
+          element.animations.push(animationEntry);
+        });
+      } else if (animConfig.type === "scale") {
+        // Scale animations go to the group (affects entire cell)
+        targetElements.forEach(element => {
+          const group = groups.find(g => g.id === element.groupId);
+          if (group) {
+            group.animations.push(animationEntry);
+          }
+        });
+      } else {
+        // Default: add to group
+        targetElements.forEach(element => {
+          const group = groups.find(g => g.id === element.groupId);
+          if (group) {
+            group.animations.push(animationEntry);
+          }
+        });
+      }
+    }
+
+
 
     if (act.kind === "HEADING") {
       // Handle heading commands - create static text element at top of canvas
