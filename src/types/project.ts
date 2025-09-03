@@ -6,23 +6,20 @@ import {
   Timeline
 } from './canvas';
 
-// Current schema structure - array of scenes with project-level dimensions
+// Flat schema structure - single scene with elements, groups, and timeline
 export interface ProjectMainState {
-  // Project-level dimensions - all scenes share the same canvas size
+  // Canvas elements and groups
+  elements: CanvasElement[];
+  groups: CanvasGroup[];
+  
+  // Timeline and animation data
+  timeline: Timeline;
+  
+  // Canvas dimensions
   dimensions: {
     width: number;
     height: number;
   };
-  
-  scenes: Array<{
-    sceneId: string;
-    sceneName: string;
-    sceneCanvas: {
-      elements: CanvasElement[];
-      groups: CanvasGroup[];
-      timeline: Timeline;
-    };
-  }>;
 }
 
 export interface ProjectConfiguration {

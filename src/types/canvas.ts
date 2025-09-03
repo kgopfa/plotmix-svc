@@ -290,10 +290,12 @@ export interface ProjectDimensions {
   height: number;
 }
 
-// Main project state
+// Main project state - flat schema
 export interface MainState {
+  elements: CanvasElement[];
+  groups: CanvasGroup[];
+  timeline: Timeline;
   dimensions: ProjectDimensions;
-  scenes: Scene[];
 }
 
 // Complete project document

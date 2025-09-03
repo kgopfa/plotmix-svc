@@ -50,157 +50,51 @@ export class ProjectService {
     }
   }
   
-  // Pre-initialize the structure based on the diff
+  // Pre-initialize the structure based on the diff - flat schema only
   private static preInitializeStructure(baseState: any, diff: any): any {
     const safeState = JSON.parse(JSON.stringify(baseState));
     
     logger.info('Pre-initializing structure for safe diff application', {
       diffKeys: Object.keys(diff || {}),
-      hasScenesDiff: !!(diff.scenes && diff.scenes._t === 'a'),
-      baseStateHasScenes: !!(safeState.scenes && Array.isArray(safeState.scenes))
+      hasElementsDiff: !!(diff.elements && diff.elements._t === 'a'),
+      hasGroupsDiff: !!(diff.groups && diff.groups._t === 'a'),
+      hasTimelineDiff: !!diff.timeline
     });
     
-    // Handle scenes array modifications
-    if (diff.scenes && diff.scenes._t === 'a') {
-      // Ensure scenes array exists
-      if (!safeState.scenes || !Array.isArray(safeState.scenes)) {
-        safeState.scenes = [];
-        logger.info('Initialized missing scenes array');
+    // Handle flat structure modifications
+    if (diff.elements && diff.elements._t === 'a') {
+      if (!Array.isArray(safeState.elements)) {
+        safeState.elements = [];
+        logger.info('Initialized missing elements array');
       }
-      
-      // Handle scene modifications
-      const sceneKeys = Object.keys(diff.scenes).filter(key => key !== '_t');
-      logger.info('Processing scene modifications', { sceneKeys });
-      
-      for (const sceneKey of sceneKeys) {
-        const sceneIndex = parseInt(sceneKey);
-        const sceneDiff = diff.scenes[sceneKey];
-        
-        // Ensure the scene exists
-        if (!safeState.scenes[sceneIndex]) {
-          safeState.scenes[sceneIndex] = {
-            sceneId: `scene-${sceneIndex}`,
-            sceneName: `Scene ${sceneIndex}`,
-            sceneCanvas: {
-              elements: [],
-              groups: [],
-              timeline: {
-                duration: 10,
-                scale: 1,
-                animationStates: {}
-              }
-            }
-          };
-          logger.info(`Initialized missing scene at index ${sceneIndex}`);
-        }
-        
-        // Handle canvas modifications within the scene
-        if (sceneDiff.canvas) {
-          logger.info(`Processing canvas diff for scene ${sceneIndex}`, {
-            canvasKeys: Object.keys(sceneDiff.canvas)
-          });
-          
-          // Migrate from old schema (canvas) to new schema (sceneCanvas)
-          if (!safeState.scenes[sceneIndex].sceneCanvas) {
-            safeState.scenes[sceneIndex].sceneCanvas = {
-              elements: [],
-              groups: [],
-              timeline: {
-                duration: 10,
-                scale: 1,
-                animationStates: {}
-              }
-            };
-            logger.info(`Initialized sceneCanvas for scene ${sceneIndex}`);
-          }
-          
-          // Handle elements array
-          if (sceneDiff.canvas.elements && sceneDiff.canvas.elements._t === 'a') {
-            if (!Array.isArray(safeState.scenes[sceneIndex].sceneCanvas.elements)) {
-              safeState.scenes[sceneIndex].sceneCanvas.elements = [];
-              logger.info(`Initialized elements array for scene ${sceneIndex}`);
-            }
-          }
-          
-          // Handle groups array
-          if (sceneDiff.canvas.groups && sceneDiff.canvas.groups._t === 'a') {
-            if (!Array.isArray(safeState.scenes[sceneIndex].sceneCanvas.groups)) {
-              safeState.scenes[sceneIndex].sceneCanvas.groups = [];
-              logger.info(`Initialized groups array for scene ${sceneIndex}`);
-            }
-          }
-          
-          // Handle timeline
-          if (sceneDiff.canvas.timeline) {
-            if (!safeState.scenes[sceneIndex].sceneCanvas.timeline) {
-              safeState.scenes[sceneIndex].sceneCanvas.timeline = {
-                duration: 10,
-                scale: 1,
-                animationStates: {}
-              };
-              logger.info(`Initialized timeline for scene ${sceneIndex}`);
-            }
-          }
-        }
-        
-        // Handle direct sceneCanvas modifications
-        if (sceneDiff.sceneCanvas) {
-          logger.info(`Processing sceneCanvas diff for scene ${sceneIndex}`, {
-            sceneCanvasKeys: Object.keys(sceneDiff.sceneCanvas)
-          });
-          
-          if (!safeState.scenes[sceneIndex].sceneCanvas) {
-            safeState.scenes[sceneIndex].sceneCanvas = {
-              elements: [],
-              groups: [],
-              timeline: {
-                duration: 10,
-                scale: 1,
-                animationStates: {}
-              }
-            };
-            logger.info(`Initialized sceneCanvas for scene ${sceneIndex}`);
-          }
-          
-          // Handle elements array
-          if (sceneDiff.sceneCanvas.elements && sceneDiff.sceneCanvas.elements._t === 'a') {
-            if (!Array.isArray(safeState.scenes[sceneIndex].sceneCanvas.elements)) {
-              safeState.scenes[sceneIndex].sceneCanvas.elements = [];
-              logger.info(`Initialized elements array for scene ${sceneIndex}`);
-            }
-          }
-          
-          // Handle groups array
-          if (sceneDiff.sceneCanvas.groups && sceneDiff.sceneCanvas.groups._t === 'a') {
-            if (!Array.isArray(safeState.scenes[sceneIndex].sceneCanvas.groups)) {
-              safeState.scenes[sceneIndex].sceneCanvas.groups = [];
-              logger.info(`Initialized groups array for scene ${sceneIndex}`);
-            }
-          }
-          
-          // Handle timeline
-          if (sceneDiff.sceneCanvas.timeline) {
-            if (!safeState.scenes[sceneIndex].sceneCanvas.timeline) {
-              safeState.scenes[sceneIndex].sceneCanvas.timeline = {
-                duration: 10,
-                scale: 1,
-                animationStates: {}
-              };
-              logger.info(`Initialized timeline for scene ${sceneIndex}`);
-            }
-          }
-        }
+    }
+    
+    if (diff.groups && diff.groups._t === 'a') {
+      if (!Array.isArray(safeState.groups)) {
+        safeState.groups = [];
+        logger.info('Initialized missing groups array');
+      }
+    }
+    
+    if (diff.timeline) {
+      if (!safeState.timeline || typeof safeState.timeline !== 'object') {
+        safeState.timeline = {
+          duration: 10,
+          scale: 1,
+          currentTime: 0,
+          animationStates: {}
+        };
+        logger.info('Initialized missing timeline');
       }
     }
     
     logger.info('Structure pre-initialization completed', {
       finalStateStructure: {
-        hasScenes: !!safeState.scenes,
-        scenesLength: safeState.scenes?.length || 0,
-        firstScene: safeState.scenes?.[0] ? {
-          hasSceneCanvas: !!safeState.scenes[0].sceneCanvas,
-          sceneCanvasKeys: Object.keys(safeState.scenes[0].sceneCanvas || {})
-        } : null
+        hasElements: !!safeState.elements,
+        elementsLength: safeState.elements?.length || 0,
+        hasGroups: !!safeState.groups,
+        groupsLength: safeState.groups?.length || 0,
+        hasTimeline: !!safeState.timeline
       }
     });
     
@@ -453,29 +347,15 @@ export class ProjectService {
 
     const diffPatcher = new DiffPatcher();
 
-    // Get current state and handle both schema formats
+    // Get current state - use flat schema only
     const currentState = (project.mainState as any) ?? {};
     const safeDiff = (changeData.diff ?? {}) as any;
 
-    // Handle both new multi-scene schema and legacy flat schema
+    // Use flat schema - normalize current state
     let normalizedState: any;
     
-    if (currentState.scenes && Array.isArray(currentState.scenes)) {
-      // New multi-scene schema - extract first scene or create default
-      const firstScene = currentState.scenes[0] || {
-        sceneId: 'default',
-        sceneName: 'Default Scene',
-        sceneCanvas: { elements: [], groups: [], timeline: {} }
-      };
-      
-      normalizedState = {
-        elements: firstScene.sceneCanvas.elements || [],
-        groups: firstScene.sceneCanvas.groups || [],
-        timeline: firstScene.sceneCanvas.timeline || {},
-        dimensions: currentState.dimensions || { width: 1920, height: 1080 }
-      };
-    } else if (currentState.elements) {
-      // Legacy flat schema - use as is
+    if (currentState.elements) {
+      // Flat schema - use as is
       normalizedState = { ...currentState };
     } else {
       // No valid structure found - create default
@@ -524,7 +404,7 @@ export class ProjectService {
       hasElementsDiff: !!safeDiff.elements,
       hasGroupsDiff: !!safeDiff.groups,
       hasTimelineDiff: !!safeDiff.timeline,
-      originalSchema: currentState.scenes ? 'multi-scene' : 'flat',
+      originalSchema: 'flat',
       normalizedElementsCount: normalizedState.elements.length
     });
     
@@ -569,46 +449,18 @@ export class ProjectService {
       },
     });
 
-    // Update project version and mainState - preserve original schema format
-    let finalMainState: any;
-    
-    if (currentState.scenes && Array.isArray(currentState.scenes)) {
-      // Preserve multi-scene schema - update first scene with new state
-      const updatedScenes = [...currentState.scenes];
-      if (updatedScenes.length > 0) {
-        updatedScenes[0] = {
-          ...updatedScenes[0],
-          sceneCanvas: {
-            elements: newState.elements || normalizedState.elements || [],
-            groups: newState.groups || normalizedState.groups || [],
-            timeline: newState.timeline || normalizedState.timeline || {
-              duration: 10,
-              scale: 1,
-              currentTime: 0,
-              animationStates: {}
-            }
-          }
-        };
-      }
-      
-      finalMainState = {
-        dimensions: currentState.dimensions || { width: 1920, height: 1080 },
-        scenes: updatedScenes
-      };
-    } else {
-      // Use flat schema - simple structure with elements, groups, timeline
-      finalMainState = {
-        elements: newState.elements || normalizedState.elements || [],
-        groups: newState.groups || normalizedState.groups || [],
-        timeline: newState.timeline || normalizedState.timeline || {
-          duration: 10,
-          scale: 1,
-          currentTime: 0,
-          animationStates: {}
-        },
-        dimensions: currentState.dimensions || { width: 1920, height: 1080 }
-      };
-    }
+    // Update project version and mainState - use flat schema only
+    const finalMainState = {
+      elements: newState.elements || normalizedState.elements || [],
+      groups: newState.groups || normalizedState.groups || [],
+      timeline: newState.timeline || normalizedState.timeline || {
+        duration: 10,
+        scale: 1,
+        currentTime: 0,
+        animationStates: {}
+      },
+      dimensions: currentState.dimensions || { width: 1920, height: 1080 }
+    };
 
     // Log the structure being saved
     logger.info('Saving project with mainState structure', {
@@ -621,7 +473,7 @@ export class ProjectService {
         elementsCount: finalMainState.elements?.length || 0,
         groupsCount: finalMainState.groups?.length || 0,
         hasTimeline: !!finalMainState.timeline,
-        schemaType: currentState.scenes ? 'multi-scene' : 'flat'
+        schemaType: 'flat'
       }
     });
 

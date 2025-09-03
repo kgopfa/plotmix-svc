@@ -28,7 +28,6 @@ export class DslCompiler {
         return this.parseSeed(parts);
       case 'style':
         return this.parseStyle(parts);
-              // Text commands removed - only arrays and captions supported
       case 'array':
         return this.parseArray(line);
       case 'animate':
