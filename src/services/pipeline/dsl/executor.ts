@@ -6,6 +6,8 @@ import { getAnimationConfig } from '../procedural/animation';
 import { randomUUID } from 'crypto';
 // Use center-origin helpers for array placement aligned to a center-based grid
 import { computeCenteredXPositions } from '../../../utils/grid';
+// Timeline management for video sectioning
+import { TimelineManager } from './timeline-manager';
 
 // Default caption configuration
 const DEFAULT_CAPTION_CONFIG: CaptionConfig = {
@@ -105,7 +107,7 @@ function makeCell(
     stroke: style.cell.stroke,
     zIndex: 1,
     groupId: gid,
-    opacity: 1, 
+    opacity: 1, // Elements inherit group opacity
     visible: true,
     shadowBlur: style.shadow.shadowBlur,
     shadowColor: style.shadow.shadowColor,
@@ -142,7 +144,7 @@ function makeCell(
     pivotY: textHeight / 2, // Center pivot
     zIndex: 2,
     groupId: gid,
-    opacity: 1,
+    opacity: 1, // Elements inherit group opacity
     visible: true,
     fontSize: style.typography.size,
     wordWrap: false,
@@ -174,7 +176,7 @@ function makeCell(
     id: gid,
     name: `Array Cell ${value}`,
     type: "custom",
-    opacity: 1,
+    opacity: 0, // Start invisible for fade-in
     rotation: 0,
     isDefaultGroup: false,
   };
@@ -195,15 +197,14 @@ export function execute(program: ActionProgram): Scene {
   const groups: Group[] = [];
   const elements: (Rect|TextEl)[] = [];
   
+  // Initialize TimelineManager for section-based timing
+  const timelineManager = new TimelineManager();
+  
   // Track caption timing to sync animations
   const captionTiming: Map<number, { startTime: number; endTime: number }> = new Map();
   
   // Track animation order for synchronization
   let animationOrder = 0;
-  
-  // Text positioning removed - only arrays and captions supported
-  
-  // Canvas constants (center-origin) not needed for center placement
 
   // First pass: process setup and build caption timing map
   for (const act of program) {
@@ -272,46 +273,45 @@ export function execute(program: ActionProgram): Scene {
         textStrokeWidth: 0
       };
 
-      // Calculate timing based on caption order
-      // Each caption gets: fadeIn + visibleTime + fadeOut
-      const totalCaptionDuration = DEFAULT_CAPTION_CONFIG.fadeInDuration + DEFAULT_CAPTION_CONFIG.visibleTime + DEFAULT_CAPTION_CONFIG.fadeOutDuration;
-      const startTime = (act.order - 1) * totalCaptionDuration + ALGORITHM_START_DELAY; // Add delay for title sequence
-      const fadeInEndTime = startTime + DEFAULT_CAPTION_CONFIG.fadeInDuration;
-      const fadeOutStartTime = fadeInEndTime + DEFAULT_CAPTION_CONFIG.visibleTime;
+      // Calculate timing using TimelineManager
+      const captionTimingResult = timelineManager.calculateCaptionTiming(act.order);
+      const defaults = timelineManager.getDefaults();
       
-      // Store caption timing for animation synchronization
-      captionTiming.set(act.order, {
-        startTime: startTime,
-        endTime: fadeOutStartTime + DEFAULT_CAPTION_CONFIG.fadeOutDuration
-      });
-      
-      // Create fade-in animation
-      caption.animations.push({
-        id: randomUUID(),
-        type: "fade",
-        startTime: startTime,
-        duration: DEFAULT_CAPTION_CONFIG.fadeInDuration,
-        properties: { alpha: 1 },
-        easing: "power1.inOut",
-        yoyo: false,
-        repeat: 0,
-        displayName: `caption-${act.order}-fade-in`,
-        repeatDelay: 0
-      });
-      
-      // Create fade-out animation
-      caption.animations.push({
-        id: randomUUID(),
-        type: "fade",
-        startTime: fadeOutStartTime,
-        duration: DEFAULT_CAPTION_CONFIG.fadeOutDuration,
-        properties: { alpha: 0 },
-        easing: "power1.inOut",
-        yoyo: false,
-        repeat: 0,
-        displayName: `caption-${act.order}-fade-out`,
-        repeatDelay: 0
-      });
+      if (captionTimingResult) {
+        // Create fade-in animation
+        caption.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: captionTimingResult.startTime,
+          duration: defaults.captionFadeInDuration,
+          properties: { alpha: 1 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `caption-${act.order}-fade-in`,
+          repeatDelay: 0
+        });
+        
+        // Create fade-out animation
+        caption.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: captionTimingResult.fadeOutStartTime,
+          duration: defaults.captionFadeOutDuration,
+          properties: { alpha: 0 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `caption-${act.order}-fade-out`,
+          repeatDelay: 0
+        });
+
+        // Store caption timing for animation synchronization
+        captionTiming.set(act.order, {
+          startTime: captionTimingResult.startTime,
+          endTime: captionTimingResult.endTime
+        });
+      }
 
       elements.push(caption);
     }
@@ -347,14 +347,45 @@ export function execute(program: ActionProgram): Scene {
         const centerX = centerXs[i]!;
         const centerY = arrayY;
         const { group, rect, text } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight);
+        
+        // Add fade-in animation using TimelineManager
+        const arrayTiming = timelineManager.calculateElementTiming('array', i);
+        const defaults = timelineManager.getDefaults();
+        
+        if (arrayTiming) {
+          // Add fade-in animation
+          group.animations.push({
+            id: randomUUID(),
+            type: "fade",
+            startTime: arrayTiming.startTime,
+            duration: defaults.elementFadeInDuration,
+            properties: { alpha: 1 },
+            easing: "power1.inOut",
+            yoyo: false,
+            repeat: 0,
+            displayName: `array-${i}-fade-in`,
+            repeatDelay: 0
+          });
+          
+          // Add fade-out animation
+          group.animations.push({
+            id: randomUUID(),
+            type: "fade",
+            startTime: arrayTiming.fadeOutStartTime,
+            duration: defaults.elementFadeOutDuration,
+            properties: { alpha: 0 },
+            easing: "power1.inOut",
+            yoyo: false,
+            repeat: 0,
+            displayName: `array-${i}-fade-out`,
+            repeatDelay: 0
+          });
+        }
+        
         groups.push(group);
         elements.push(rect, text);
       });
-      
-      // All arrays share center row
     }
-
-    // Text commands removed - only arrays and captions supported
 
     if (act.kind === "ANIMATE") {
       // Handle animation commands - create animation timeline entries
@@ -444,8 +475,6 @@ export function execute(program: ActionProgram): Scene {
       }
     }
 
-
-
     if (act.kind === "HEADING") {
       // Handle heading commands - create static text element at top of canvas
       const headingId = randomUUID();
@@ -499,19 +528,25 @@ export function execute(program: ActionProgram): Scene {
         textStrokeWidth: 0
       };
 
-      // Add fade-in animation for heading
-      heading.animations.push({
-        id: randomUUID(),
-        type: "fade",
-        startTime: 0.5, // Start at 0.5s
-        duration: 1, // 1 second fade-in
-        properties: { alpha: 1 },
-        easing: "power1.inOut",
-        yoyo: false,
-        repeat: 0,
-        displayName: "heading-fade-in",
-        repeatDelay: 0
-      });
+      // Calculate timing using TimelineManager
+      const headingTiming = timelineManager.calculateElementTiming('heading', 0);
+      const defaults = timelineManager.getDefaults();
+      
+      if (headingTiming) {
+        // Add fade-in animation for heading
+        heading.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: headingTiming.startTime,
+          duration: defaults.elementFadeInDuration,
+          properties: { alpha: 1 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: "heading-fade-in",
+          repeatDelay: 0
+        });
+      }
 
       elements.push(heading);
     }
@@ -569,19 +604,25 @@ export function execute(program: ActionProgram): Scene {
         textStrokeWidth: 0
       };
 
-      // Add fade-in animation for subtitle (starts after heading)
-      subtitle.animations.push({
-        id: randomUUID(),
-        type: "fade",
-        startTime: 1, // Start at 1s
-        duration: 1, // 1 second fade-in
-        properties: { alpha: 1 },
-        easing: "power1.inOut",
-        yoyo: false,
-        repeat: 0,
-        displayName: "subtitle-fade-in",
-        repeatDelay: 0
-      });
+      // Calculate timing using TimelineManager
+      const subtitleTiming = timelineManager.calculateElementTiming('subtitle', 1);
+      const defaults = timelineManager.getDefaults();
+      
+      if (subtitleTiming) {
+        // Add fade-in animation for subtitle
+        subtitle.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: subtitleTiming.startTime,
+          duration: defaults.elementFadeInDuration,
+          properties: { alpha: 1 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: "subtitle-fade-in",
+          repeatDelay: 0
+        });
+      }
 
       elements.push(subtitle);
     }
@@ -639,33 +680,39 @@ export function execute(program: ActionProgram): Scene {
         textStrokeWidth: 0
       };
 
-      // Add fade-in animation for explanation (starts after subtitle)
-      explanation.animations.push({
-        id: randomUUID(),
-        type: "fade",
-        startTime: 1.25, // Start at 1.25s (after subtitle)
-        duration: 1, // 1 second fade-in
-        properties: { alpha: 1 },
-        easing: "power1.inOut",
-        yoyo: false,
-        repeat: 0,
-        displayName: "explanation-fade-in",
-        repeatDelay: 0
-      });
+      // Calculate timing using TimelineManager
+      const explanationTiming = timelineManager.calculateElementTiming('explanation', 2);
+      const defaults = timelineManager.getDefaults();
+      
+      if (explanationTiming) {
+        // Add fade-in animation for explanation
+        explanation.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: explanationTiming.startTime,
+          duration: defaults.elementFadeInDuration,
+          properties: { alpha: 1 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: "explanation-fade-in",
+          repeatDelay: 0
+        });
 
-      // Add fade-out animation for explanation (fades out before example appears)
-      explanation.animations.push({
-        id: randomUUID(),
-        type: "fade",
-        startTime: 2.5, // Fade out at 2.5s (before example appears)
-        duration: 0.5, // 0.5 second fade-out
-        properties: { alpha: 0 },
-        easing: "power1.inOut",
-        yoyo: false,
-        repeat: 0,
-        displayName: "explanation-fade-out",
-        repeatDelay: 0
-      });
+        // Add fade-out animation for explanation
+        explanation.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: explanationTiming.fadeOutStartTime,
+          duration: defaults.elementFadeOutDuration,
+          properties: { alpha: 0 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: "explanation-fade-out",
+          repeatDelay: 0
+        });
+      }
 
       elements.push(explanation);
     }
@@ -723,77 +770,47 @@ export function execute(program: ActionProgram): Scene {
         textStrokeWidth: 0
       };
 
-      // Add fade-in animation for example (starts after explanation)
-      example.animations.push({
-        id: randomUUID(),
-        type: "fade",
-        startTime: 3.0, // Start at 3.0s (after explanation fades out)
-        duration: 1, // 1 second fade-in
-        properties: { alpha: 1 },
-        easing: "power1.inOut",
-        yoyo: false,
-        repeat: 0,
-        displayName: "example-fade-in",
-        repeatDelay: 0
-      });
+      // Calculate timing using TimelineManager
+      const exampleTiming = timelineManager.calculateElementTiming('example', 3);
+      const defaults = timelineManager.getDefaults();
+      
+      if (exampleTiming) {
+        // Add fade-in animation for example
+        example.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: exampleTiming.startTime,
+          duration: defaults.elementFadeInDuration,
+          properties: { alpha: 1 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: "example-fade-in",
+          repeatDelay: 0
+        });
 
-      // Add fade-out animation for example (fades out before array appears)
-      example.animations.push({
-        id: randomUUID(),
-        type: "fade",
-        startTime: 3.5, // Fade out at 3.5s (before array appears at 4s)
-        duration: 0.5, // 0.5 second fade-out
-        properties: { alpha: 0 },
-        easing: "power1.inOut",
-        yoyo: false,
-        repeat: 0,
-        displayName: "example-fade-out",
-        repeatDelay: 0
-      });
+        // Add fade-out animation for example
+        example.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: exampleTiming.fadeOutStartTime,
+          duration: defaults.elementFadeOutDuration,
+          properties: { alpha: 0 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: "example-fade-out",
+          repeatDelay: 0
+        });
+      }
 
       elements.push(example);
     }
 
     if (act.kind === "CONCLUSION") {
-      // Handle conclusion commands - fade out array and show complexity info
-      // Calculate when all captions finish: 1.5s start + (numCaptions * 4s) - 0.5s overlap
       const captionActions = program.filter(action => action.kind === "CAPTION");
       const numCaptions = captionActions.length;
       const conclusionStartTime = 1.5 + (numCaptions * 4) - 0.5; // Start after all captions finish
-      
-      // Fade out all array elements
-      elements.forEach(element => {
-        if (element.type === "rectangle" || (element.type === "text" && element.groupId)) {
-          element.animations.push({
-            id: randomUUID(),
-            type: "fade",
-            startTime: conclusionStartTime,
-            duration: DEFAULT_CAPTION_CONFIG.fadeOutDuration, // Use same duration as other fade animations
-            properties: { alpha: 0 },
-            easing: "power1.inOut",
-            yoyo: false,
-            repeat: 0,
-            displayName: "array-fade-out",
-            repeatDelay: 0
-          });
-        }
-      });
-
-      // Fade out all groups
-      groups.forEach(group => {
-        group.animations.push({
-          id: randomUUID(),
-          type: "fade",
-          startTime: conclusionStartTime,
-          duration: DEFAULT_CAPTION_CONFIG.fadeOutDuration, // Use same duration as other fade animations
-          properties: { alpha: 0 },
-          easing: "power1.inOut",
-          yoyo: false,
-          repeat: 0,
-          displayName: "group-fade-out",
-          repeatDelay: 0
-        });
-      });
 
       // Create conclusion text element (rendered over 2 rows)
       const conclusionId = randomUUID();
