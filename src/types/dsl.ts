@@ -37,6 +37,7 @@ export interface VideoTimelineConfig {
       staggerDelay?: number;
       startTime?: number;
       endTime?: number;
+      visibleTime?: number;
     };
   };
 }

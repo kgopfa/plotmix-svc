@@ -205,6 +205,8 @@ export function execute(program: ActionProgram): Scene {
   
   // Track animation order for synchronization
   let animationOrder = 0;
+  let explanationOrder = 0;
+  let exampleOrder = 0;
 
   // First pass: process setup and build caption timing map
   for (const act of program) {
@@ -273,17 +275,16 @@ export function execute(program: ActionProgram): Scene {
         textStrokeWidth: 0
       };
 
-      // Calculate timing using TimelineManager
-      const captionTimingResult = timelineManager.calculateCaptionTiming(act.order);
-      const defaults = timelineManager.getDefaults();
+      // Get timing from config
+      const captionConfig = timelineManager.getElementTiming('caption');
       
-      if (captionTimingResult) {
+      if (captionConfig) {
         // Create fade-in animation
         caption.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: captionTimingResult.startTime,
-          duration: defaults.captionFadeInDuration,
+          startTime: captionConfig.startTime!,
+          duration: captionConfig.fadeInDuration!,
           properties: { alpha: 1 },
           easing: "power1.inOut",
           yoyo: false,
@@ -296,8 +297,8 @@ export function execute(program: ActionProgram): Scene {
         caption.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: captionTimingResult.fadeOutStartTime,
-          duration: defaults.captionFadeOutDuration,
+          startTime: captionConfig.endTime! - captionConfig.fadeOutDuration!,
+          duration: captionConfig.fadeOutDuration!,
           properties: { alpha: 0 },
           easing: "power1.inOut",
           yoyo: false,
@@ -308,8 +309,8 @@ export function execute(program: ActionProgram): Scene {
 
         // Store caption timing for animation synchronization
         captionTiming.set(act.order, {
-          startTime: captionTimingResult.startTime,
-          endTime: captionTimingResult.endTime
+          startTime: captionConfig.startTime!,
+          endTime: captionConfig.endTime! - captionConfig.fadeOutDuration!
         });
       }
 
@@ -348,17 +349,16 @@ export function execute(program: ActionProgram): Scene {
         const centerY = arrayY;
         const { group, rect, text } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight);
         
-        // Add fade-in animation using TimelineManager
-        const arrayTiming = timelineManager.calculateElementTiming('array', i);
-        const defaults = timelineManager.getDefaults();
+        // Get timing from config
+        const arrayTiming = timelineManager.getElementTiming('array');
         
         if (arrayTiming) {
           // Add fade-in animation
           group.animations.push({
             id: randomUUID(),
             type: "fade",
-            startTime: arrayTiming.startTime,
-            duration: defaults.elementFadeInDuration,
+            startTime: arrayTiming.startTime!,
+            duration: arrayTiming.fadeInDuration!,
             properties: { alpha: 1 },
             easing: "power1.inOut",
             yoyo: false,
@@ -371,8 +371,8 @@ export function execute(program: ActionProgram): Scene {
           group.animations.push({
             id: randomUUID(),
             type: "fade",
-            startTime: arrayTiming.fadeOutStartTime,
-            duration: defaults.elementFadeOutDuration,
+            startTime: arrayTiming.endTime!,
+            duration: arrayTiming.fadeOutDuration!,
             properties: { alpha: 0 },
             easing: "power1.inOut",
             yoyo: false,
@@ -528,17 +528,16 @@ export function execute(program: ActionProgram): Scene {
         textStrokeWidth: 0
       };
 
-      // Calculate timing using TimelineManager
-      const headingTiming = timelineManager.calculateElementTiming('heading', 0);
-      const defaults = timelineManager.getDefaults();
+      // Get timing from config
+      const headingTiming = timelineManager.getElementTiming('heading');
       
       if (headingTiming) {
         // Add fade-in animation for heading
         heading.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: headingTiming.startTime,
-          duration: defaults.elementFadeInDuration,
+          startTime: headingTiming.startTime!,
+          duration: headingTiming.fadeInDuration!,
           properties: { alpha: 1 },
           easing: "power1.inOut",
           yoyo: false,
@@ -604,17 +603,16 @@ export function execute(program: ActionProgram): Scene {
         textStrokeWidth: 0
       };
 
-      // Calculate timing using TimelineManager
-      const subtitleTiming = timelineManager.calculateElementTiming('subtitle', 1);
-      const defaults = timelineManager.getDefaults();
+      // Get timing from config
+      const subtitleTiming = timelineManager.getElementTiming('subtitle');
       
       if (subtitleTiming) {
         // Add fade-in animation for subtitle
         subtitle.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: subtitleTiming.startTime,
-          duration: defaults.elementFadeInDuration,
+          startTime: subtitleTiming.startTime!,
+          duration: subtitleTiming.fadeInDuration!,
           properties: { alpha: 1 },
           easing: "power1.inOut",
           yoyo: false,
@@ -680,17 +678,17 @@ export function execute(program: ActionProgram): Scene {
         textStrokeWidth: 0
       };
 
-      // Calculate timing using TimelineManager
-      const explanationTiming = timelineManager.calculateElementTiming('explanation', 2);
-      const defaults = timelineManager.getDefaults();
+      // Get timing from config
+      explanationOrder++;
+      const explanationTiming = timelineManager.getElementTiming('explanation');
       
       if (explanationTiming) {
         // Add fade-in animation for explanation
         explanation.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: explanationTiming.startTime,
-          duration: defaults.elementFadeInDuration,
+          startTime: explanationTiming.startTime!,
+          duration: explanationTiming.fadeInDuration!,
           properties: { alpha: 1 },
           easing: "power1.inOut",
           yoyo: false,
@@ -703,8 +701,8 @@ export function execute(program: ActionProgram): Scene {
         explanation.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: explanationTiming.fadeOutStartTime,
-          duration: defaults.elementFadeOutDuration,
+          startTime: explanationTiming.endTime! - explanationTiming.fadeOutDuration!,
+          duration: explanationTiming.fadeOutDuration!,
           properties: { alpha: 0 },
           easing: "power1.inOut",
           yoyo: false,
@@ -770,17 +768,17 @@ export function execute(program: ActionProgram): Scene {
         textStrokeWidth: 0
       };
 
-      // Calculate timing using TimelineManager
-      const exampleTiming = timelineManager.calculateElementTiming('example', 3);
-      const defaults = timelineManager.getDefaults();
+      // Get timing from config
+      exampleOrder++;
+      const exampleTiming = timelineManager.getElementTiming('example');
       
       if (exampleTiming) {
         // Add fade-in animation for example
         example.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: exampleTiming.startTime,
-          duration: defaults.elementFadeInDuration,
+          startTime: exampleTiming.startTime!,
+          duration: exampleTiming.fadeInDuration!,
           properties: { alpha: 1 },
           easing: "power1.inOut",
           yoyo: false,
@@ -793,8 +791,8 @@ export function execute(program: ActionProgram): Scene {
         example.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: exampleTiming.fadeOutStartTime,
-          duration: defaults.elementFadeOutDuration,
+          startTime: exampleTiming.endTime! - exampleTiming.fadeOutDuration!,
+          duration: exampleTiming.fadeOutDuration!,
           properties: { alpha: 0 },
           easing: "power1.inOut",
           yoyo: false,

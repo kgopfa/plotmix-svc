@@ -41,13 +41,28 @@ export const DEFAULT_TIMELINE_CONFIG: VideoTimelineConfig = {
     },
     explanation: {
       fadeInDuration: 1.0,
+      fadeOutDuration: 0.5,
       startTime: 1.25, // Appears at 1.25s (executor: startTime: 1.25)
       endTime: 2.5    // Fades out at 2.5s (executor: startTime: 2.5)
     },
     example: {
       fadeInDuration: 1.0,
+      fadeOutDuration: 0.5,
       startTime: 3.0, // Appears at 3.0s (executor: startTime: 3.0)
       endTime: 3.5    // Fades out at 3.5s (executor: startTime: 3.5)
+    },
+    array: {
+      fadeInDuration: 1.0,
+      fadeOutDuration: 0.5,
+      startTime: 4.0, // Arrays start appearing at 4s
+      endTime: 17.5   // Arrays fade out at 17.5s
+    },
+    caption: {
+      fadeInDuration: 0.5,
+      fadeOutDuration: 0.5,
+      visibleTime: 3.0,
+      startTime: 4.5, // Captions start after arrays
+      endTime: 18.0  // Captions end before conclusion
     }
   }
 };
@@ -86,61 +101,13 @@ export class TimelineManager {
   }
 
   /**
-   * Calculate timing for an element within its section
+   * Get element timing from config
    */
-  calculateElementTiming(
-    elementType: string,
-    elementIndex: number
-  ): { startTime: number; fadeInEndTime: number; fadeOutStartTime: number; endTime: number } | null {
-    const sectionName = this.getElementSection(elementType);
-    if (!sectionName) return null;
-
-    const section = this.getSectionTiming(sectionName);
-    if (!section) return null;
-
-    const { startTime, endTime } = section;
-    const defaults = this.config.defaults;
-    
-    const elementStartTime = startTime + (elementIndex * defaults.elementStaggerDelay);
-    const fadeInEndTime = elementStartTime + defaults.elementFadeInDuration;
-    const fadeOutStartTime = endTime - defaults.elementFadeOutDuration;
-    
-    return {
-      startTime: elementStartTime,
-      fadeInEndTime,
-      fadeOutStartTime,
-      endTime: endTime
-    };
+  getElementTiming(elementType: string) {
+    return this.config.elementTiming?.[elementType];
   }
 
-  /**
-   * Calculate timing for a caption within its section
-   */
-  calculateCaptionTiming(
-    captionOrder: number
-  ): { startTime: number; fadeInEndTime: number; fadeOutStartTime: number; endTime: number } | null {
-    const sectionName = this.getElementSection('caption');
-    if (!sectionName) return null;
 
-    const section = this.getSectionTiming(sectionName);
-    if (!section) return null;
-
-    const { startTime, endTime } = section;
-    const defaults = this.config.defaults;
-    const totalCaptionDuration = defaults.captionFadeInDuration + defaults.captionVisibleTime + defaults.captionFadeOutDuration;
-    
-    // Start captions after elements have faded in
-    const captionStartTime = startTime + defaults.elementFadeInDuration + (captionOrder - 1) * totalCaptionDuration;
-    const fadeInEndTime = captionStartTime + defaults.captionFadeInDuration;
-    const fadeOutStartTime = fadeInEndTime + defaults.captionVisibleTime;
-    
-    return {
-      startTime: captionStartTime,
-      fadeInEndTime,
-      fadeOutStartTime,
-      endTime: endTime
-    };
-  }
 
   /**
    * Update configuration
