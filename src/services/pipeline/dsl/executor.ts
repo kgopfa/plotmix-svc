@@ -1,24 +1,11 @@
-import type { ActionProgram, Scene, Group, Rect, TextEl, CaptionConfig } from '../../../types';
+import type { ActionProgram, Scene, Group, Rect, TextEl } from '../../../types';
 import type { StylePack } from '../../../types';
 import { pickStyle } from '../procedural/seed';
 import STYLES from '../procedural/layout/styles';
 import { getAnimationConfig } from '../procedural/animation';
 import { randomUUID } from 'crypto';
-// Use center-origin helpers for array placement aligned to a center-based grid
 import { computeCenteredXPositions } from '../../../utils/grid';
-// Timeline management for video sectioning
 import { TimelineManager } from './timeline-manager';
-
-// Default caption configuration
-const DEFAULT_CAPTION_CONFIG: CaptionConfig = {
-  visibleTime: 3, // 3 seconds visible time
-  fadeInDuration: 0.5, // 0.5 seconds fade in
-  fadeOutDuration: 0.5, // 0.5 seconds fade out
-  transitionType: "fade" // Use fade transitions
-};
-
-// Delay for main algorithm animations (after title sequence)
-const ALGORITHM_START_DELAY = 5; // Start captions 1s after array appears at 4s
 
 // Helper function to calculate text width for proper centering
 function calculateTextWidth(text: string, fontSize: number, fontFamily: string): number {
@@ -274,16 +261,18 @@ export function execute(program: ActionProgram): Scene {
         isAnimationPath: false,
         textStrokeWidth: 0
       };
-
-      // Get timing from config
       const captionConfig = timelineManager.getElementTiming('caption');
       
       if (captionConfig) {
+        // Calculate staggered timing for each caption
+        const totalCaptionDuration = captionConfig.fadeInDuration! + captionConfig.visibleTime! + captionConfig.fadeOutDuration!;
+        const captionStartTime = captionConfig.startTime! + (act.order - 1) * totalCaptionDuration;
+        
         // Create fade-in animation
         caption.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: captionConfig.startTime!,
+          startTime: captionStartTime,
           duration: captionConfig.fadeInDuration!,
           properties: { alpha: 1 },
           easing: "power1.inOut",
@@ -297,7 +286,7 @@ export function execute(program: ActionProgram): Scene {
         caption.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: captionConfig.endTime! - captionConfig.fadeOutDuration!,
+          startTime: captionStartTime + captionConfig.fadeInDuration! + captionConfig.visibleTime!,
           duration: captionConfig.fadeOutDuration!,
           properties: { alpha: 0 },
           easing: "power1.inOut",
@@ -309,8 +298,8 @@ export function execute(program: ActionProgram): Scene {
 
         // Store caption timing for animation synchronization
         captionTiming.set(act.order, {
-          startTime: captionConfig.startTime!,
-          endTime: captionConfig.endTime! - captionConfig.fadeOutDuration!
+          startTime: captionStartTime,
+          endTime: captionStartTime + captionConfig.fadeInDuration! + captionConfig.visibleTime!
         });
       }
 
@@ -400,17 +389,9 @@ export function execute(program: ActionProgram): Scene {
       
       // Calculate animation timing based on corresponding caption
       // Animation should start 0.5s after the caption starts (when caption becomes visible)
-      const captionInfo = captionTiming.get(animationOrder);
-      
-      let animationStartTime: number;
-      if (captionInfo) {
-        // Start animation 0.5s after caption starts (when caption becomes visible)
-        animationStartTime = captionInfo.startTime + 0.5;
-      } else {
-        // Fallback: use original timing if no caption found
-        animationStartTime = act.startTime + ALGORITHM_START_DELAY;
-      }
-      
+      const captionInfo = captionTiming.get(animationOrder)!;
+      const animationStartTime = captionInfo.startTime + 0.5;
+
       // Create proper animation object using procedural configuration
       const animationEntry = {
         id: animationId,
@@ -806,19 +787,17 @@ export function execute(program: ActionProgram): Scene {
     }
 
     if (act.kind === "CONCLUSION") {
-      const captionActions = program.filter(action => action.kind === "CAPTION");
-      const numCaptions = captionActions.length;
-      const conclusionStartTime = 1.5 + (numCaptions * 4) - 0.5; // Start after all captions finish
-
+      // Get timing from config
+      const conclusionConfig = timelineManager.getElementTiming('conclusion');
+      
       // Create conclusion text element (rendered over 2 rows)
       const conclusionId = randomUUID();
       const calculatedConclusionWidth = calculateTextWidth(act.text, 40, style.typography.family);
       const conclusionWidth = Math.min(calculatedConclusionWidth, 1200); // Use calculated width, max 1200px
       
-      // Calculate timing based on conclusion order (group by pairs)
-      const totalConclusionDuration = DEFAULT_CAPTION_CONFIG.fadeInDuration + DEFAULT_CAPTION_CONFIG.visibleTime + DEFAULT_CAPTION_CONFIG.fadeOutDuration;
-      const groupIndex = Math.floor((act.order - 1) / 2); // Group by pairs (0, 1, 2, ...)
-      const startTime = conclusionStartTime + 1.5 + groupIndex * totalConclusionDuration;
+      // Calculate staggered timing for conclusions
+      const totalConclusionDuration = conclusionConfig!.fadeInDuration! + conclusionConfig!.visibleTime! + conclusionConfig!.fadeOutDuration!;
+      const conclusionStartTime = conclusionConfig!.startTime! + (act.order - 1) * totalConclusionDuration;
       
       // Position conclusions - within each group, conclusions appear one under the other
       // But each group appears in the same positions (since previous groups fade out)
@@ -868,8 +847,8 @@ export function execute(program: ActionProgram): Scene {
       conclusion.animations.push({
         id: randomUUID(),
         type: "fade",
-        startTime: startTime,
-        duration: DEFAULT_CAPTION_CONFIG.fadeInDuration,
+        startTime: conclusionStartTime,
+        duration: conclusionConfig!.fadeInDuration!,
         properties: { alpha: 1 },
         easing: "power1.inOut",
         yoyo: false,
@@ -882,8 +861,8 @@ export function execute(program: ActionProgram): Scene {
       conclusion.animations.push({
         id: randomUUID(),
         type: "fade",
-        startTime: startTime + DEFAULT_CAPTION_CONFIG.fadeInDuration + DEFAULT_CAPTION_CONFIG.visibleTime,
-        duration: DEFAULT_CAPTION_CONFIG.fadeOutDuration,
+        startTime: conclusionStartTime + conclusionConfig!.fadeInDuration! + conclusionConfig!.visibleTime!,
+        duration: conclusionConfig!.fadeOutDuration!,
         properties: { alpha: 0 },
         easing: "power1.inOut",
         yoyo: false,
