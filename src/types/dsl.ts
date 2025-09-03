@@ -9,6 +9,38 @@ export type Action =
   | { kind: "EXAMPLE"; text: string }
   | { kind: "CONCLUSION"; order: number; text: string };
 
+// Central configuration for video timing and section organization
+export interface VideoTimelineConfig {
+  defaults: {
+    captionVisibleTime: number;
+    captionFadeInDuration: number;
+    captionFadeOutDuration: number;
+    elementFadeInDuration: number;
+    elementFadeOutDuration: number;
+    elementStaggerDelay: number;
+    animationDuration: number;
+  };
+  sections: {
+    intro: { startTime: number; endTime: number };
+    main: { startTime: number; endTime: number };
+    conclusion: { startTime: number; endTime: number };
+  };
+  elementSections: {
+    intro: string[];
+    main: string[];
+    conclusion: string[];
+  };
+  elementTiming?: {
+    [elementType: string]: {
+      fadeInDuration?: number;
+      fadeOutDuration?: number;
+      staggerDelay?: number;
+      startTime?: number;
+      endTime?: number;
+    };
+  };
+}
+
 // Configuration for caption timing
 export interface CaptionConfig {
   visibleTime: number; // How long each caption stays visible (default: 3s)
