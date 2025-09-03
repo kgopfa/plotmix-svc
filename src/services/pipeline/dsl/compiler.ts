@@ -39,6 +39,10 @@ export class DslCompiler {
         return this.parseHeading(line);
       case 'subtitle':
         return this.parseSubtitle(line);
+      case 'explanation':
+        return this.parseExplanation(line);
+      case 'example':
+        return this.parseExample(line);
       case 'conclusion':
         return this.parseConclusion(line);
       default:
@@ -168,6 +172,36 @@ export class DslCompiler {
 
     return {
       kind: "SUBTITLE",
+      text
+    };
+  }
+
+  private static parseExample(line: string): Action | null {
+    const exampleMatch = line.match(/^example\s+"([^"]+)"/);
+    
+    if (!exampleMatch) {
+      return null;
+    }
+
+    const text = exampleMatch[1]!;
+
+    return {
+      kind: "EXAMPLE",
+      text
+    };
+  }
+
+  private static parseExplanation(line: string): Action | null {
+    const explanationMatch = line.match(/^explanation\s+"([^"]+)"/);
+    
+    if (!explanationMatch) {
+      return null;
+    }
+
+    const text = explanationMatch[1]!;
+
+    return {
+      kind: "EXPLANATION",
       text
     };
   }

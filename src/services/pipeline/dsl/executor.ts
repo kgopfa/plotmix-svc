@@ -16,7 +16,7 @@ const DEFAULT_CAPTION_CONFIG: CaptionConfig = {
 };
 
 // Delay for main algorithm animations (after title sequence)
-const ALGORITHM_START_DELAY = 1.5;
+const ALGORITHM_START_DELAY = 5; // Start captions 1s after array appears at 4s
 
 // Helper function to calculate text width for proper centering
 function calculateTextWidth(text: string, fontSize: number, fontFamily: string): number {
@@ -586,6 +586,174 @@ export function execute(program: ActionProgram): Scene {
       elements.push(subtitle);
     }
 
+    if (act.kind === "EXPLANATION") {
+      // Handle explanation commands - create static text element where array appears
+      const explanationId = randomUUID();
+      
+      // Position explanation where array appears (y = 0)
+      const explanationY = 0; // Same position as array
+      const explanationX = 0; // Center horizontally
+      
+      // Create explanation text element with procedural styling
+      const explanationFontSize = style.typography.size * 0.85;
+      const calculatedExplanationWidth = calculateTextWidth(act.text, explanationFontSize, style.typography.family);
+      const explanationWidth = Math.min(calculatedExplanationWidth, 1200); // Use calculated width, max 1200px
+      const explanationHeight = style.typography.size * 1.3;
+      
+      const explanation: TextEl = {
+        animations: [],
+        fill: style.palette.text,
+        x: explanationX,
+        y: explanationY,
+        id: explanationId,
+        name: `Explanation`,
+        text: act.text,
+        type: "text",
+        width: explanationWidth, // Use calculated width, max 1200px
+        height: explanationHeight,
+        fontFamily: style.typography.family,
+        fontSize: explanationFontSize,
+        fontWeight: "normal", // Normal weight for explanations
+        textAlign: "center",
+        pivotX: explanationWidth / 2, // Center pivot (half of width)
+        pivotY: explanationHeight / 2, // Center pivot (half of height)
+        zIndex: 10, // High z-index to appear above other elements
+        opacity: 0, // Start invisible for fade-in
+        visible: true,
+        groupId: "",
+        wordWrap: true,
+        fontStyle: "normal",
+        lineHeight: 1.2,
+        shadowBlur: 0,
+        shadowColor: "#000000",
+        strokeWidth: 0,
+        cornerRadius: 0,
+        letterSpacing: 0,
+        shadowEnabled: false,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowOpacity: 0,
+        wordWrapWidth: explanationWidth, // Same as width like captions
+        textStrokeJoin: "round",
+        isAnimationPath: false,
+        textStrokeWidth: 0
+      };
+
+      // Add fade-in animation for explanation (starts after subtitle)
+      explanation.animations.push({
+        id: randomUUID(),
+        type: "fade",
+        startTime: 1.25, // Start at 1.25s (after subtitle)
+        duration: 1, // 1 second fade-in
+        properties: { alpha: 1 },
+        easing: "power1.inOut",
+        yoyo: false,
+        repeat: 0,
+        displayName: "explanation-fade-in",
+        repeatDelay: 0
+      });
+
+      // Add fade-out animation for explanation (fades out before example appears)
+      explanation.animations.push({
+        id: randomUUID(),
+        type: "fade",
+        startTime: 2.5, // Fade out at 2.5s (before example appears)
+        duration: 0.5, // 0.5 second fade-out
+        properties: { alpha: 0 },
+        easing: "power1.inOut",
+        yoyo: false,
+        repeat: 0,
+        displayName: "explanation-fade-out",
+        repeatDelay: 0
+      });
+
+      elements.push(explanation);
+    }
+
+    if (act.kind === "EXAMPLE") {
+      // Handle example commands - create static text element below subtitle
+      const exampleId = randomUUID();
+      
+      // Position example below the subtitle, between subtitle and array
+      const exampleY = 0; // Same position as explanation and array
+      const exampleX = 0; // Center horizontally
+      
+      // Create example text element
+      const exampleFontSize = style.typography.size * 0.8;
+      const calculatedExampleWidth = calculateTextWidth(act.text, exampleFontSize, style.typography.family);
+      const exampleWidth = Math.min(calculatedExampleWidth, 1200); // Use calculated width, max 1200px
+      const exampleHeight = style.typography.size * 1.2;
+      
+      const example: TextEl = {
+        animations: [],
+        fill: style.palette.text,
+        x: exampleX,
+        y: exampleY,
+        id: exampleId,
+        name: `Example`,
+        text: act.text,
+        type: "text",
+        width: exampleWidth, // Use calculated width, max 1200px
+        height: exampleHeight,
+        fontFamily: style.typography.family,
+        fontSize: exampleFontSize,
+        fontWeight: "normal", // Normal weight for examples
+        textAlign: "center",
+        pivotX: exampleWidth / 2, // Center pivot (half of width)
+        pivotY: exampleHeight / 2, // Center pivot (half of height)
+        zIndex: 10, // High z-index to appear above other elements
+        opacity: 0, // Start invisible for fade-in
+        visible: true,
+        groupId: "",
+        wordWrap: true,
+        fontStyle: "normal",
+        lineHeight: 1.2,
+        shadowBlur: 0,
+        shadowColor: "#000000",
+        strokeWidth: 0,
+        cornerRadius: 0,
+        letterSpacing: 0,
+        shadowEnabled: false,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowOpacity: 0,
+        wordWrapWidth: exampleWidth, // Same as width like captions
+        textStrokeJoin: "round",
+        isAnimationPath: false,
+        textStrokeWidth: 0
+      };
+
+      // Add fade-in animation for example (starts after explanation)
+      example.animations.push({
+        id: randomUUID(),
+        type: "fade",
+        startTime: 3.0, // Start at 3.0s (after explanation fades out)
+        duration: 1, // 1 second fade-in
+        properties: { alpha: 1 },
+        easing: "power1.inOut",
+        yoyo: false,
+        repeat: 0,
+        displayName: "example-fade-in",
+        repeatDelay: 0
+      });
+
+      // Add fade-out animation for example (fades out before array appears)
+      example.animations.push({
+        id: randomUUID(),
+        type: "fade",
+        startTime: 3.5, // Fade out at 3.5s (before array appears at 4s)
+        duration: 0.5, // 0.5 second fade-out
+        properties: { alpha: 0 },
+        easing: "power1.inOut",
+        yoyo: false,
+        repeat: 0,
+        displayName: "example-fade-out",
+        repeatDelay: 0
+      });
+
+      elements.push(example);
+    }
+
     if (act.kind === "CONCLUSION") {
       // Handle conclusion commands - fade out array and show complexity info
       // Calculate when all captions finish: 1.5s start + (numCaptions * 4s) - 0.5s overlap
@@ -637,10 +805,10 @@ export function execute(program: ActionProgram): Scene {
       const groupIndex = Math.floor((act.order - 1) / 2); // Group by pairs (0, 1, 2, ...)
       const startTime = conclusionStartTime + 1.5 + groupIndex * totalConclusionDuration;
       
-      // Position conclusions vertically to avoid overlap
-      // Each conclusion is 96px high, so space them 120px apart for good spacing
-      const conclusionSpacing = 120;
-      const conclusionY = (act.order - 1) * conclusionSpacing - 60; // Center the group around y=0
+      // Position conclusions - within each group, conclusions appear one under the other
+      // But each group appears in the same positions (since previous groups fade out)
+      const isFirstInGroup = (act.order - 1) % 2 === 0; // Even orders (1,3,5...) are first in their group
+      const conclusionY = isFirstInGroup ? -60 : 60; // First conclusion at -60, second at 60
       
       const conclusion: TextEl = {
         animations: [],

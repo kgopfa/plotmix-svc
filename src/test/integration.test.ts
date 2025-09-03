@@ -98,12 +98,8 @@ caption 4 "Since the target is equal to the middle element, we found the target.
     // Parse the DSL
     const program = DslCompiler.compile(simulatedLlmResponse);
     
-    console.log('Parsed Program:', JSON.stringify(program, null, 2));
-
     // Execute the program to get final UI elements
     const scene = execute(program);
-    
-    console.log('Final Scene:', JSON.stringify(scene, null, 2));
 
     // Verify the results
     expect(program).toBeDefined();
@@ -250,10 +246,10 @@ caption 4 "Since the target is equal to the middle element, we found the target.
     const caption2FadeIn = caption2?.animations.find(a => a.displayName?.includes('fade-in'));
     const caption2FadeOut = caption2?.animations.find(a => a.displayName?.includes('fade-out'));
 
-    expect(caption1FadeIn?.startTime).toBe(1.5);
-    expect(caption1FadeOut?.startTime).toBe(5);
-    expect(caption2FadeIn?.startTime).toBe(5.5);
-    expect(caption2FadeOut?.startTime).toBe(9);
+    expect(caption1FadeIn?.startTime).toBe(5); // 0 + 5 delay (1s after array appears at 4s)
+    expect(caption1FadeOut?.startTime).toBe(8.5); // 5 + 0.5 + 3
+    expect(caption2FadeIn?.startTime).toBe(9); // 5 + 4
+    expect(caption2FadeOut?.startTime).toBe(12.5); // 5 + 7.5
 
     // Verify heading positioning and properties
     const heading = headingElements[0] as any; // Type assertion for heading element

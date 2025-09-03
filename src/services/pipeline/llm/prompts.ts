@@ -74,11 +74,13 @@ ANIMATION GUIDELINES:
 - Animation styling (colors, scale factors, easing) is procedurally generated for consistent theming
 
 SUPPORTED CONTENT TYPES:
-- Algorithm explanations (sorting, searching, etc.)
-- Data structure demonstrations
-- Mathematical concepts with visual data
-- Process flows with step-by-step data changes
-- Any content that benefits from visual array representation`
+- Algorithm explanations (sorting, searching, optimization, etc.)
+- Data structure demonstrations (arrays, lists, trees, graphs)
+- Mathematical concepts (sequences, patterns, operations)
+- Process flows (step-by-step transformations, workflows)
+- Statistical concepts (distributions, aggregations, comparisons)
+- Scientific concepts (measurements, observations, experiments)
+- Any educational content that benefits from visual array representation`
       },
       {
         role: 'user',
@@ -189,10 +191,12 @@ ANIMATION TYPES:
 - compare: Show elements being compared side-by-side (e.g., two sum pairs)
 
 ANIMATION PATTERNS:
-- Search algorithms: highlight search range → select current → highlight new range → repeat
-- Comparison processes: highlight pair → compare elements → highlight result → repeat
+- Search algorithms: highlight search range → select current element → compare with target → highlight new range → repeat until found
+- Comparison processes: highlight pair → compare elements → highlight result → select next pair
 - Data transformation: highlight input → select elements → highlight output → repeat
 - Step-by-step processes: select current → highlight change → select next → repeat
+- Sorting algorithms: highlight unsorted → select pivot → compare elements → highlight sorted → repeat
+- Mathematical concepts: highlight input → select operation → highlight result → repeat
 
 TIMING GUIDELINES:
 - Do NOT include timing information (startTime, duration) - this is handled automatically
@@ -203,7 +207,13 @@ CRITICAL RULES:
 - Only animate elements that exist in the scene plan arrays
 - Each step should have a clear purpose in explaining the content
 - Animation sequence should follow the logical flow of the process
-- Use appropriate animation types for each step's purpose`
+- Use appropriate animation types for each step's purpose
+
+CONTENT EXAMPLES:
+Search algorithm: [1,3,5,7,9] → highlight range → select middle → compare → highlight new range
+Comparison process: [2,4,6,8] → highlight pair → compare → highlight result → next pair
+Data transformation: [10,20,30] → highlight input → select → highlight output
+Mathematical concept: [1,2,3,4] → highlight input → select operation → highlight result`
       },
       {
         role: 'user',
@@ -240,8 +250,10 @@ style <auto|Minimal|Monospace|...>
 
 heading "<title>"
 subtitle "<description>"
+explanation "<general explanation of the concept>"
+example "<problem example with target value>"
 array [v1,v2,v3]
-animate <type> [elements] <startTime> <duration>
+animate <type> [elements]
 caption <order> "<text>"
 conclusion <order> "<text>"
 \`\`\`
@@ -264,6 +276,20 @@ Subtitle Rules:
 - Use sentence case formatting
 - Avoid full sentences - use phrases instead
 - Positioned below the heading, between heading and array content
+
+Explanation Rules:
+- Extract the general explanation from the content plan's problem.description field
+- Provide a clear, concise explanation of the concept being demonstrated
+- Use the exact text from the problem.description field
+- Positioned below the subtitle, between subtitle and example
+- Helps learners understand the concept before seeing the example
+
+Example Rules:
+- Extract the problem example from the content plan's problem.example field
+- Show the complete example including the target value being searched for
+- Use the exact text from the problem.example field
+- Positioned below the explanation, between explanation and array content
+- Helps learners understand what we're searching for before seeing the array
 
 Caption Rules - CRITICAL:
 - Captions are simplified to only include order and text
@@ -324,6 +350,8 @@ GENERIC ANIMATION GUIDELINES:
 Example Pattern (works for any 1-D array problem):
 heading "Binary Search Algorithm"
 subtitle "Finding target value in sorted array"
+explanation "The binary search algorithm efficiently finds a target value within a sorted array by repeatedly dividing the search interval in half."
+example "Given a sorted array [1, 3, 5, 7, 9] and a target value of 5, the algorithm will find the target in 3 steps."
 array [1,2,3,4,5,6,7,8,9]
 animate highlight [1,9]
 caption 1 "Compare middle element with target to determine search direction"
@@ -341,6 +369,8 @@ Conclusion appears after all animations complete and fades out the array to show
 Example of CORRECT usage:
 heading "Binary Search Algorithm"
 subtitle "Finding target value in sorted array"
+explanation "The binary search algorithm efficiently finds a target value within a sorted array by repeatedly dividing the search interval in half."
+example "Given a sorted array [1, 3, 5, 7, 9] and a target value of 5, the algorithm will find the target in 3 steps."
 array [1,3,5,7,9]
 animate highlight [1,9]
 caption 1 "Compare middle element with target to determine search direction"

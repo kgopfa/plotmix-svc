@@ -62,7 +62,7 @@ describe('Conclusion DSL Commands', () => {
     expect(conclusion1).toBeDefined();
     expect(conclusion1.text).toBe('Time Complexity: O(log n)');
     expect(conclusion1.x).toBe(0); // Center horizontally
-    expect(conclusion1.y).toBe(-60); // First conclusion positioned at -60px
+    expect(conclusion1.y).toBe(-60); // First conclusion positioned at -60px (group 0)
     expect(conclusion1.height).toBe(96); // Height for 2 rows
     expect(conclusion1.pivotY).toBe(48); // Center pivot for 2-row text
     expect(conclusion1.animations).toHaveLength(2); // fade-in and fade-out
@@ -72,7 +72,7 @@ describe('Conclusion DSL Commands', () => {
     expect(conclusion2).toBeDefined();
     expect(conclusion2.text).toBe('Space Complexity: O(1)');
     expect(conclusion2.x).toBe(0); // Center horizontally
-    expect(conclusion2.y).toBe(60); // Second conclusion positioned at 60px (120px spacing)
+    expect(conclusion2.y).toBe(60); // Second conclusion positioned at 60px (bottom position)
     expect(conclusion2.height).toBe(96); // Height for 2 rows
     expect(conclusion2.pivotY).toBe(48); // Center pivot for 2-row text
     expect(conclusion2.animations).toHaveLength(2); // fade-in and fade-out

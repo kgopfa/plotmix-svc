@@ -5,6 +5,8 @@ export type Action =
   | { kind: "CAPTION"; order: number; text: string }
   | { kind: "HEADING"; text: string }
   | { kind: "SUBTITLE"; text: string } 
+  | { kind: "EXPLANATION"; text: string }
+  | { kind: "EXAMPLE"; text: string }
   | { kind: "CONCLUSION"; order: number; text: string };
 
 // Configuration for caption timing

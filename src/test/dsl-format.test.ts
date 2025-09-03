@@ -82,27 +82,27 @@ caption 3 "Third caption"
     const caption1FadeIn = caption1?.animations.find(a => a.displayName?.includes('fade-in'));
     const caption1FadeOut = caption1?.animations.find(a => a.displayName?.includes('fade-out'));
     
-    expect(caption1FadeIn?.startTime).toBe(1.5); // 0 + 1.5 delay
+    expect(caption1FadeIn?.startTime).toBe(5); // 0 + 5 delay (1s after array appears at 4s)
     expect(caption1FadeIn?.duration).toBe(0.5);
-    expect(caption1FadeOut?.startTime).toBe(5); // 1.5 + 0.5 + 3
+    expect(caption1FadeOut?.startTime).toBe(8.5); // 5 + 0.5 + 3
     expect(caption1FadeOut?.duration).toBe(0.5);
     
     // Check timing for caption 2
     const caption2FadeIn = caption2?.animations.find(a => a.displayName?.includes('fade-in'));
     const caption2FadeOut = caption2?.animations.find(a => a.displayName?.includes('fade-out'));
     
-    expect(caption2FadeIn?.startTime).toBe(5.5); // 1.5 + 4
+    expect(caption2FadeIn?.startTime).toBe(9); // 5 + 4 (1s after array appears at 4s)
     expect(caption2FadeIn?.duration).toBe(0.5);
-    expect(caption2FadeOut?.startTime).toBe(9); // 1.5 + 7.5
+    expect(caption2FadeOut?.startTime).toBe(12.5); // 5 + 7.5
     expect(caption2FadeOut?.duration).toBe(0.5);
     
     // Check timing for caption 3
     const caption3FadeIn = caption3?.animations.find(a => a.displayName?.includes('fade-in'));
     const caption3FadeOut = caption3?.animations.find(a => a.displayName?.includes('fade-out'));
     
-    expect(caption3FadeIn?.startTime).toBe(9.5); // 1.5 + 8
+    expect(caption3FadeIn?.startTime).toBe(13); // 5 + 8
     expect(caption3FadeIn?.duration).toBe(0.5);
-    expect(caption3FadeOut?.startTime).toBe(13); // 1.5 + 11.5
+    expect(caption3FadeOut?.startTime).toBe(16.5); // 5 + 11.5
     expect(caption3FadeOut?.duration).toBe(0.5);
   });
 
@@ -186,10 +186,10 @@ caption 2 "Step 2: The middle element is 5, which we will compare with our targe
     const caption2FadeIn = caption2?.animations.find(a => a.displayName?.includes('fade-in'));
     const caption2FadeOut = caption2?.animations.find(a => a.displayName?.includes('fade-out'));
     
-    expect(caption1FadeIn?.startTime).toBe(1.5); // 0 + 1.5 delay
-    expect(caption1FadeOut?.startTime).toBe(5); // 1.5 + 0.5 + 3
-    expect(caption2FadeIn?.startTime).toBe(5.5); // 1.5 + 4
-    expect(caption2FadeOut?.startTime).toBe(9); // 1.5 + 7.5
+    expect(caption1FadeIn?.startTime).toBe(5); // 0 + 5 delay (1s after array appears at 4s)
+    expect(caption1FadeOut?.startTime).toBe(8.5); // 5 + 0.5 + 3
+    expect(caption2FadeIn?.startTime).toBe(9); // 5 + 4
+    expect(caption2FadeOut?.startTime).toBe(12.5); // 5 + 7.5
   });
 
   test('should parse and execute heading commands', () => {

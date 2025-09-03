@@ -73,10 +73,10 @@ describe('LLM Prompt Format Validation', () => {
     expect(conclusion2.text).toBe('Space Complexity: O(1)');
     expect(conclusion3.text).toBe('Use Case: Searching in sorted arrays');
     
-    // Verify vertical positioning to avoid overlap
-    expect(conclusion1.y).toBe(-60); // First conclusion at -60px
-    expect(conclusion2.y).toBe(60);  // Second conclusion at 60px
-    expect(conclusion3.y).toBe(180); // Third conclusion at 180px
+    // Verify vertical positioning - conclusions appear one under the other, then next group appears in same positions
+    expect(conclusion1.y).toBe(-60); // First conclusion at -60px (top position)
+    expect(conclusion2.y).toBe(60);  // Second conclusion at 60px (bottom position)
+    expect(conclusion3.y).toBe(-60); // Third conclusion at -60px (top position again)
     
     // Verify conclusion timing (should start after all 4 captions finish)
     // With 4 captions: conclusionStartTime = 1.5 + (4 * 4) - 0.5 = 17.0s
