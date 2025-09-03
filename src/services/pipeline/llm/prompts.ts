@@ -10,7 +10,7 @@ export class PromptTemplates {
     return [
       {
         role: 'system',
-        content: `You are a Content Planner that produces structured plans to explain DSA problems to learners. 
+        content: `You are a Content Planner that produces structured plans for educational content. You break down complex topics into clear, visualizable components.
 
 Your output MUST be valid JSON matching this exact schema:
 {
@@ -23,7 +23,7 @@ Your output MUST be valid JSON matching this exact schema:
     "naive": {
       "title": "string",
       "description": "string",
-      "complexity": "string (e.g., 'Time: O(n), Space: O(1)')"
+      "complexity": "string (e.g., 'Time: O(n), Space: O(1)' or 'Simple but inefficient')"
     },
     "optimal": {
       "title": "string", 
@@ -36,17 +36,15 @@ Your output MUST be valid JSON matching this exact schema:
   "visualRequirements": {
     "arrays": [
       {
-        "values": [number|string],
-        "purpose": "string (what this array demonstrates - e.g., 'input example', 'step visualization', 'result')"
+        "values": [number|string|boolean],
+        "purpose": "string (what this array demonstrates - e.g., 'input example', 'step visualization', 'result', 'data comparison')"
       }
     ],
     "animations": [
       {
         "type": "highlight|select|focus|compare",
-        "elements": [number|string],
-        "startTime": number,
-        "duration": number,
-        "purpose": "string (what this animation demonstrates - e.g., 'search range', 'current element', 'comparison')"
+        "elements": [number|string|boolean],
+        "purpose": "string (what this animation demonstrates - e.g., 'search range', 'current element', 'comparison', 'data transformation')"
       }
     ]
   }
@@ -58,25 +56,33 @@ Examples of what goes in arrays:
 ✓ [1, 3, 5, 7, 9] - actual data to visualize
 ✓ [2, 4, 6, 8] - another data example
 ✓ [true, false, true] - boolean data
+✓ ["red", "blue", "green"] - string data
+✓ [10, 20, 30, 40] - numeric data
 ✗ ["Time: O(n)", "Space: O(1)"] - this is text, not array data
 ✗ ["Binary search", "Divide and conquer"] - these are concepts, not array elements
 ✗ ["Target not found", "Array empty"] - these are explanations, not array data
 ✗ ["Divide and conquer", "Efficient searching"] - these are key ideas, not array data
 
 ANIMATION GUIDELINES:
-- Use animations for algorithms that involve step-by-step progression through an array
-- highlight: Show search ranges, current focus areas, or elements being processed
+- Use animations for step-by-step processes that involve data progression or transformation
+- highlight: Show ranges, focus areas, or elements being processed
 - select: Highlight specific elements for comparison or selection
 - focus: Emphasize the current element being examined
 - compare: Show elements being compared side-by-side
-- Start times should be sequential (0, 2, 4, 6, etc.) for smooth progression
-- Duration should be consistent (usually 2 seconds per step)
+- Do NOT include timing information (startTime, duration) - this is handled automatically
 - Elements in animations must exist in the arrays defined above
-- Animation styling (colors, scale factors, easing) is procedurally generated for consistent theming`
+- Animation styling (colors, scale factors, easing) is procedurally generated for consistent theming
+
+SUPPORTED CONTENT TYPES:
+- Algorithm explanations (sorting, searching, etc.)
+- Data structure demonstrations
+- Mathematical concepts with visual data
+- Process flows with step-by-step data changes
+- Any content that benefits from visual array representation`
       },
       {
         role: 'user',
-        content: `Explain this problem using the structure above: ${prompt}`
+        content: `Create a structured plan for this educational content: ${prompt}`
       }
     ];
   }
@@ -111,9 +117,7 @@ Your output MUST be valid JSON matching this exact schema:
         {
           "kind": "animation",
           "type": "highlight|select|focus|compare",
-          "elements": [number|string],
-          "startTime": number,
-          "duration": number,
+          "elements": [number|string|boolean],
           "purpose": "string"
         }
       ]
@@ -153,11 +157,11 @@ The procedural system will automatically:
     return [
       {
         role: 'system',
-        content: `You are an Animation Planner that creates step-by-step animations for algorithm explanations.
+        content: `You are an Animation Planner that creates step-by-step animations for educational content.
 
 Your task:
-1. Analyze the algorithm being explained
-2. Create a logical sequence of animations that demonstrate the algorithm
+1. Analyze the content being explained
+2. Create a logical sequence of animations that demonstrate the process
 3. Map each animation step to specific array elements
 4. Ensure animations tell a clear story
 
@@ -168,16 +172,13 @@ Your output MUST be valid JSON matching this exact schema:
     {
       "id": "string (unique identifier)",
       "description": "string (what this step demonstrates)",
-      "targetElements": [number|string] (array elements to animate),
+      "targetElements": [number|string|boolean] (array elements to animate),
       "animationType": "highlight|select|focus|compare",
-      "startTime": number (seconds from start),
-      "duration": number (seconds for this animation),
       "explanation": "string (text to show during this step)"
     }
   ],
   "timing": {
-    "totalDuration": number (total animation duration),
-    "stepDuration": number (default duration per step)
+    "totalSteps": number (total number of animation steps)
   }
 }
 
@@ -187,27 +188,26 @@ ANIMATION TYPES:
 - focus: Draw attention to specific element (e.g., target found, comparison result)
 - compare: Show elements being compared side-by-side (e.g., two sum pairs)
 
-ALGORITHM PATTERNS:
-- Binary Search: highlight search range → select middle → highlight new range → repeat
-- Two Sum: highlight pair → compare with target → highlight next pair
-- Sliding Window: highlight window → select elements → slide window → repeat
-- Linear Search: select current → compare → select next → repeat
+ANIMATION PATTERNS:
+- Search algorithms: highlight search range → select current → highlight new range → repeat
+- Comparison processes: highlight pair → compare elements → highlight result → repeat
+- Data transformation: highlight input → select elements → highlight output → repeat
+- Step-by-step processes: select current → highlight change → select next → repeat
 
 TIMING GUIDELINES:
-- Start times should be sequential (0, 2, 4, 6, etc.)
-- Duration should be consistent (usually 2 seconds per step)
-- Total duration should accommodate all steps with some buffer
+- Do NOT include timing information (startTime, duration) - this is handled automatically
+- Focus on the logical sequence of steps
 - Elements in targetElements must exist in the arrays from the scene plan
 
 CRITICAL RULES:
 - Only animate elements that exist in the scene plan arrays
-- Each step should have a clear purpose in explaining the algorithm
-- Animation sequence should follow the logical flow of the algorithm
+- Each step should have a clear purpose in explaining the content
+- Animation sequence should follow the logical flow of the process
 - Use appropriate animation types for each step's purpose`
       },
       {
         role: 'user',
-        content: `Create animation plan for this algorithm explanation:
+        content: `Create animation plan for this educational content:
 
 Content Plan: ${JSON.stringify(contentPlan, null, 2)}
 
@@ -291,10 +291,9 @@ CRITICAL:
 - Arrays are ONLY for visualizing actual data: [1,2,3], [5,10,15], [true,false]
 - Arrays are NEVER for concepts, explanations, or text content
 - Do NOT include grid positioning - the system will handle layout automatically
-- Use animate commands to show step-by-step algorithm progression
+- Use animate commands to show step-by-step process progression
 - Elements in animate commands must match values in the array
-- Start times should be sequential (0, 5, 10, 15, etc.) for smooth progression
-- Duration should be consistent (usually 5 seconds per step)
+- Do NOT include timing parameters (startTime, duration) - timing is handled automatically
 - Use caption commands for synchronized text explanations that appear during animations
 - Caption order should be sequential (1, 2, 3, etc.)
 - Caption timing is automatically synchronized with animation steps
@@ -315,38 +314,37 @@ Conclusion Rules - CRITICAL:
   conclusion 3 "Use Case: Searching in sorted arrays"
 
 GENERIC ANIMATION GUIDELINES:
-- Use animations for any algorithm that involves step-by-step progression through an array
+- Use animations for any process that involves step-by-step progression through data
 - Show current focus/selection at each step
 - Highlight relevant ranges or elements being processed
-- Demonstrate comparisons, swaps, or other operations
-- Use consistent timing: start times should be sequential (0, 5, 10, 15...)
-- Use consistent duration: usually 5 seconds per step
+- Demonstrate comparisons, transformations, or other operations
+- Do NOT include timing parameters - timing is handled automatically
 - Elements in animate commands must exist in the array
 
 Example Pattern (works for any 1-D array problem):
 heading "Binary Search Algorithm"
 subtitle "Finding target value in sorted array"
 array [1,2,3,4,5,6,7,8,9]
-animate highlight [1,9] 0 5
+animate highlight [1,9]
 caption 1 "Compare middle element with target to determine search direction"
-animate select [5] 5 5
+animate select [5]
 caption 2 "If target equals middle, we found our answer"
-animate highlight [6,9] 10 5
+animate highlight [6,9]
 caption 3 "If target is greater, search the right half"
 conclusion 1 "Time Complexity: O(log n)"
 conclusion 2 "Space Complexity: O(1)"
 conclusion 3 "Use Case: Searching in sorted arrays"
 
-Note: Caption timing is automatically calculated - caption 1 appears at 0s, caption 2 at 4s, caption 3 at 8s, etc.
+Note: Timing is automatically calculated - animations start 0.5s after captions, captions appear sequentially, etc.
 Conclusion appears after all animations complete and fades out the array to show complexity information.
 
 Example of CORRECT usage:
 heading "Binary Search Algorithm"
 subtitle "Finding target value in sorted array"
 array [1,3,5,7,9]
-animate highlight [1,9] 0 5
+animate highlight [1,9]
 caption 1 "Compare middle element with target to determine search direction"
-animate select [5] 5 5
+animate select [5]
 caption 2 "If target equals middle, we found our answer"
 conclusion 1 "Time Complexity: O(log n)"
 conclusion 2 "Space Complexity: O(1)"
