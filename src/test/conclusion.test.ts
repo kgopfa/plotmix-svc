@@ -83,10 +83,10 @@ describe('Conclusion DSL Commands', () => {
     
     expect(conclusion1FadeIn).toBeDefined();
     expect(conclusion2FadeIn).toBeDefined();
-    // With 0 captions: conclusionStartTime = 1.5 + (0 * 4) - 0.5 = 1.0s
-    // First group starts at 1.0 + 1.5 = 2.5s
-    expect(conclusion1FadeIn.startTime).toBe(2.5); // First group starts at 2.5s
-    expect(conclusion2FadeIn.startTime).toBe(2.5); // Second conclusion in same group also starts at 2.5s
+    // With 0 captions: conclusion section starts at 14s (after intro)
+    // First group starts at 14s
+    expect(conclusion1FadeIn.startTime).toBe(14); // First group starts at 14s
+    expect(conclusion2FadeIn.startTime).toBe(14); // Second conclusion in same group also starts at 14s
   });
 
   test('should add fade-out animations to array elements', () => {
@@ -101,30 +101,30 @@ describe('Conclusion DSL Commands', () => {
     const program = DslCompiler.compile(dsl);
     const scene = execute(program);
 
-    // Find array elements (rectangles and text elements with groupId)
-    const arrayElements = scene.elements.filter((el: any) => 
-      el.type === 'rectangle' || (el.type === 'text' && el.groupId)
+    // Find array groups (groups that contain array elements)
+    const arrayGroups = scene.groups.filter((group: any) => 
+      group.name.startsWith('Array Cell')
     );
 
-    expect(arrayElements.length).toBeGreaterThan(0);
+    expect(arrayGroups.length).toBeGreaterThan(0);
 
-    // Check that array elements have fade-out animations
-    arrayElements.forEach((element: any) => {
-      const fadeOutAnimation = element.animations.find((anim: any) => 
+    // Check that array groups have fade-out animations
+    arrayGroups.forEach((group: any) => {
+      const fadeOutAnimation = group.animations.find((anim: any) => 
         anim.displayName === 'array-fade-out'
       );
       expect(fadeOutAnimation).toBeDefined();
-      expect(fadeOutAnimation.startTime).toBe(1.0); // Conclusion start time (1.5 + 0*4 - 0.5)
+      expect(fadeOutAnimation.startTime).toBe(13.5); // Array fade-out starts 0.5s before conclusions (14s - 0.5s)
       expect(fadeOutAnimation.properties.alpha).toBe(0);
     });
 
-    // Check that groups have fade-out animations
-    scene.groups.forEach((group: any) => {
+    // Check that array groups have fade-out animations
+    arrayGroups.forEach((group: any) => {
       const fadeOutAnimation = group.animations.find((anim: any) => 
-        anim.displayName === 'group-fade-out'
+        anim.displayName === 'array-fade-out'
       );
       expect(fadeOutAnimation).toBeDefined();
-      expect(fadeOutAnimation.startTime).toBe(1.0); // Conclusion start time (1.5 + 0*4 - 0.5)
+      expect(fadeOutAnimation.startTime).toBe(13.5); // Array fade-out starts 0.5s before conclusions (14s - 0.5s)
       expect(fadeOutAnimation.properties.alpha).toBe(0);
     });
   });

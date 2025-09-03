@@ -195,6 +195,24 @@ export function execute(program: ActionProgram): Scene {
   let explanationOrder = 0;
   let exampleOrder = 0;
 
+  // Preprocessing: Count content for timeline manager initialization
+  let captionCount = 0;
+  let animationCount = 0;
+  let conclusionCount = 0;
+  
+  for (const act of program) {
+    if (act.kind === "CAPTION") {
+      captionCount++;
+    } else if (act.kind === "ANIMATE") {
+      animationCount++;
+    } else if (act.kind === "CONCLUSION") {
+      conclusionCount++;
+    }
+  }
+  
+  // Initialize timeline manager with content counts
+  timelineManager.setContentCounts(captionCount, animationCount, conclusionCount);
+
   // First pass: process setup and build caption timing map
   for (const act of program) {
     if (act.kind === "SETUP") {
@@ -356,17 +374,22 @@ export function execute(program: ActionProgram): Scene {
             repeatDelay: 0
           });
           
-          // Add fade-out animation
+          // Add fade-out animation - if conclusions exist, fade out before conclusions start
+          const conclusionSection = timelineManager.getSectionTiming('conclusion');
+          const fadeOutStartTime = conclusionCount > 0 ? 
+            conclusionSection!.startTime - arrayTiming.fadeOutDuration! : 
+            arrayTiming.endTime!;
+          
           group.animations.push({
             id: randomUUID(),
             type: "fade",
-            startTime: arrayTiming.endTime!,
+            startTime: fadeOutStartTime,
             duration: arrayTiming.fadeOutDuration!,
             properties: { alpha: 0 },
             easing: "power1.inOut",
             yoyo: false,
             repeat: 0,
-            displayName: `array-${i}-fade-out`,
+            displayName: `array-fade-out`,
             repeatDelay: 0
           });
         }
@@ -787,17 +810,14 @@ export function execute(program: ActionProgram): Scene {
     }
 
     if (act.kind === "CONCLUSION") {
-      // Get timing from config
-      const conclusionConfig = timelineManager.getElementTiming('conclusion');
-      
       // Create conclusion text element (rendered over 2 rows)
       const conclusionId = randomUUID();
       const calculatedConclusionWidth = calculateTextWidth(act.text, 40, style.typography.family);
       const conclusionWidth = Math.min(calculatedConclusionWidth, 1200); // Use calculated width, max 1200px
       
-      // Calculate staggered timing for conclusions
-      const totalConclusionDuration = conclusionConfig!.fadeInDuration! + conclusionConfig!.visibleTime! + conclusionConfig!.fadeOutDuration!;
-      const conclusionStartTime = conclusionConfig!.startTime! + (act.order - 1) * totalConclusionDuration;
+      // Calculate proper conclusion timing using timeline manager
+      const conclusionTiming = timelineManager.calculateConclusionTiming(act.order);
+      const conclusionStartTime = conclusionTiming.startTime;
       
       // Position conclusions - within each group, conclusions appear one under the other
       // But each group appears in the same positions (since previous groups fade out)
@@ -848,7 +868,7 @@ export function execute(program: ActionProgram): Scene {
         id: randomUUID(),
         type: "fade",
         startTime: conclusionStartTime,
-        duration: conclusionConfig!.fadeInDuration!,
+        duration: conclusionTiming.fadeInEnd - conclusionStartTime,
         properties: { alpha: 1 },
         easing: "power1.inOut",
         yoyo: false,
@@ -861,8 +881,8 @@ export function execute(program: ActionProgram): Scene {
       conclusion.animations.push({
         id: randomUUID(),
         type: "fade",
-        startTime: conclusionStartTime + conclusionConfig!.fadeInDuration! + conclusionConfig!.visibleTime!,
-        duration: conclusionConfig!.fadeOutDuration!,
+        startTime: conclusionTiming.fadeOutStart,
+        duration: conclusionTiming.endTime - conclusionTiming.fadeOutStart,
         properties: { alpha: 0 },
         easing: "power1.inOut",
         yoyo: false,
