@@ -428,21 +428,24 @@ export function execute(program: ActionProgram): Scene {
         repeatDelay: 0
       };
 
-      // Find the target elements that match the animation values
+      // Find the target elements that match the animation indices
       const targetElements = elements.filter(el => {
         if (el.type === "rectangle") {
-          // For rectangles, we need to find the group and check the text element's value
+          // For rectangles, we need to find the group and check if it matches the target index
           const group = groups.find(g => g.id === el.groupId);
           if (group) {
-            const textElement = elements.find(e => e.type === "text" && e.groupId === group.id);
-            if (textElement && textElement.type === "text") {
-              // Convert text to number for comparison, since act.elements might be numbers
-              const textValue = Number(textElement.text);
+            // Extract the index from the group name (e.g., "Array Cell 4" -> index 4)
+            const indexMatch = group.name.match(/Array Cell (\d+)/);
+            if (indexMatch) {
+              const groupIndex = parseInt(indexMatch[1]!);
+              // Check if this group's index matches any of the target indices
               const matches = act.elements.some(target => {
                 if (typeof target === 'number') {
-                  return target === textValue;
+                  return target === groupIndex;
                 } else {
-                  return target === textElement.text;
+                  // If target is a string, try to parse it as a number
+                  const targetNum = parseInt(target);
+                  return !isNaN(targetNum) && targetNum === groupIndex;
                 }
               });
               
