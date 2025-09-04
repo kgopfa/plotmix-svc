@@ -1,28 +1,91 @@
 import type { VideoTimelineConfig } from '../../../types';
 
-const DELTA: number = 2.5;
-const ANIMATION_DURATION: number = 0.5;
-const ANIMATION_START: number = 0.5;
+/**
+ * ADAPTIVE TIMING SYSTEM
+ * 
+ * To modify timing, simply change the values in TIMING_CONFIG below:
+ * 
+ * Examples:
+ * - Change all fade-in durations: modify fadeInDuration
+ * - Change explanation visible time: modify explanationVisibleTime  
+ * - Change caption visible time: modify captionVisibleTime
+ * - Change animation duration: modify animationDuration
+ * 
+ * All timing will automatically recalculate based on your changes!
+ */
+
+// Timing configuration variables - easily adjustable
+const TIMING_CONFIG = {
+  // Fade durations
+  fadeInDuration: 1.0,        // All fade-in durations
+  fadeOutDuration: 1.0,        // All fade-out durations (except captions/conclusions)
+  
+  // Caption/Conclusion specific
+  captionFadeInDuration: 0.5,  // Caption fade-in duration
+  captionFadeOutDuration: 0.5, // Caption fade-out duration
+  captionVisibleTime: 3.0,     // Time captions are fully visible
+  
+  // Animation
+  animationDuration: 1.5,      // Array animation duration
+  animationOffset: 0.5,        // Animation starts 0.5s after caption starts
+  
+  // Spacing
+  arrayStartDelay: 0.5,        // Delay after example is fully removed before array starts
+  
+  // Initial timing
+  headingStartTime: 0.5,       // When heading starts
+  
+  // Visible durations
+  explanationVisibleTime: 3.0, // How long explanation is fully visible
+  exampleVisibleTime: 3.0,      // How long example is fully visible
+};
+
+// Calculate all timing values based on configuration
+function calculateTimingValues() {
+  // Heading timing
+  const headingEndTime = TIMING_CONFIG.headingStartTime + TIMING_CONFIG.fadeInDuration;
+  
+  // Subtitle timing
+  const subtitleStartTime = headingEndTime;
+  const subtitleEndTime = subtitleStartTime + TIMING_CONFIG.fadeInDuration;
+  
+  // Explanation timing
+  const explanationStartTime = subtitleEndTime;
+  const explanationEndTime = explanationStartTime + TIMING_CONFIG.explanationVisibleTime;
+  const explanationRemovedTime = explanationEndTime + TIMING_CONFIG.fadeOutDuration;
+  
+  // Example timing
+  const exampleStartTime = explanationRemovedTime;
+  const exampleEndTime = exampleStartTime + TIMING_CONFIG.exampleVisibleTime;
+  const exampleRemovedTime = exampleEndTime + TIMING_CONFIG.fadeOutDuration;
+  
+  // Array timing
+  const arrayStartTime = exampleRemovedTime + TIMING_CONFIG.arrayStartDelay;
+  const arrayFullyVisibleTime = arrayStartTime + TIMING_CONFIG.fadeInDuration;
+  
+  // Caption timing
+  const firstCaptionStartTime = arrayFullyVisibleTime;
+  const totalCaptionDuration = TIMING_CONFIG.captionFadeInDuration + TIMING_CONFIG.captionVisibleTime + TIMING_CONFIG.captionFadeOutDuration;
+  
+  return {
+    headingEndTime,
+    subtitleStartTime,
+    subtitleEndTime,
+    explanationStartTime,
+    explanationEndTime,
+    explanationRemovedTime,
+    exampleStartTime,
+    exampleEndTime,
+    exampleRemovedTime,
+    arrayStartTime,
+    arrayFullyVisibleTime,
+    firstCaptionStartTime,
+    totalCaptionDuration
+  };
+}
 
 // Central configuration for video timing and section organization
 export const DEFAULT_TIMELINE_CONFIG: VideoTimelineConfig = {
-  // Default timing values - matching executor times
-  defaults: {
-    captionVisibleTime: 3,
-    captionFadeInDuration: 0.5,
-    captionFadeOutDuration: 0.5,
-    elementFadeInDuration: 1.0, // Heading/subtitle fade-in duration
-    elementFadeOutDuration: 0.5,
-    elementStaggerDelay: 0.1,
-    animationDuration: 2.0
-  },
-
-  // Section timing - intro fixed, main and conclusion calculated dynamically
-  sections: {
-    intro: { startTime: 0, endTime: 14 }, // 0-14s: heading, subtitle, explanation, example (fixed)
-    main: { startTime: 14, endTime: 0 }, // 14s+: array, captions, animations (calculated)
-    conclusion: { startTime: 0, endTime: 0 } // After main: conclusions (calculated)
-  },
   
   // Element section assignments - matching executor flow
   elementSections: {
@@ -31,50 +94,58 @@ export const DEFAULT_TIMELINE_CONFIG: VideoTimelineConfig = {
     conclusion: ['conclusion']
   },
   
-  // Element-specific timing overrides - sequential flow
-  elementTiming: {
-    heading: { 
-      fadeInDuration: ANIMATION_DURATION,
-      startTime: ANIMATION_START,
-      endTime: 0
-    },
-    subtitle: {
-      fadeInDuration: ANIMATION_DURATION,
-      startTime: ANIMATION_DURATION + ANIMATION_START,
-      endTime: 0
-    },
-    explanation: {
-      fadeInDuration: ANIMATION_DURATION,
-      fadeOutDuration: ANIMATION_DURATION * 2,
-      startTime: DELTA,
-      endTime: DELTA * 2
-    },
-    example: {
-      fadeInDuration: ANIMATION_DURATION,
-      fadeOutDuration: ANIMATION_DURATION * 2,
-      startTime: DELTA * 2 + ANIMATION_DURATION * 2,
-      endTime: DELTA * 4 - 1
-    },
-    array: {
-      fadeInDuration: ANIMATION_DURATION,
-      fadeOutDuration: ANIMATION_DURATION,
-      startTime: DELTA * 4,
-      endTime: 0 // Will be calculated dynamically based on content
-    },
-    caption: {
-      fadeInDuration: ANIMATION_DURATION,
-      fadeOutDuration: ANIMATION_DURATION,
-      visibleTime: DELTA,
-      startTime: DELTA * 4,
-      endTime: 0 // Will be calculated dynamically based on number of captions
-    },
-    conclusion: {
-      fadeInDuration: ANIMATION_DURATION,
-      fadeOutDuration: ANIMATION_DURATION,
-      visibleTime: DELTA,
-      startTime: 0, // Will be calculated dynamically
-      endTime: 0 // Will be calculated dynamically
-    }
+  // Element-specific timing - calculated from variables
+  get elementTiming() {
+    const timing = calculateTimingValues();
+    
+    return {
+      heading: { 
+        fadeInDuration: TIMING_CONFIG.fadeInDuration,
+        startTime: TIMING_CONFIG.headingStartTime,
+        endTime: 0
+      },
+      subtitle: {
+        fadeInDuration: TIMING_CONFIG.fadeInDuration,
+        startTime: timing.subtitleStartTime,
+        endTime: 0
+      },
+      explanation: {
+        fadeInDuration: TIMING_CONFIG.fadeInDuration,
+        fadeOutDuration: TIMING_CONFIG.fadeOutDuration,
+        visibleTime: TIMING_CONFIG.explanationVisibleTime,
+        startTime: timing.explanationStartTime,
+        endTime: timing.explanationEndTime,
+        fadeOutStartTime: timing.explanationStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.explanationVisibleTime
+      },
+      example: {
+        fadeInDuration: TIMING_CONFIG.fadeInDuration,
+        fadeOutDuration: TIMING_CONFIG.fadeOutDuration,
+        visibleTime: TIMING_CONFIG.exampleVisibleTime,
+        startTime: timing.exampleStartTime,
+        endTime: timing.exampleEndTime,
+        fadeOutStartTime: timing.exampleStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.exampleVisibleTime
+      },
+      array: {
+        fadeInDuration: TIMING_CONFIG.fadeInDuration,
+        fadeOutDuration: TIMING_CONFIG.fadeOutDuration,
+        startTime: timing.arrayStartTime,
+        endTime: 0 // Will be calculated dynamically based on content
+      },
+      caption: {
+        fadeInDuration: TIMING_CONFIG.captionFadeInDuration,
+        fadeOutDuration: TIMING_CONFIG.captionFadeOutDuration,
+        visibleTime: TIMING_CONFIG.captionVisibleTime,
+        startTime: timing.firstCaptionStartTime,
+        endTime: 0 // Will be calculated dynamically based on number of captions
+      },
+      conclusion: {
+        fadeInDuration: TIMING_CONFIG.captionFadeInDuration,
+        fadeOutDuration: TIMING_CONFIG.captionFadeOutDuration,
+        visibleTime: TIMING_CONFIG.captionVisibleTime,
+        startTime: 0, // Will be calculated dynamically
+        endTime: 0 // Will be calculated dynamically
+      }
+    };
   }
 };
 
@@ -102,21 +173,14 @@ export class TimelineManager {
    * Calculate dynamic timing for main and conclusion sections only
    */
   private calculateDynamicTiming(): void {
-    const { defaults } = this.config;
-    
-    // Main section starts after intro (fixed at 14s)
-    const mainStartTime = this.config.sections.intro.endTime;
+    const timing = calculateTimingValues();
     
     // Calculate main section duration based on captions/animations
-    const totalCaptionDuration = defaults.captionFadeInDuration + defaults.captionVisibleTime + defaults.captionFadeOutDuration;
-    const mainEndTime = mainStartTime + (Math.max(this.captionCount, this.animationCount) * totalCaptionDuration);
-    this.config.sections.main = { startTime: mainStartTime, endTime: mainEndTime };
+    const mainEndTime = timing.arrayFullyVisibleTime + (Math.max(this.captionCount, this.animationCount) * timing.totalCaptionDuration);
     
     // Calculate conclusion section timing
     const conclusionStartTime = mainEndTime;
-    const totalConclusionDuration = defaults.captionFadeInDuration + defaults.captionVisibleTime + defaults.captionFadeOutDuration;
-    const conclusionEndTime = conclusionStartTime + (this.conclusionCount * totalConclusionDuration);
-    this.config.sections.conclusion = { startTime: conclusionStartTime, endTime: conclusionEndTime };
+    const conclusionEndTime = conclusionStartTime + (this.conclusionCount * timing.totalCaptionDuration);
     
     // Update element timing with calculated end times
     if (this.config.elementTiming) {
@@ -140,7 +204,15 @@ export class TimelineManager {
    * Get default timing values
    */
   getDefaults() {
-    return this.config.defaults;
+    return {
+      captionVisibleTime: 3.0,
+      captionFadeInDuration: 0.5,
+      captionFadeOutDuration: 0.5,
+      elementFadeInDuration: 1.0,
+      elementFadeOutDuration: 1.0,
+      elementStaggerDelay: 0.1,
+      animationDuration: 1.5
+    };
   }
 
   /**
@@ -159,7 +231,28 @@ export class TimelineManager {
    * Get section timing
    */
   getSectionTiming(sectionName: string): { startTime: number; endTime: number } | null {
-    return this.config.sections[sectionName as keyof typeof this.config.sections] ?? null;
+    const timing = calculateTimingValues();
+    
+    // Calculate section timing based on sequential flow
+    const sections = {
+      intro: { startTime: 0, endTime: timing.exampleRemovedTime }, // Example fully removed
+      main: { startTime: timing.arrayStartTime, endTime: 0 }, // Array starts, will be calculated dynamically
+      conclusion: { startTime: 0, endTime: 0 } // Will be calculated dynamically
+    };
+    
+    // Update main and conclusion timing if we have content counts
+    if (this.captionCount > 0 || this.animationCount > 0) {
+      const mainEndTime = timing.arrayFullyVisibleTime + (Math.max(this.captionCount, this.animationCount) * timing.totalCaptionDuration);
+      sections.main.endTime = mainEndTime;
+      
+      if (this.conclusionCount > 0) {
+        const conclusionEndTime = mainEndTime + (this.conclusionCount * timing.totalCaptionDuration);
+        sections.conclusion.startTime = mainEndTime;
+        sections.conclusion.endTime = conclusionEndTime;
+      }
+    }
+    
+    return sections[sectionName as keyof typeof sections] ?? null;
   }
 
   /**
@@ -173,15 +266,15 @@ export class TimelineManager {
    * Calculate caption timing for a specific caption order
    */
   calculateCaptionTiming(captionOrder: number): { startTime: number; fadeInEnd: number; fadeOutStart: number; endTime: number } {
-    const { defaults } = this.config;
-    const totalDuration = defaults.captionFadeInDuration + defaults.captionVisibleTime + defaults.captionFadeOutDuration;
-    const startTime = this.config.sections.main.startTime + (captionOrder - 1) * totalDuration;
+    const timing = calculateTimingValues();
+    
+    const startTime = timing.firstCaptionStartTime + (captionOrder - 1) * timing.totalCaptionDuration;
     
     return {
       startTime,
-      fadeInEnd: startTime + defaults.captionFadeInDuration,
-      fadeOutStart: startTime + defaults.captionFadeInDuration + defaults.captionVisibleTime,
-      endTime: startTime + totalDuration
+      fadeInEnd: startTime + TIMING_CONFIG.captionFadeInDuration,
+      fadeOutStart: startTime + TIMING_CONFIG.captionFadeInDuration + TIMING_CONFIG.captionVisibleTime,
+      endTime: startTime + timing.totalCaptionDuration
     };
   }
 
@@ -189,13 +282,13 @@ export class TimelineManager {
    * Calculate animation timing for a specific animation order
    */
   calculateAnimationTiming(animationOrder: number): { startTime: number; endTime: number } {
-    const { defaults } = this.config;
-    const totalDuration = defaults.captionFadeInDuration + defaults.captionVisibleTime + defaults.captionFadeOutDuration;
-    const startTime = this.config.sections.main.startTime + (animationOrder - 1) * totalDuration + 0.5; // 0.5s after caption starts
+    const timing = calculateTimingValues();
+    
+    const startTime = timing.firstCaptionStartTime + (animationOrder - 1) * timing.totalCaptionDuration + TIMING_CONFIG.animationOffset;
     
     return {
       startTime,
-      endTime: startTime + defaults.animationDuration
+      endTime: startTime + TIMING_CONFIG.animationDuration
     };
   }
 
@@ -203,18 +296,17 @@ export class TimelineManager {
    * Calculate conclusion timing for a specific conclusion order
    */
   calculateConclusionTiming(conclusionOrder: number): { startTime: number; fadeInEnd: number; fadeOutStart: number; endTime: number } {
-    const { defaults } = this.config;
-    const totalDuration = defaults.captionFadeInDuration + defaults.captionVisibleTime + defaults.captionFadeOutDuration;
+    const timing = calculateTimingValues();
     
-    // Group conclusions in pairs (1,2), (3,4), (5,6), etc.
-    const groupIndex = Math.floor((conclusionOrder - 1) / 2);
-    const startTime = this.config.sections.conclusion.startTime + groupIndex * totalDuration;
+    // Calculate conclusion start time based on main section end
+    const mainSectionEnd = this.getSectionTiming('main')?.endTime ?? 0;
+    const startTime = mainSectionEnd + (conclusionOrder - 1) * timing.totalCaptionDuration;
     
     return {
       startTime,
-      fadeInEnd: startTime + defaults.captionFadeInDuration,
-      fadeOutStart: startTime + defaults.captionFadeInDuration + defaults.captionVisibleTime,
-      endTime: startTime + totalDuration
+      fadeInEnd: startTime + TIMING_CONFIG.captionFadeInDuration,
+      fadeOutStart: startTime + TIMING_CONFIG.captionFadeInDuration + TIMING_CONFIG.captionVisibleTime,
+      endTime: startTime + timing.totalCaptionDuration
     };
   }
 
@@ -222,7 +314,8 @@ export class TimelineManager {
    * Get total video duration
    */
   getTotalDuration(): number {
-    return this.config.sections.conclusion.endTime;
+    const conclusionSection = this.getSectionTiming('conclusion');
+    return conclusionSection?.endTime ?? 0;
   }
 
   /**

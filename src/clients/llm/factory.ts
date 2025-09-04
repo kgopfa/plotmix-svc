@@ -1,13 +1,13 @@
 import { OpenAiLlmClient } from './openai.client';
-import type { LlmClient, OpenAiConfig } from './types';
+import { AnthropicLlmClient } from './anthropic.client';
+import type { LlmClient, OpenAiConfig, AnthropicConfig } from './types';
 
 export class LlmFactory {
   static create(): LlmClient {
     const provider = process.env['LLM_ROUTER_PROVIDER'];
-    if (provider !== 'openai') throw new Error('LLM_ROUTER_PROVIDER must be "openai"');
-
-    const apiKey = process.env['OPENAI_API_KEY'];
-    if (!apiKey) throw new Error('OPENAI_API_KEY is required');
+    if (!provider || (provider !== 'openai' && provider !== 'anthropic')) {
+      throw new Error('LLM_ROUTER_PROVIDER must be "openai" or "anthropic"');
+    }
 
     const modelPlanner = process.env['LLM_MODEL_PLANNER'];
     const modelEntities = process.env['LLM_MODEL_ENTITIES'];
@@ -16,17 +16,37 @@ export class LlmFactory {
       throw new Error('LLM_MODEL_PLANNER, LLM_MODEL_ENTITIES, and LLM_MODEL_ACTIONS are required');
     }
 
-    const cfg: OpenAiConfig = {
-      provider: 'openai',
-      apiKey,
-      baseURL: process.env['OPENAI_BASE_URL'],
-      stages: {
-        modelPlanner,
-        modelEntities,
-        modelActions,
-      }
-    };
-    return new OpenAiLlmClient(cfg);
+    if (provider === 'openai') {
+      const apiKey = process.env['OPENAI_API_KEY'];
+      if (!apiKey) throw new Error('OPENAI_API_KEY is required');
+
+      const cfg: OpenAiConfig = {
+        provider: 'openai',
+        apiKey,
+        baseURL: process.env['OPENAI_BASE_URL'],
+        stages: {
+          modelPlanner,
+          modelEntities,
+          modelActions,
+        }
+      };
+      return new OpenAiLlmClient(cfg);
+    } else {
+      const apiKey = process.env['ANTHROPIC_API_KEY'];
+      if (!apiKey) throw new Error('ANTHROPIC_API_KEY is required');
+
+      const cfg: AnthropicConfig = {
+        provider: 'anthropic',
+        apiKey,
+        ...(process.env['ANTHROPIC_VERSION'] && { version: process.env['ANTHROPIC_VERSION'] }),
+        stages: {
+          modelPlanner,
+          modelEntities,
+          modelActions,
+        }
+      };
+      return new AnthropicLlmClient(cfg);
+    }
   }
 }
 

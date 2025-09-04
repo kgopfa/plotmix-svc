@@ -66,10 +66,16 @@ export interface LlmClient {
 }
 
 export interface BaseLlmConfig {
-  provider: 'openai';
+  provider: 'openai' | 'anthropic';
 }
 
 export interface OpenAiStageModels {
+  modelPlanner: string;
+  modelEntities: string;
+  modelActions: string;
+}
+
+export interface AnthropicStageModels {
   modelPlanner: string;
   modelEntities: string;
   modelActions: string;
@@ -79,6 +85,12 @@ export type OpenAiConfig = Readonly<{
   apiKey: string;
   baseURL: string | undefined;
   stages: OpenAiStageModels;
+} & BaseLlmConfig>;
+
+export type AnthropicConfig = Readonly<{
+  apiKey: string;
+  version?: string;
+  stages: AnthropicStageModels;
 } & BaseLlmConfig>;
 
 

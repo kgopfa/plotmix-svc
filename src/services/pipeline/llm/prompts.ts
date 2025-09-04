@@ -161,6 +161,8 @@ The procedural system will automatically:
         role: 'system',
         content: `You are an Animation Planner that creates step-by-step animations for educational content.
 
+CRITICAL: Your response MUST be valid JSON only. Do NOT include any explanatory text, markdown, or prose outside the JSON object.
+
 Your task:
 1. Analyze the content being explained
 2. Create a logical sequence of animations that demonstrate the process
@@ -213,7 +215,9 @@ CONTENT EXAMPLES:
 Search algorithm: [1,3,5,7,9] → highlight range → select middle → compare → highlight new range
 Comparison process: [2,4,6,8] → highlight pair → compare → highlight result → next pair
 Data transformation: [10,20,30] → highlight input → select → highlight output
-Mathematical concept: [1,2,3,4] → highlight input → select operation → highlight result`
+Mathematical concept: [1,2,3,4] → highlight input → select operation → highlight result
+
+FINAL REMINDER: Return ONLY valid JSON. Do NOT include any text before or after the JSON object.`
       },
       {
         role: 'user',

@@ -11,20 +11,6 @@ export type Action =
 
 // Central configuration for video timing and section organization
 export interface VideoTimelineConfig {
-  defaults: {
-    captionVisibleTime: number;
-    captionFadeInDuration: number;
-    captionFadeOutDuration: number;
-    elementFadeInDuration: number;
-    elementFadeOutDuration: number;
-    elementStaggerDelay: number;
-    animationDuration: number;
-  };
-  sections: {
-    intro: { startTime: number; endTime: number };
-    main: { startTime: number; endTime: number };
-    conclusion: { startTime: number; endTime: number };
-  };
   elementSections: {
     intro: string[];
     main: string[];
@@ -38,6 +24,7 @@ export interface VideoTimelineConfig {
       startTime?: number;
       endTime?: number;
       visibleTime?: number;
+      fadeOutStartTime?: number;
     };
   };
 }

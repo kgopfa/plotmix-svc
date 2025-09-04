@@ -422,7 +422,7 @@ export function execute(program: ActionProgram): Scene {
         yoyo: animConfig.yoyo,
         easing: animConfig.easing,
         repeat: animConfig.repeat,
-        duration: act.duration, // Use DSL duration, but could override with config
+        duration: 1.5, // Fixed 1.5s duration for array animations
         startTime: animationStartTime,
         properties: animConfig.properties,
         displayName: `${act.type}-1`,
@@ -705,7 +705,7 @@ export function execute(program: ActionProgram): Scene {
         explanation.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: explanationTiming.endTime! - explanationTiming.fadeOutDuration!,
+          startTime: explanationTiming.fadeOutStartTime!,
           duration: explanationTiming.fadeOutDuration!,
           properties: { alpha: 0 },
           easing: "power1.inOut",
@@ -795,7 +795,7 @@ export function execute(program: ActionProgram): Scene {
         example.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: exampleTiming.endTime! - exampleTiming.fadeOutDuration!,
+          startTime: exampleTiming.fadeOutStartTime!,
           duration: exampleTiming.fadeOutDuration!,
           properties: { alpha: 0 },
           easing: "power1.inOut",
