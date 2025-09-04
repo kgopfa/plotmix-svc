@@ -276,9 +276,10 @@ CRITICAL ANIMATION USAGE RULES:
 - compare: ONLY for comparing TWO ELEMENTS WITHIN THE ARRAY
   ✓ animate compare [2,7] - Compare elements at indices 2 and 7
   ✓ animate compare [0,4] - Compare first and last elements (for array [1,3,5,7,9])
-  ✗ animate compare [4,5] when comparing middle element to external target
-- focus: For highlighting the current element being examined
+  ✗ animate compare [2,5] when comparing array element with external target value
+- focus: For highlighting the current element being examined OR comparing with external target
   ✓ animate focus [2] - Focus on middle element (value 5) at index 2
+  ✓ animate focus [2] - Compare middle element (5) with external target value (5)
   ✓ animate focus [1] - Focus on current element in search (value 3) at index 1
 - select: For emphasizing a specific element (stronger than focus)
   ✓ animate select [2] - Select the target element (value 5) at index 2
