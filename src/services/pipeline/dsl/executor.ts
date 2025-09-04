@@ -374,11 +374,10 @@ export function execute(program: ActionProgram): Scene {
             repeatDelay: 0
           });
           
-          // Add fade-out animation - if conclusions exist, fade out before conclusions start
-          const conclusionSection = timelineManager.getSectionTiming('conclusion');
+          // Add fade-out animation - array should fade out after the last caption is fully faded out
           const fadeOutStartTime = conclusionCount > 0 ? 
-            conclusionSection!.startTime - arrayTiming.fadeOutDuration! : 
-            arrayTiming.endTime!;
+            timelineManager.getSectionTiming('conclusion')!.startTime - arrayTiming.fadeOutDuration! : 
+            timelineManager.calculateCaptionTiming(captionCount).endTime;
           
           group.animations.push({
             id: randomUUID(),

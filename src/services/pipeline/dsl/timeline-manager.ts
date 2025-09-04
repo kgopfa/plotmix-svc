@@ -51,12 +51,12 @@ function calculateTimingValues() {
   
   // Explanation timing
   const explanationStartTime = subtitleEndTime;
-  const explanationEndTime = explanationStartTime + TIMING_CONFIG.explanationVisibleTime;
+  const explanationEndTime = explanationStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.explanationVisibleTime;
   const explanationRemovedTime = explanationEndTime + TIMING_CONFIG.fadeOutDuration;
   
   // Example timing
   const exampleStartTime = explanationRemovedTime;
-  const exampleEndTime = exampleStartTime + TIMING_CONFIG.exampleVisibleTime;
+  const exampleEndTime = exampleStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.exampleVisibleTime;
   const exampleRemovedTime = exampleEndTime + TIMING_CONFIG.fadeOutDuration;
   
   // Array timing
