@@ -305,9 +305,8 @@ Explanation Rules:
 - Helps learners understand the concept before seeing the detailed breakdown
 
 Approach Rules - CRITICAL:
-- Generate 3-5 sequential approach steps that break down the algorithm or concept
-- Each step should explain a specific aspect of the approach in detail
-- Use the format: approach <order> "<detailed step explanation>"
+- Convert the content plan's approaches.optimal.keyIdeas array into sequential approach steps
+- Each key idea becomes an approach step with the format: approach <order> "<detailed step explanation>"
 - Steps should be ordered sequentially: approach 1, approach 2, approach 3, etc.
 - Each step should focus on HOW the algorithm works, not just what it does
 - Include technical details like formulas, data structures, or key concepts
@@ -319,6 +318,7 @@ Approach Rules - CRITICAL:
   - "This is why it's important for the array to be sorted"
 - Positioned between explanation and example
 - Helps learners understand the detailed mechanics before seeing the example
+- CRITICAL: If approaches.optimal.keyIdeas is empty or missing, generate 3-5 approach steps based on the algorithm being explained
 
 Example Rules:
 - Extract the problem example from the content plan's problem.example field
@@ -387,6 +387,11 @@ Example Pattern (works for any 1-D array problem):
 heading "Binary Search Algorithm"
 subtitle "Finding target value in sorted array"
 explanation "The binary search algorithm efficiently finds a target value within a sorted array by repeatedly dividing the search interval in half."
+approach 1 "Binary search is implemented using 2 boundary pointers, start and end"
+approach 2 "The boundary pointers are used to find the mid position"
+approach 3 "The formula for finding the mid position is mid = (start + end) / 2"
+approach 4 "Using the value at the mid position, if it's not the target, we can determine which subarray to focus on"
+approach 5 "This is why it's important for the array to be sorted"
 example "Given a sorted array [1, 3, 5, 7, 9] and a target value of 5, the algorithm will find the target in 3 steps."
 array [1,2,3,4,5,6,7,8,9]
 animate highlight [1,9]
@@ -406,6 +411,11 @@ Example of CORRECT usage:
 heading "Binary Search Algorithm"
 subtitle "Finding target value in sorted array"
 explanation "The binary search algorithm efficiently finds a target value within a sorted array by repeatedly dividing the search interval in half."
+approach 1 "Binary search is implemented using 2 boundary pointers, start and end"
+approach 2 "The boundary pointers are used to find the mid position"
+approach 3 "The formula for finding the mid position is mid = (start + end) / 2"
+approach 4 "Using the value at the mid position, if it's not the target, we can determine which subarray to focus on"
+approach 5 "This is why it's important for the array to be sorted"
 example "Given a sorted array [1, 3, 5, 7, 9] and a target value of 5, the algorithm will find the target in 3 steps."
 array [1,3,5,7,9]
 animate highlight [1,9]
