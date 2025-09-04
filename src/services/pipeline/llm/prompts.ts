@@ -269,20 +269,23 @@ Animation Types (for any 1-D array problem):
 - focus: Focus state (subtle scaling for attention)
 - compare: Comparison state (background color for comparison)
 
+**IMPORTANT**: All animation commands use 0-based array indices, not values!
+- For array [1,3,5,7,9]: use indices 0,1,2,3,4 (NOT values 1,3,5,7,9)
+
 CRITICAL ANIMATION USAGE RULES:
 - compare: ONLY for comparing TWO ELEMENTS WITHIN THE ARRAY
-  ✓ animate compare [2,7] - Compare elements at positions 2 and 7
-  ✓ animate compare [0,9] - Compare first and last elements
+  ✓ animate compare [2,7] - Compare elements at indices 2 and 7
+  ✓ animate compare [0,4] - Compare first and last elements (for array [1,3,5,7,9])
   ✗ animate compare [4,5] when comparing middle element to external target
 - focus: For highlighting the current element being examined
-  ✓ animate focus [4] - Focus on middle element we're examining
-  ✓ animate focus [6] - Focus on current element in search
+  ✓ animate focus [2] - Focus on middle element (value 5) at index 2
+  ✓ animate focus [1] - Focus on current element in search (value 3) at index 1
 - select: For emphasizing a specific element (stronger than focus)
-  ✓ animate select [5] - Select the target element we found
-  ✓ animate select [3] - Select the pivot element
+  ✓ animate select [2] - Select the target element (value 5) at index 2
+  ✓ animate select [3] - Select the pivot element (value 7) at index 3
 - highlight: For showing ranges or areas being processed
-  ✓ animate highlight [0,9] - Highlight entire search range
-  ✓ animate highlight [5,9] - Highlight right half of array
+  ✓ animate highlight [0,4] - Highlight entire search range (indices 0 to 4)
+  ✓ animate highlight [2,4] - Highlight right half of array (indices 2 to 4)
 
 Heading Rules:
 - Generate a clear, descriptive title for the algorithm or concept being demonstrated
@@ -354,7 +357,8 @@ CRITICAL:
 - Arrays are NEVER for concepts, explanations, or text content
 - Do NOT include grid positioning - the system will handle layout automatically
 - Use animate commands to show step-by-step process progression
-- Elements in animate commands must match values in the array
+- **ANIMATION INDICES ARE 0-BASED**: Use array indices (0, 1, 2, 3...) NOT values
+- For array [1,3,5,7,9]: index 0=value 1, index 1=value 3, index 2=value 5, index 3=value 7, index 4=value 9
 - Do NOT include timing parameters (startTime, duration) - timing is handled automatically
 - Use caption commands for synchronized text explanations that appear during animations
 - Caption order should be sequential (1, 2, 3, etc.)
@@ -381,7 +385,8 @@ GENERIC ANIMATION GUIDELINES:
 - Highlight relevant ranges or elements being processed
 - Demonstrate comparisons, transformations, or other operations
 - Do NOT include timing parameters - timing is handled automatically
-- Elements in animate commands must exist in the array
+- **Use 0-based array indices**: For array [1,3,5,7,9], use indices 0,1,2,3,4 (NOT values 1,3,5,7,9)
+- Elements in animate commands must exist in the array (valid indices only)
 
 Example Pattern (works for any 1-D array problem):
 heading "Binary Search Algorithm"
@@ -394,7 +399,7 @@ approach 4 "Using the value at the mid position, if it's not the target, we can 
 approach 5 "This is why it's important for the array to be sorted"
 example "Given a sorted array [1, 3, 5, 7, 9] and a target value of 5, the algorithm will find the target in 3 steps."
 array [1,2,3,4,5,6,7,8,9]
-animate highlight [1,9]
+animate highlight [0,8]
 caption 1 "Start with the entire sorted array as our search range"
 animate focus [4]
 caption 2 "Find the middle element (5) and compare it with our target (5)"
@@ -418,7 +423,7 @@ approach 4 "Using the value at the mid position, if it's not the target, we can 
 approach 5 "This is why it's important for the array to be sorted"
 example "Given a sorted array [1, 3, 5, 7, 9] and a target value of 5, the algorithm will find the target in 3 steps."
 array [1,3,5,7,9]
-animate highlight [1,9]
+animate highlight [0,4]
 caption 1 "Start with the entire sorted array as our search range"
 animate focus [2]
 caption 2 "Find the middle element (5) and compare it with our target (5)"
