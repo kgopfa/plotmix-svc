@@ -269,6 +269,21 @@ Animation Types (for any 1-D array problem):
 - focus: Focus state (subtle scaling for attention)
 - compare: Comparison state (background color for comparison)
 
+CRITICAL ANIMATION USAGE RULES:
+- compare: ONLY for comparing TWO ELEMENTS WITHIN THE ARRAY
+  ✓ animate compare [2,7] - Compare elements at positions 2 and 7
+  ✓ animate compare [0,9] - Compare first and last elements
+  ✗ animate compare [4,5] when comparing middle element to external target
+- focus: For highlighting the current element being examined
+  ✓ animate focus [4] - Focus on middle element we're examining
+  ✓ animate focus [6] - Focus on current element in search
+- select: For emphasizing a specific element (stronger than focus)
+  ✓ animate select [5] - Select the target element we found
+  ✓ animate select [3] - Select the pivot element
+- highlight: For showing ranges or areas being processed
+  ✓ animate highlight [0,9] - Highlight entire search range
+  ✓ animate highlight [5,9] - Highlight right half of array
+
 Heading Rules:
 - Generate a clear, descriptive title for the algorithm or concept being demonstrated
 - Keep headings concise but informative (e.g., "Binary Search Algorithm", "Bubble Sort Visualization")
@@ -375,11 +390,11 @@ explanation "The binary search algorithm efficiently finds a target value within
 example "Given a sorted array [1, 3, 5, 7, 9] and a target value of 5, the algorithm will find the target in 3 steps."
 array [1,2,3,4,5,6,7,8,9]
 animate highlight [1,9]
-caption 1 "Compare middle element with target to determine search direction"
-animate select [5]
-caption 2 "If target equals middle, we found our answer"
-animate highlight [6,9]
-caption 3 "If target is greater, search the right half"
+caption 1 "Start with the entire sorted array as our search range"
+animate focus [4]
+caption 2 "Find the middle element (5) and compare it with our target (5)"
+animate select [4]
+caption 3 "We found our target value 5 at the middle position"
 conclusion 1 "Time Complexity: O(log n)"
 conclusion 2 "Space Complexity: O(1)"
 conclusion 3 "Use Case: Searching in sorted arrays"
@@ -394,12 +409,24 @@ explanation "The binary search algorithm efficiently finds a target value within
 example "Given a sorted array [1, 3, 5, 7, 9] and a target value of 5, the algorithm will find the target in 3 steps."
 array [1,3,5,7,9]
 animate highlight [1,9]
-caption 1 "Compare middle element with target to determine search direction"
-animate select [5]
-caption 2 "If target equals middle, we found our answer"
+caption 1 "Start with the entire sorted array as our search range"
+animate focus [2]
+caption 2 "Find the middle element (5) and compare it with our target (5)"
+animate select [2]
+caption 3 "We found our target value 5 at the middle position"
 conclusion 1 "Time Complexity: O(log n)"
 conclusion 2 "Space Complexity: O(1)"
 conclusion 3 "Use Case: Searching in sorted arrays"
+
+COMMON ANIMATION MISTAKES TO AVOID:
+❌ animate compare [4,5] when caption says "compare middle element with target"
+  ✅ Use: animate focus [4] (focus on the element being examined)
+❌ animate compare [2,7] when comparing array element to external value
+  ✅ Use: animate focus [2] (focus on the array element)
+❌ animate select [10] when element doesn't exist in array
+  ✅ Only use elements that exist in the array
+❌ animate highlight [1,9] when array only has 5 elements
+  ✅ Use valid array indices
 
 Example of INCORRECT usage:
 array ["Binary Search Problem"]  ❌ - This is a title, not array data
