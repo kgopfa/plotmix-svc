@@ -55,14 +55,16 @@ function calculateTimingValues() {
   const explanationEndTime = explanationStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.explanationVisibleTime;
   const explanationRemovedTime = explanationEndTime + TIMING_CONFIG.fadeOutDuration;
   
-  // Example timing
-  const exampleStartTime = explanationRemovedTime;
+  // Approach timing - starts after explanation is removed
+  // Each approach step takes: fadeIn + visibleTime + fadeOut
+  const approachStepDuration = TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.approachVisibleTime + TIMING_CONFIG.fadeOutDuration;
+  const approachStartTime = explanationRemovedTime;
+  const approachEndTime = approachStartTime + approachStepDuration; // Single step duration for now, will be calculated dynamically
+  
+  // Example timing - starts after all approach steps are complete
+  const exampleStartTime = approachEndTime;
   const exampleEndTime = exampleStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.exampleVisibleTime;
   const exampleRemovedTime = exampleEndTime + TIMING_CONFIG.fadeOutDuration;
-  
-  // Approach timing - starts after example is removed
-  const approachStartTime = exampleRemovedTime;
-  const approachEndTime = approachStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.approachVisibleTime;
   
   // Array timing
   const arrayStartTime = approachEndTime + TIMING_CONFIG.arrayStartDelay;
@@ -169,6 +171,7 @@ export class TimelineManager {
   private captionCount: number = 0;
   private animationCount: number = 0;
   private conclusionCount: number = 0;
+  private approachCount: number = 0;
 
   constructor(config: VideoTimelineConfig = DEFAULT_TIMELINE_CONFIG) {
     this.config = config;
@@ -177,10 +180,11 @@ export class TimelineManager {
   /**
    * Set content counts for dynamic timing calculation
    */
-  setContentCounts(captionCount: number, animationCount: number, conclusionCount: number = 0): void {
+  setContentCounts(captionCount: number, animationCount: number, conclusionCount: number = 0, approachCount: number = 0): void {
     this.captionCount = captionCount;
     this.animationCount = animationCount;
     this.conclusionCount = conclusionCount;
+    this.approachCount = approachCount;
     this.calculateDynamicTiming();
   }
 
@@ -189,6 +193,15 @@ export class TimelineManager {
    */
   private calculateDynamicTiming(): void {
     const timing = calculateTimingValues();
+    
+    // Calculate approach section duration based on number of approach steps
+    const approachStepDuration = TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.approachVisibleTime + TIMING_CONFIG.fadeOutDuration;
+    const totalApproachDuration = this.approachCount * approachStepDuration;
+    
+    // Update approach timing
+    if (this.config.elementTiming?.['approach']) {
+      this.config.elementTiming['approach'].endTime = timing.approachStartTime + totalApproachDuration;
+    }
     
     // Calculate main section duration based on captions/animations
     const mainEndTime = timing.arrayFullyVisibleTime + (Math.max(this.captionCount, this.animationCount) * timing.totalCaptionDuration);

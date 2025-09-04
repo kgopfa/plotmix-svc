@@ -72,7 +72,8 @@ function makeCell(
   centerX: number, 
   centerY: number,
   cellWidth: number,
-  cellHeight: number
+  cellHeight: number,
+  index: number
 ): { group: Group; rect: Rect; text: TextEl } {
   const gid = randomUUID();
   const rid = randomUUID();
@@ -161,7 +162,7 @@ function makeCell(
     x: 0,
     y: 0,
     id: gid,
-    name: `Array Cell ${value}`,
+    name: `Array Cell ${index}`,
     type: "custom",
     opacity: 0, // Start invisible for fade-in
     rotation: 0,
@@ -199,6 +200,7 @@ export function execute(program: ActionProgram): Scene {
   let captionCount = 0;
   let animationCount = 0;
   let conclusionCount = 0;
+  let approachCount = 0;
   
   for (const act of program) {
     if (act.kind === "CAPTION") {
@@ -207,11 +209,13 @@ export function execute(program: ActionProgram): Scene {
       animationCount++;
     } else if (act.kind === "CONCLUSION") {
       conclusionCount++;
+    } else if (act.kind === "APPROACH") {
+      approachCount++;
     }
   }
   
   // Initialize timeline manager with content counts
-  timelineManager.setContentCounts(captionCount, animationCount, conclusionCount);
+  timelineManager.setContentCounts(captionCount, animationCount, conclusionCount, approachCount);
 
   // First pass: process setup and build caption timing map
   for (const act of program) {
@@ -354,7 +358,7 @@ export function execute(program: ActionProgram): Scene {
       act.values.forEach((v, i) => {
         const centerX = centerXs[i]!;
         const centerY = arrayY;
-        const { group, rect, text } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight);
+        const { group, rect, text } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight, i);
         
         // Get timing from config
         const arrayTiming = timelineManager.getElementTiming('array');
@@ -726,6 +730,7 @@ export function execute(program: ActionProgram): Scene {
       const approachId = randomUUID();
       
       // Position approach steps below explanation, with staggered positioning
+      // Each step appears in the same position but at different times
       const approachY = 120; // Below explanation (which is at y=0)
       const approachX = 0; // Center horizontally
       
@@ -774,15 +779,19 @@ export function execute(program: ActionProgram): Scene {
         textStrokeWidth: 0
       };
 
-      // Get timing from config - approach steps should appear after explanation
+      // Get timing from config - approach steps should appear sequentially like captions
       const approachTiming = timelineManager.getElementTiming('approach');
       
       if (approachTiming) {
+        // Calculate sequential timing for each approach step (same pattern as captions)
+        const totalApproachDuration = approachTiming.fadeInDuration! + approachTiming.visibleTime! + approachTiming.fadeOutDuration!;
+        const approachStartTime = approachTiming.startTime! + (act.order - 1) * totalApproachDuration;
+        
         // Add fade-in animation for approach step
         approach.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: approachTiming.startTime! + (act.order - 1) * 0.5, // Stagger each step by 0.5s
+          startTime: approachStartTime,
           duration: approachTiming.fadeInDuration!,
           properties: { alpha: 1 },
           easing: "power1.inOut",
@@ -796,7 +805,7 @@ export function execute(program: ActionProgram): Scene {
         approach.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: approachTiming.fadeOutStartTime! + (act.order - 1) * 0.5,
+          startTime: approachStartTime + approachTiming.fadeInDuration! + approachTiming.visibleTime!,
           duration: approachTiming.fadeOutDuration!,
           properties: { alpha: 0 },
           easing: "power1.inOut",
