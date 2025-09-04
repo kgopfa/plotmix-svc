@@ -240,7 +240,7 @@ export function execute(program: ActionProgram): Scene {
       const captionX = 0; // Center horizontally
       
       // Create caption text element with dynamic width based on content
-      const captionFontSize = style.typography.size;
+      const captionFontSize = style.typography.size * 0.9; // Same as subtitle
       const calculatedCaptionWidth = calculateTextWidth(act.text, captionFontSize, style.typography.family);
       const captionWidth = Math.min(calculatedCaptionWidth, 700); // Use calculated width, max 700px
       const captionHeight = style.typography.size * 1.5;
@@ -258,7 +258,7 @@ export function execute(program: ActionProgram): Scene {
         height: captionHeight,
         fontFamily: style.typography.family,
         fontSize: captionFontSize,
-        fontWeight: style.typography.weight,
+        fontWeight: "normal", // Same as subtitle
         textAlign: "center",
         pivotX: captionWidth / 2, // Center pivot (half of dynamic width)
         pivotY: captionHeight / 2, // Center pivot (half of height)
