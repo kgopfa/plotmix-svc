@@ -40,6 +40,8 @@ export class DslCompiler {
         return this.parseSubtitle(line);
       case 'explanation':
         return this.parseExplanation(line);
+      case 'approach':
+        return this.parseApproach(line);
       case 'example':
         return this.parseExample(line);
       case 'conclusion':
@@ -201,6 +203,24 @@ export class DslCompiler {
 
     return {
       kind: "EXPLANATION",
+      text
+    };
+  }
+
+  private static parseApproach(line: string): Action | null {
+    // Parse: approach 1 "Binary search is implemented using 2 boundary pointers, start and end"
+    const approachMatch = line.match(/^approach\s+(\d+)\s+"([^"]+)"/);
+    
+    if (!approachMatch) {
+      return null;
+    }
+
+    const order = parseInt(approachMatch[1]!);
+    const text = approachMatch[2]!;
+
+    return {
+      kind: "APPROACH",
+      order,
       text
     };
   }

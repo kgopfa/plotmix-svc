@@ -255,6 +255,7 @@ style <auto|Minimal|Monospace|...>
 heading "<title>"
 subtitle "<description>"
 explanation "<general explanation of the concept>"
+approach <order> "<step-by-step breakdown of the approach>"
 example "<problem example with target value>"
 array [v1,v2,v3]
 animate <type> [elements]
@@ -285,15 +286,31 @@ Explanation Rules:
 - Extract the general explanation from the content plan's problem.description field
 - Provide a clear, concise explanation of the concept being demonstrated
 - Use the exact text from the problem.description field
-- Positioned below the subtitle, between subtitle and example
-- Helps learners understand the concept before seeing the example
+- Positioned below the subtitle, between subtitle and approach steps
+- Helps learners understand the concept before seeing the detailed breakdown
+
+Approach Rules - CRITICAL:
+- Generate 3-5 sequential approach steps that break down the algorithm or concept
+- Each step should explain a specific aspect of the approach in detail
+- Use the format: approach <order> "<detailed step explanation>"
+- Steps should be ordered sequentially: approach 1, approach 2, approach 3, etc.
+- Each step should focus on HOW the algorithm works, not just what it does
+- Include technical details like formulas, data structures, or key concepts
+- Examples of good approach steps:
+  - "Binary search is implemented using 2 boundary pointers, start and end"
+  - "The boundary pointers are used to find the mid position"
+  - "The formula for finding the mid position is mid = (start + end) / 2"
+  - "Using the value at the mid position, if it's not the target, we can determine which subarray to focus on"
+  - "This is why it's important for the array to be sorted"
+- Positioned between explanation and example
+- Helps learners understand the detailed mechanics before seeing the example
 
 Example Rules:
 - Extract the problem example from the content plan's problem.example field
 - Show the complete example including the target value being searched for
 - Use the exact text from the problem.example field
-- Positioned below the explanation, between explanation and array content
-- Helps learners understand what we're searching for before seeing the array
+- Positioned below the approach steps, between approach and array content
+- Helps learners understand what we're searching for after understanding the approach
 
 Caption Rules - CRITICAL:
 - Captions are simplified to only include order and text

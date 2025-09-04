@@ -38,6 +38,7 @@ const TIMING_CONFIG = {
   // Visible durations
   explanationVisibleTime: 3.0, // How long explanation is fully visible
   exampleVisibleTime: 3.0,      // How long example is fully visible
+  approachVisibleTime: 2.0,      // How long each approach step is fully visible
 };
 
 // Calculate all timing values based on configuration
@@ -59,8 +60,12 @@ function calculateTimingValues() {
   const exampleEndTime = exampleStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.exampleVisibleTime;
   const exampleRemovedTime = exampleEndTime + TIMING_CONFIG.fadeOutDuration;
   
+  // Approach timing - starts after example is removed
+  const approachStartTime = exampleRemovedTime;
+  const approachEndTime = approachStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.approachVisibleTime;
+  
   // Array timing
-  const arrayStartTime = exampleRemovedTime + TIMING_CONFIG.arrayStartDelay;
+  const arrayStartTime = approachEndTime + TIMING_CONFIG.arrayStartDelay;
   const arrayFullyVisibleTime = arrayStartTime + TIMING_CONFIG.fadeInDuration;
   
   // Caption timing
@@ -77,6 +82,8 @@ function calculateTimingValues() {
     exampleStartTime,
     exampleEndTime,
     exampleRemovedTime,
+    approachStartTime,
+    approachEndTime,
     arrayStartTime,
     arrayFullyVisibleTime,
     firstCaptionStartTime,
@@ -116,6 +123,14 @@ export const DEFAULT_TIMELINE_CONFIG: VideoTimelineConfig = {
         startTime: timing.explanationStartTime,
         endTime: timing.explanationEndTime,
         fadeOutStartTime: timing.explanationStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.explanationVisibleTime
+      },
+      approach: {
+        fadeInDuration: TIMING_CONFIG.fadeInDuration,
+        fadeOutDuration: TIMING_CONFIG.fadeOutDuration,
+        visibleTime: TIMING_CONFIG.approachVisibleTime,
+        startTime: timing.approachStartTime,
+        endTime: timing.approachEndTime,
+        fadeOutStartTime: timing.approachStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.approachVisibleTime
       },
       example: {
         fadeInDuration: TIMING_CONFIG.fadeInDuration,

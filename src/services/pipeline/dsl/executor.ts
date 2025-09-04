@@ -718,6 +718,95 @@ export function execute(program: ActionProgram): Scene {
       elements.push(explanation);
     }
 
+    if (act.kind === "APPROACH") {
+      // Handle approach commands - create static text elements with sequential ordering
+      const approachId = randomUUID();
+      
+      // Position approach steps below explanation, with staggered positioning
+      const approachY = 120; // Below explanation (which is at y=0)
+      const approachX = 0; // Center horizontally
+      
+      // Create approach text element with procedural styling
+      const approachFontSize = style.typography.size * 0.8;
+      const calculatedApproachWidth = calculateTextWidth(act.text, approachFontSize, style.typography.family);
+      const approachWidth = Math.min(calculatedApproachWidth, 1200); // Use calculated width, max 1200px
+      const approachHeight = style.typography.size * 1.2;
+      
+      const approach: TextEl = {
+        animations: [],
+        fill: style.palette.text,
+        x: approachX,
+        y: approachY,
+        id: approachId,
+        name: `Approach ${act.order}`,
+        text: act.text,
+        type: "text",
+        width: approachWidth,
+        height: approachHeight,
+        fontFamily: style.typography.family,
+        fontSize: approachFontSize,
+        fontWeight: "normal",
+        textAlign: "center",
+        pivotX: approachWidth / 2,
+        pivotY: approachHeight / 2,
+        zIndex: 11, // Higher than explanation
+        opacity: 0, // Start invisible for fade-in
+        visible: true,
+        groupId: "",
+        wordWrap: true,
+        fontStyle: "normal",
+        lineHeight: 1.2,
+        shadowBlur: 0,
+        shadowColor: "#000000",
+        strokeWidth: 0,
+        cornerRadius: 0,
+        letterSpacing: 0,
+        shadowEnabled: false,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowOpacity: 0,
+        wordWrapWidth: approachWidth,
+        textStrokeJoin: "round",
+        isAnimationPath: false,
+        textStrokeWidth: 0
+      };
+
+      // Get timing from config - approach steps should appear after explanation
+      const approachTiming = timelineManager.getElementTiming('approach');
+      
+      if (approachTiming) {
+        // Add fade-in animation for approach step
+        approach.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: approachTiming.startTime! + (act.order - 1) * 0.5, // Stagger each step by 0.5s
+          duration: approachTiming.fadeInDuration!,
+          properties: { alpha: 1 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `approach-${act.order}-fade-in`,
+          repeatDelay: 0
+        });
+
+        // Add fade-out animation for approach step
+        approach.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: approachTiming.fadeOutStartTime! + (act.order - 1) * 0.5,
+          duration: approachTiming.fadeOutDuration!,
+          properties: { alpha: 0 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `approach-${act.order}-fade-out`,
+          repeatDelay: 0
+        });
+      }
+
+      elements.push(approach);
+    }
+
     if (act.kind === "EXAMPLE") {
       // Handle example commands - create static text element below subtitle
       const exampleId = randomUUID();

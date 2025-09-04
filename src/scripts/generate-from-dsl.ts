@@ -15,7 +15,12 @@ style educational
 
 heading "Binary Search Algorithm"
 subtitle "Finding target value in sorted array"
-explanation "An efficient search algorithm that finds a target value in a sorted array by repeatedly dividing the search interval in half"
+explanation "Binary search is an efficient search algorithm that finds a target value in a sorted array by repeatedly dividing the search interval in half"
+approach 1 "Binary search is implemented using 2 boundary pointers, start and end"
+approach 2 "The boundary pointers are used to find the mid position"
+approach 3 "The formula for finding the mid position is mid = (start + end) / 2"
+approach 4 "Using the value at the mid position, if it's not the target, we can determine which subarray to focus on"
+approach 5 "This is why it's important for the array to be sorted"
 example "Given a sorted array and a target value of 23, the algorithm will find the target efficiently"
 array [2,5,8,12,16,23,38,56,72,91]
 animate highlight [0,9]

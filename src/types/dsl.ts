@@ -6,6 +6,7 @@ export type Action =
   | { kind: "HEADING"; text: string }
   | { kind: "SUBTITLE"; text: string } 
   | { kind: "EXPLANATION"; text: string }
+  | { kind: "APPROACH"; order: number; text: string }
   | { kind: "EXAMPLE"; text: string }
   | { kind: "CONCLUSION"; order: number; text: string };
 
