@@ -729,9 +729,9 @@ export function execute(program: ActionProgram): Scene {
       // Handle approach commands - create static text elements with sequential ordering
       const approachId = randomUUID();
       
-      // Position approach steps below explanation, with staggered positioning
+      // Position approach steps at the same position as explanation and example
       // Each step appears in the same position but at different times
-      const approachY = 120; // Below explanation (which is at y=0)
+      const approachY = 0; // Same position as explanation and example
       const approachX = 0; // Center horizontally
       
       // Create approach text element with procedural styling

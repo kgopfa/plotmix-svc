@@ -36,8 +36,8 @@ const TIMING_CONFIG = {
   headingStartTime: 0.5,       // When heading starts
   
   // Visible durations
-  explanationVisibleTime: 3.0, // How long explanation is fully visible
-  exampleVisibleTime: 3.0,      // How long example is fully visible
+  explanationVisibleTime: 2.5, // How long explanation is fully visible
+  exampleVisibleTime: 2.5,      // How long example is fully visible
   approachVisibleTime: 2.0,      // How long each approach step is fully visible
 };
 
@@ -57,21 +57,21 @@ function calculateTimingValues() {
   
   // Approach timing - starts after explanation is removed
   // Each approach step takes: fadeIn + visibleTime + fadeOut
-  const approachStepDuration = TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.approachVisibleTime + TIMING_CONFIG.fadeOutDuration;
   const approachStartTime = explanationRemovedTime;
-  const approachEndTime = approachStartTime + approachStepDuration; // Single step duration for now, will be calculated dynamically
+  // Note: approachEndTime will be calculated dynamically based on number of approach steps
   
   // Example timing - starts after all approach steps are complete
-  const exampleStartTime = approachEndTime;
-  const exampleEndTime = exampleStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.exampleVisibleTime;
-  const exampleRemovedTime = exampleEndTime + TIMING_CONFIG.fadeOutDuration;
+  // This will be calculated dynamically based on approach count
+  const exampleStartTime = 0; // Will be calculated dynamically
+  const exampleEndTime = 0; // Will be calculated dynamically
+  const exampleRemovedTime = 0; // Will be calculated dynamically
   
-  // Array timing
-  const arrayStartTime = approachEndTime + TIMING_CONFIG.arrayStartDelay;
-  const arrayFullyVisibleTime = arrayStartTime + TIMING_CONFIG.fadeInDuration;
+  // Array timing - starts after example is fully removed
+  const arrayStartTime = 0; // Will be calculated dynamically
+  const arrayFullyVisibleTime = 0; // Will be calculated dynamically
   
   // Caption timing
-  const firstCaptionStartTime = arrayFullyVisibleTime;
+  const firstCaptionStartTime = 0; // Will be calculated dynamically
   const totalCaptionDuration = TIMING_CONFIG.captionFadeInDuration + TIMING_CONFIG.captionVisibleTime + TIMING_CONFIG.captionFadeOutDuration;
   
   return {
@@ -85,7 +85,7 @@ function calculateTimingValues() {
     exampleEndTime,
     exampleRemovedTime,
     approachStartTime,
-    approachEndTime,
+    approachEndTime: 0, // Will be calculated dynamically
     arrayStartTime,
     arrayFullyVisibleTime,
     firstCaptionStartTime,
@@ -178,6 +178,87 @@ export class TimelineManager {
   }
 
   /**
+   * Override elementTiming to use dynamically calculated values
+   */
+  get elementTiming() {
+    const timing = calculateTimingValues();
+    
+    // Calculate dynamic timing based on content counts
+    const approachStepDuration = TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.approachVisibleTime + TIMING_CONFIG.fadeOutDuration;
+    const totalApproachDuration = this.approachCount * approachStepDuration;
+    const approachEndTime = timing.approachStartTime + totalApproachDuration;
+    
+    const exampleStartTime = approachEndTime;
+    const exampleEndTime = exampleStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.exampleVisibleTime;
+    const exampleRemovedTime = exampleEndTime + TIMING_CONFIG.fadeOutDuration;
+    
+    const arrayStartTime = exampleRemovedTime + TIMING_CONFIG.arrayStartDelay;
+    const arrayFullyVisibleTime = arrayStartTime + TIMING_CONFIG.fadeInDuration;
+    
+    const mainEndTime = arrayFullyVisibleTime + (Math.max(this.captionCount, this.animationCount) * timing.totalCaptionDuration);
+    
+    const conclusionStartTime = mainEndTime;
+    const conclusionEndTime = conclusionStartTime + (this.conclusionCount * timing.totalCaptionDuration);
+    
+    return {
+      heading: { 
+        fadeInDuration: TIMING_CONFIG.fadeInDuration,
+        startTime: TIMING_CONFIG.headingStartTime,
+        endTime: timing.headingEndTime
+      },
+      subtitle: {
+        fadeInDuration: TIMING_CONFIG.fadeInDuration,
+        startTime: timing.subtitleStartTime,
+        endTime: timing.subtitleEndTime
+      },
+      explanation: {
+        fadeInDuration: TIMING_CONFIG.fadeInDuration,
+        fadeOutDuration: TIMING_CONFIG.fadeOutDuration,
+        visibleTime: TIMING_CONFIG.explanationVisibleTime,
+        startTime: timing.explanationStartTime,
+        endTime: timing.explanationEndTime,
+        fadeOutStartTime: timing.explanationStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.explanationVisibleTime
+      },
+      approach: {
+        fadeInDuration: TIMING_CONFIG.fadeInDuration,
+        fadeOutDuration: TIMING_CONFIG.fadeOutDuration,
+        visibleTime: TIMING_CONFIG.approachVisibleTime,
+        startTime: timing.approachStartTime,
+        endTime: approachEndTime,
+        fadeOutStartTime: timing.approachStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.approachVisibleTime
+      },
+      example: {
+        fadeInDuration: TIMING_CONFIG.fadeInDuration,
+        fadeOutDuration: TIMING_CONFIG.fadeOutDuration,
+        visibleTime: TIMING_CONFIG.exampleVisibleTime,
+        startTime: exampleStartTime,
+        endTime: exampleEndTime,
+        fadeOutStartTime: exampleStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.exampleVisibleTime
+      },
+      array: {
+        fadeInDuration: TIMING_CONFIG.fadeInDuration,
+        fadeOutDuration: TIMING_CONFIG.fadeOutDuration,
+        startTime: arrayStartTime,
+        endTime: mainEndTime
+      },
+      caption: {
+        fadeInDuration: TIMING_CONFIG.captionFadeInDuration,
+        fadeOutDuration: TIMING_CONFIG.captionFadeOutDuration,
+        visibleTime: TIMING_CONFIG.captionVisibleTime,
+        startTime: arrayFullyVisibleTime,
+        endTime: mainEndTime
+      },
+      conclusion: {
+        fadeInDuration: TIMING_CONFIG.captionFadeInDuration,
+        fadeOutDuration: TIMING_CONFIG.captionFadeOutDuration,
+        visibleTime: TIMING_CONFIG.captionVisibleTime,
+        startTime: conclusionStartTime,
+        endTime: conclusionEndTime
+      }
+    };
+  }
+
+  /**
    * Set content counts for dynamic timing calculation
    */
   setContentCounts(captionCount: number, animationCount: number, conclusionCount: number = 0, approachCount: number = 0): void {
@@ -189,7 +270,7 @@ export class TimelineManager {
   }
 
   /**
-   * Calculate dynamic timing for main and conclusion sections only
+   * Calculate dynamic timing for all sections based on content counts
    */
   private calculateDynamicTiming(): void {
     const timing = calculateTimingValues();
@@ -197,26 +278,45 @@ export class TimelineManager {
     // Calculate approach section duration based on number of approach steps
     const approachStepDuration = TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.approachVisibleTime + TIMING_CONFIG.fadeOutDuration;
     const totalApproachDuration = this.approachCount * approachStepDuration;
+    const approachEndTime = timing.approachStartTime + totalApproachDuration;
     
-    // Update approach timing
-    if (this.config.elementTiming?.['approach']) {
-      this.config.elementTiming['approach'].endTime = timing.approachStartTime + totalApproachDuration;
-    }
+    // Calculate example timing - starts after all approach steps are complete
+    const exampleStartTime = approachEndTime;
+    const exampleEndTime = exampleStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.exampleVisibleTime;
+    const exampleRemovedTime = exampleEndTime + TIMING_CONFIG.fadeOutDuration;
+    
+    // Calculate array timing - starts after example is fully removed
+    const arrayStartTime = exampleRemovedTime + TIMING_CONFIG.arrayStartDelay;
+    const arrayFullyVisibleTime = arrayStartTime + TIMING_CONFIG.fadeInDuration;
     
     // Calculate main section duration based on captions/animations
-    const mainEndTime = timing.arrayFullyVisibleTime + (Math.max(this.captionCount, this.animationCount) * timing.totalCaptionDuration);
+    const mainEndTime = arrayFullyVisibleTime + (Math.max(this.captionCount, this.animationCount) * timing.totalCaptionDuration);
     
     // Calculate conclusion section timing
     const conclusionStartTime = mainEndTime;
     const conclusionEndTime = conclusionStartTime + (this.conclusionCount * timing.totalCaptionDuration);
     
-    // Update element timing with calculated end times
+    // Update element timing with calculated values
     if (this.config.elementTiming) {
+      // Approach elements
+      if (this.config.elementTiming['approach']) {
+        this.config.elementTiming['approach'].endTime = approachEndTime;
+      }
+      
+      // Example elements
+      if (this.config.elementTiming['example']) {
+        this.config.elementTiming['example'].startTime = exampleStartTime;
+        this.config.elementTiming['example'].endTime = exampleEndTime;
+        this.config.elementTiming['example'].fadeOutStartTime = exampleStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.exampleVisibleTime;
+      }
+      
       // Main elements - array and captions
       if (this.config.elementTiming['array']) {
+        this.config.elementTiming['array'].startTime = arrayStartTime;
         this.config.elementTiming['array'].endTime = mainEndTime;
       }
       if (this.config.elementTiming['caption']) {
+        this.config.elementTiming['caption'].startTime = arrayFullyVisibleTime;
         this.config.elementTiming['caption'].endTime = mainEndTime;
       }
       
@@ -261,24 +361,33 @@ export class TimelineManager {
   getSectionTiming(sectionName: string): { startTime: number; endTime: number } | null {
     const timing = calculateTimingValues();
     
+    // Calculate approach section duration based on number of approach steps
+    const approachStepDuration = TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.approachVisibleTime + TIMING_CONFIG.fadeOutDuration;
+    const totalApproachDuration = this.approachCount * approachStepDuration;
+    const approachEndTime = timing.approachStartTime + totalApproachDuration;
+    
+    // Calculate example timing - starts after all approach steps are complete
+    const exampleStartTime = approachEndTime;
+    const exampleEndTime = exampleStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.exampleVisibleTime;
+    const exampleRemovedTime = exampleEndTime + TIMING_CONFIG.fadeOutDuration;
+    
+    // Calculate array timing - starts after example is fully removed
+    const arrayStartTime = exampleRemovedTime + TIMING_CONFIG.arrayStartDelay;
+    const arrayFullyVisibleTime = arrayStartTime + TIMING_CONFIG.fadeInDuration;
+    
+    // Calculate main section duration based on captions/animations
+    const mainEndTime = arrayFullyVisibleTime + (Math.max(this.captionCount, this.animationCount) * timing.totalCaptionDuration);
+    
+    // Calculate conclusion section timing
+    const conclusionStartTime = mainEndTime;
+    const conclusionEndTime = conclusionStartTime + (this.conclusionCount * timing.totalCaptionDuration);
+    
     // Calculate section timing based on sequential flow
     const sections = {
-      intro: { startTime: 0, endTime: timing.exampleRemovedTime }, // Example fully removed
-      main: { startTime: timing.arrayStartTime, endTime: 0 }, // Array starts, will be calculated dynamically
-      conclusion: { startTime: 0, endTime: 0 } // Will be calculated dynamically
+      intro: { startTime: 0, endTime: exampleRemovedTime }, // Example fully removed
+      main: { startTime: arrayStartTime, endTime: mainEndTime }, // Array starts to main end
+      conclusion: { startTime: conclusionStartTime, endTime: conclusionEndTime } // Conclusion section
     };
-    
-    // Update main and conclusion timing if we have content counts
-    if (this.captionCount > 0 || this.animationCount > 0) {
-      const mainEndTime = timing.arrayFullyVisibleTime + (Math.max(this.captionCount, this.animationCount) * timing.totalCaptionDuration);
-      sections.main.endTime = mainEndTime;
-      
-      if (this.conclusionCount > 0) {
-        const conclusionEndTime = mainEndTime + (this.conclusionCount * timing.totalCaptionDuration);
-        sections.conclusion.startTime = mainEndTime;
-        sections.conclusion.endTime = conclusionEndTime;
-      }
-    }
     
     return sections[sectionName as keyof typeof sections] ?? null;
   }
@@ -287,7 +396,7 @@ export class TimelineManager {
    * Get element timing from config
    */
   getElementTiming(elementType: string) {
-    return this.config.elementTiming?.[elementType];
+    return (this.elementTiming as any)?.[elementType];
   }
 
   /**
@@ -296,7 +405,20 @@ export class TimelineManager {
   calculateCaptionTiming(captionOrder: number): { startTime: number; fadeInEnd: number; fadeOutStart: number; endTime: number } {
     const timing = calculateTimingValues();
     
-    const startTime = timing.firstCaptionStartTime + (captionOrder - 1) * timing.totalCaptionDuration;
+    // Calculate array timing - starts after example is fully removed
+    const approachStepDuration = TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.approachVisibleTime + TIMING_CONFIG.fadeOutDuration;
+    const totalApproachDuration = this.approachCount * approachStepDuration;
+    const approachEndTime = timing.approachStartTime + totalApproachDuration;
+    
+    const exampleStartTime = approachEndTime;
+    const exampleEndTime = exampleStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.exampleVisibleTime;
+    const exampleRemovedTime = exampleEndTime + TIMING_CONFIG.fadeOutDuration;
+    
+    const arrayStartTime = exampleRemovedTime + TIMING_CONFIG.arrayStartDelay;
+    const arrayFullyVisibleTime = arrayStartTime + TIMING_CONFIG.fadeInDuration;
+    
+    const firstCaptionStartTime = arrayFullyVisibleTime;
+    const startTime = firstCaptionStartTime + (captionOrder - 1) * timing.totalCaptionDuration;
     
     return {
       startTime,
@@ -326,11 +448,24 @@ export class TimelineManager {
   calculateConclusionTiming(conclusionOrder: number): { startTime: number; fadeInEnd: number; fadeOutStart: number; endTime: number } {
     const timing = calculateTimingValues();
     
+    // Calculate main section end time
+    const approachStepDuration = TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.approachVisibleTime + TIMING_CONFIG.fadeOutDuration;
+    const totalApproachDuration = this.approachCount * approachStepDuration;
+    const approachEndTime = timing.approachStartTime + totalApproachDuration;
+    
+    const exampleStartTime = approachEndTime;
+    const exampleEndTime = exampleStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.exampleVisibleTime;
+    const exampleRemovedTime = exampleEndTime + TIMING_CONFIG.fadeOutDuration;
+    
+    const arrayStartTime = exampleRemovedTime + TIMING_CONFIG.arrayStartDelay;
+    const arrayFullyVisibleTime = arrayStartTime + TIMING_CONFIG.fadeInDuration;
+    
+    const mainEndTime = arrayFullyVisibleTime + (Math.max(this.captionCount, this.animationCount) * timing.totalCaptionDuration);
+    
     // Calculate conclusion start time based on main section end
     // Group conclusions in pairs (1,2), (3,4), (5,6), etc.
     const groupIndex = Math.floor((conclusionOrder - 1) / 2);
-    const mainSectionEnd = this.getSectionTiming('main')?.endTime ?? 0;
-    const startTime = mainSectionEnd + groupIndex * timing.totalCaptionDuration;
+    const startTime = mainEndTime + groupIndex * timing.totalCaptionDuration;
     
     return {
       startTime,
@@ -344,8 +479,29 @@ export class TimelineManager {
    * Get total video duration
    */
   getTotalDuration(): number {
-    const conclusionSection = this.getSectionTiming('conclusion');
-    return conclusionSection?.endTime ?? 0;
+    const timing = calculateTimingValues();
+    
+    // Calculate approach section duration based on number of approach steps
+    const approachStepDuration = TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.approachVisibleTime + TIMING_CONFIG.fadeOutDuration;
+    const totalApproachDuration = this.approachCount * approachStepDuration;
+    const approachEndTime = timing.approachStartTime + totalApproachDuration;
+    
+    // Calculate example timing - starts after all approach steps are complete
+    const exampleStartTime = approachEndTime;
+    const exampleEndTime = exampleStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.exampleVisibleTime;
+    const exampleRemovedTime = exampleEndTime + TIMING_CONFIG.fadeOutDuration;
+    
+    // Calculate array timing - starts after example is fully removed
+    const arrayStartTime = exampleRemovedTime + TIMING_CONFIG.arrayStartDelay;
+    const arrayFullyVisibleTime = arrayStartTime + TIMING_CONFIG.fadeInDuration;
+    
+    // Calculate main section duration based on captions/animations
+    const mainEndTime = arrayFullyVisibleTime + (Math.max(this.captionCount, this.animationCount) * timing.totalCaptionDuration);
+    
+    // Calculate conclusion section timing
+    const conclusionEndTime = mainEndTime + (this.conclusionCount * timing.totalCaptionDuration);
+    
+    return conclusionEndTime;
   }
 
   /**
