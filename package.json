@@ -18,7 +18,8 @@
     "db:studio": "prisma studio",
     "db:seed": "ts-node src/scripts/seed.ts",
     "db:test": "ts-node src/scripts/test-db.ts",
-    "pipeline:test": "ts-node src/scripts/test-pipeline.ts"
+    "pipeline:test": "ts-node src/scripts/test-pipeline.ts",
+    "generate:dsl": "ts-node src/scripts/generate-from-dsl.ts"
   },
   "keywords": [
     "nodejs",

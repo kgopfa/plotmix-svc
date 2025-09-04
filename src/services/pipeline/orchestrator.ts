@@ -38,7 +38,7 @@ export class Orchestrator {
   /**
    * Generate a canvas scene from DSL input
    */
-  private static generateFromDsl(dsl: string): PipelineResult {
+  static generateFromDsl(dsl: string): PipelineResult {
     try {
       logger.info(`Generating from DSL: ${dsl}`);
       const program = DslCompiler.compile(dsl);

@@ -299,8 +299,10 @@ export class TimelineManager {
     const timing = calculateTimingValues();
     
     // Calculate conclusion start time based on main section end
+    // Group conclusions in pairs (1,2), (3,4), (5,6), etc.
+    const groupIndex = Math.floor((conclusionOrder - 1) / 2);
     const mainSectionEnd = this.getSectionTiming('main')?.endTime ?? 0;
-    const startTime = mainSectionEnd + (conclusionOrder - 1) * timing.totalCaptionDuration;
+    const startTime = mainSectionEnd + groupIndex * timing.totalCaptionDuration;
     
     return {
       startTime,
