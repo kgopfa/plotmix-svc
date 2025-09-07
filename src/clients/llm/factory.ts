@@ -10,10 +10,10 @@ export class LlmFactory {
     }
 
     const modelPlanner = process.env['LLM_MODEL_PLANNER'];
-    const modelEntities = process.env['LLM_MODEL_ENTITIES'];
+    const modelAnimation = process.env['LLM_MODEL_ANIMATION'];
     const modelActions = process.env['LLM_MODEL_ACTIONS'];
-    if (!modelPlanner || !modelEntities || !modelActions) {
-      throw new Error('LLM_MODEL_PLANNER, LLM_MODEL_ENTITIES, and LLM_MODEL_ACTIONS are required');
+    if (!modelPlanner || !modelAnimation || !modelActions) {
+      throw new Error('LLM_MODEL_PLANNER, LLM_MODEL_ANIMATION, and LLM_MODEL_ACTIONS are required');
     }
 
     if (provider === 'openai') {
@@ -26,8 +26,8 @@ export class LlmFactory {
         baseURL: process.env['OPENAI_BASE_URL'],
         stages: {
           modelPlanner,
-          modelEntities,
           modelActions,
+          modelAnimation,
         }
       };
       return new OpenAiLlmClient(cfg);
@@ -41,8 +41,8 @@ export class LlmFactory {
         ...(process.env['ANTHROPIC_VERSION'] && { version: process.env['ANTHROPIC_VERSION'] }),
         stages: {
           modelPlanner,
-          modelEntities,
           modelActions,
+          modelAnimation,
         }
       };
       return new AnthropicLlmClient(cfg);

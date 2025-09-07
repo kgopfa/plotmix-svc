@@ -15,14 +15,14 @@ export interface BaseLlmConfig {
 
 export interface OpenAiStageModels {
   modelPlanner: string;
-  modelEntities: string;
   modelActions: string;
+  modelAnimation: string;
 }
 
 export interface AnthropicStageModels {
   modelPlanner: string;
-  modelEntities: string;
   modelActions: string;
+  modelAnimation: string;
 }
 
 export type OpenAiConfig = Readonly<{
