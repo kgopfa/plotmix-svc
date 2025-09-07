@@ -20,7 +20,6 @@ export class AnthropicLlmClient implements LlmClient {
     if (stage === 'planner') return this.cfg.stages.modelPlanner;
     if (stage === 'entities') return this.cfg.stages.modelEntities;
     if (stage === 'actions') return this.cfg.stages.modelActions;
-    if (stage === 'visual') return this.cfg.stages.modelPlanner; // Use planner model for visual stage
     if (stage === 'animation') return this.cfg.stages.modelPlanner; // Use planner model for animation stage
     if (stage === 'dsl') return this.cfg.stages.modelActions; // Use actions model for DSL stage
     throw new Error(`Unknown stage: ${stage}`);

@@ -1,12 +1,11 @@
 import { logger } from '../../../utils/logger';
 import { LlmFactory } from '../../../clients/llm/factory';
 import { PromptTemplates } from './prompts';
-import type { LlmClient, ContentPlan, ScenePlan, Stage, AnimationPlan } from '../../../types';
+import type { LlmClient, ContentPlan, Stage, AnimationPlan } from '../../../types';
 
 export interface ChainedExecutionResult {
   success: boolean;
   contentPlan?: ContentPlan;
-  scenePlan?: ScenePlan;
   animationPlan?: AnimationPlan;
   dsl?: string;
   error?: string;
@@ -38,31 +37,16 @@ export class ChainedCaller {
         };
       }
 
+      logger.info('llm-pipeline:content_planner result: ', contentPlanResult);
+
       const contentPlan = contentPlanResult.content as ContentPlan;
       logger.info('llm-pipeline:content_planned', { 
         problemTitle: contentPlan.problem.title,
-        arrayCount: contentPlan.visualRequirements.arrays.length 
+        edgeCasesCount: contentPlan.edgeCases.length 
       });
 
-      // Stage 2: Visual Planner
-      const scenePlanResult = await this.executeVisualPlanner(contentPlan);
-      if (!scenePlanResult.success) {
-        logger.error('llm-pipeline:visual_planner_failed', { error: scenePlanResult.error });
-        return {
-          success: false,
-          error: `Visual Planner failed: ${scenePlanResult.error}`,
-          stage: 'visual'
-        };
-      }
-
-      const scenePlan = scenePlanResult.content as ScenePlan;
-      logger.info('llm-pipeline:visual_planned', { 
-        sectionsCount: scenePlan.sections.length,
-        canvas: scenePlan.canvas 
-      });
-
-      // Stage 3: Animation Planner
-      const animationPlanResult = await this.executeAnimationPlanner(scenePlan, contentPlan);
+      // Stage 2: Animation Planner
+      const animationPlanResult = await this.executeAnimationPlanner(contentPlan);
       if (!animationPlanResult.success) {
         logger.error('llm-pipeline:animation_planner_failed', { error: animationPlanResult.error });
         return {
@@ -72,14 +56,16 @@ export class ChainedCaller {
         };
       }
 
+      logger.info('llm-pipeline:animation_planner result: ', animationPlanResult);
+
       const animationPlan = animationPlanResult.content as AnimationPlan;
       logger.info('llm-pipeline:animation_planned', { 
         algorithm: animationPlan.algorithm,
         steps: animationPlan.steps.length
       });
 
-      // Stage 4: DSL Emitter
-      const dslResult = await this.executeDslEmitter(scenePlan, animationPlan);
+      // Stage 3: DSL Emitter
+      const dslResult = await this.executeDslEmitter(contentPlan, animationPlan);
       if (!dslResult.success) {
         logger.error('llm-pipeline:dsl_emitter_failed', { error: dslResult.error });
         return {
@@ -89,6 +75,8 @@ export class ChainedCaller {
         };
       }
 
+      logger.info('llm-pipeline:dsl_emitter result: ', dslResult);
+
       const dsl = dslResult.content as string;
       logger.info('llm-pipeline:dsl_generated', { dslLength: dsl.length });
 
@@ -96,7 +84,6 @@ export class ChainedCaller {
       return {
         success: true,
         contentPlan,
-        scenePlan,
         animationPlan,
         dsl
       };
@@ -119,30 +106,22 @@ export class ChainedCaller {
     return await this.client.callStage('planner', messages, { temperature: 0.1, json: true });
   }
 
-  /**
-   * Execute Stage 2: Visual Planner
-   */
-  private async executeVisualPlanner(contentPlan: ContentPlan): Promise<any> {
-    logger.info('llm-pipeline:executing_visual_planner');
-    const messages = PromptTemplates.visualPlanner(contentPlan);
-    return await this.client.callStage('visual', messages, { temperature: 0.1, json: true });
-  }
 
   /**
-   * Execute Stage 3: Animation Planner
+   * Execute Stage 2: Animation Planner
    */
-  private async executeAnimationPlanner(scenePlan: ScenePlan, contentPlan: ContentPlan): Promise<any> {
+  private async executeAnimationPlanner(contentPlan: ContentPlan): Promise<any> {
     logger.info('llm-pipeline:executing_animation_planner');
-    const messages = PromptTemplates.animationPlanner(scenePlan, contentPlan);
+    const messages = PromptTemplates.animationPlanner(contentPlan);
     return await this.client.callStage('animation', messages, { temperature: 0.1, json: true });
   }
 
   /**
-   * Execute Stage 4: DSL Emitter
+   * Execute Stage 3: DSL Emitter
    */
-  private async executeDslEmitter(scenePlan: ScenePlan, animationPlan?: AnimationPlan): Promise<any> {
+  private async executeDslEmitter(contentPlan: ContentPlan, animationPlan?: AnimationPlan): Promise<any> {
     logger.info('llm-pipeline:executing_dsl_emitter');
-    const messages = PromptTemplates.dslEmitter(scenePlan, animationPlan);
+    const messages = PromptTemplates.dslEmitter(contentPlan, animationPlan);
     return await this.client.callStage('dsl', messages, { temperature: 0.0, json: false });
   }
 

@@ -10,77 +10,46 @@ export class PromptTemplates {
     return [
       {
         role: 'system',
-        content: `You are a Content Planner that produces structured plans for educational content. You break down complex topics into clear, visualizable components.
-
-Your output MUST be valid JSON matching this exact schema:
-{
-  "problem": {
-    "title": "string",
-    "description": "string", 
-    "example": "string (optional)"
-  },
-  "approaches": {
-    "naive": {
+        content: `You are a Content Planner that produces concise, structured plans for educational content.
+  Focus on clarity and reusability. Do NOT simulate steps or include animations.
+  
+  OUTPUT REQUIREMENTS
+  - Return ONLY valid JSON. No prose, no markdown fences.
+  - Follow the schema EXACTLY. Do not add or remove fields.
+  - Keep it concise: no rambling, no repetition.
+  
+  SCHEMA (strict)
+  {
+    "problem": {
       "title": "string",
-      "description": "string",
-      "complexity": "string (e.g., 'Time: O(n), Space: O(1)' or 'Simple but inefficient')"
+      "description": "string (1–3 sentences)",
+      "example": "string (optional)"
     },
-    "optimal": {
-      "title": "string", 
-      "description": "string",
-      "complexity": "string",
-      "keyIdeas": ["string", "string"]
-    }
-  },
-  "edgeCases": ["string", "string"],
-  "visualRequirements": {
-    "arrays": [
-      {
-        "values": [number|string|boolean],
-        "purpose": "string (what this array demonstrates - e.g., 'input example', 'step visualization', 'result', 'data comparison')"
+    "approaches": {
+      "naive": {
+        "title": "string",
+        "description": "string (1–2 sentences)",
+        "complexity": "string (e.g., 'Time: O(n), Space: O(1)')"
+      },
+      "optimal": {
+        "title": "string",
+        "description": "string (1–2 sentences)",
+        "complexity": "string (e.g., 'Time: O(log n), Space: O(1)')",
+        "keyIdeas": ["string", "string", "... up to 7 items"]
       }
-    ],
-    "animations": [
-      {
-        "type": "highlight|select|focus|compare",
-        "elements": [number|string|boolean],
-        "purpose": "string (what this animation demonstrates - e.g., 'search range', 'current element', 'comparison', 'data transformation')"
-      }
-    ]
+    },
+    "algorithmExplanation": "string (4–7 sentences explaining HOW it works at the pointer/variable level; NO concrete arrays, NO indices, NO timing, NO step simulation). If the topic is not algorithmic, write a concise mechanism-of-action explanation instead.",
+    "pseudocode": ["string lines of language-agnostic pseudocode; <= 12 lines. If non-algorithmic topic, return an empty array []"],
+    "edgeCases": ["string", "string", "... up to 6 items"]
   }
-}
-
-CRITICAL: In visualRequirements.arrays, include ONLY actual data arrays that should be visualized as boxes/cells. Do NOT include explanatory text, complexity information, or bullet points here. Those will be rendered as regular text.
-
-Examples of what goes in arrays:
-✓ [1, 3, 5, 7, 9] - actual data to visualize
-✓ [2, 4, 6, 8] - another data example
-✓ [true, false, true] - boolean data
-✓ ["red", "blue", "green"] - string data
-✓ [10, 20, 30, 40] - numeric data
-✗ ["Time: O(n)", "Space: O(1)"] - this is text, not array data
-✗ ["Binary search", "Divide and conquer"] - these are concepts, not array elements
-✗ ["Target not found", "Array empty"] - these are explanations, not array data
-✗ ["Divide and conquer", "Efficient searching"] - these are key ideas, not array data
-
-ANIMATION GUIDELINES:
-- Use animations for step-by-step processes that involve data progression or transformation
-- highlight: Show ranges, focus areas, or elements being processed
-- select: Highlight specific elements for comparison or selection
-- focus: Emphasize the current element being examined
-- compare: Show elements being compared side-by-side
-- Do NOT include timing information (startTime, duration) - this is handled automatically
-- Elements in animations must exist in the arrays defined above
-- Animation styling (colors, scale factors, easing) is procedurally generated for consistent theming
-
-SUPPORTED CONTENT TYPES:
-- Algorithm explanations (sorting, searching, optimization, etc.)
-- Data structure demonstrations (arrays, lists, trees, graphs)
-- Mathematical concepts (sequences, patterns, operations)
-- Process flows (step-by-step transformations, workflows)
-- Statistical concepts (distributions, aggregations, comparisons)
-- Scientific concepts (measurements, observations, experiments)
-- Any educational content that benefits from visual array representation`
+  
+  HARD RULES
+  - NO step-by-step simulations, NO specific arrays, indices, or example walkthroughs in "algorithmExplanation". (That belongs in the animation planner.)
+  - "pseudocode" must be language-agnostic and minimal (no imports, no language-specific quirks).
+  - Keep "keyIdeas" and "edgeCases" crisp and de-duplicated.
+  - If the user's topic is non-algorithmic, provide a clear "algorithmExplanation" as a mechanism/flow explanation and set "pseudocode": [].
+  - Do not include fields other than those in the schema.
+  `
       },
       {
         role: 'user',
@@ -89,73 +58,11 @@ SUPPORTED CONTENT TYPES:
     ];
   }
 
-  /**
-   * Visual Planner (LLM #2) - converts content plan into Scene Plan JSON
-   */
-  static visualPlanner(contentPlan: any): LlmMessage[] {
-    return [
-      {
-        role: 'system',
-        content: `You are a Visual Planner that converts content plans into Scene Plan JSON for educational visualizations.
-
-Your output MUST be valid JSON matching this exact schema:
-{
-  "seed": number,
-  "style": "auto"|string,
-  "sections": [
-    {
-      "id": "string",
-      "title": "string",
-      "text": "string (for paragraph content)",
-      "bullets": ["string"] (for bullet points - will be rendered as separate text elements),
-      "complexity": "string (for complexity info like 'Time: O(n), Space: O(1)')",
-      "keyIdeas": ["string"] (for concept lists),
-      "visuals": [
-        {
-          "kind": "array",
-          "values": [number|string],
-          "purpose": "string"
-        },
-        {
-          "kind": "animation",
-          "type": "highlight|select|focus|compare",
-          "elements": [number|string|boolean],
-          "purpose": "string"
-        }
-      ]
-    }
-  ]
-}
-
-CRITICAL RULES:
-1. Focus on content structure, not positioning
-2. Arrays are ONLY for actual data visualization (numbers/strings that represent array elements)
-3. All other content (titles, descriptions, complexity, concepts) goes in text/bullets/complexity/keyIdeas fields
-4. The procedural system will handle layout automatically
-
-Content Organization Strategy:
-- Problem title and description
-- Example arrays and explanations  
-- Approach comparisons
-- Edge cases and complexity info
-
-The procedural system will automatically:
-- Create appropriate layout
-- Position elements for optimal visual flow
-- Handle spacing and alignment
-- Ensure no overlapping or cramped layouts`
-      },
-      {
-        role: 'user',
-        content: `Convert this content plan to a Scene Plan JSON:\n\n${JSON.stringify(contentPlan, null, 2)}`
-      }
-    ];
-  }
 
   /**
    * Animation Planner (LLM #3) - creates step-by-step animations for algorithm explanations
    */
-  static animationPlanner(scenePlan: any, contentPlan: any): LlmMessage[] {
+  static animationPlanner(contentPlan: any): LlmMessage[] {
     return [
       {
         role: 'system',
@@ -223,21 +130,19 @@ FINAL REMINDER: Return ONLY valid JSON. Do NOT include any text before or after 
         role: 'user',
         content: `Create animation plan for this educational content:
 
-Content Plan: ${JSON.stringify(contentPlan, null, 2)}
-
-Scene Plan: ${JSON.stringify(scenePlan, null, 2)}`
+Content Plan: ${JSON.stringify(contentPlan, null, 2)}`
       }
     ];
   }
 
   /**
-   * DSL Emitter (LLM #4) - turns Scene Plan JSON + Animation Plan into DSL program
+   * DSL Emitter (LLM #3) - turns Content Plan + Animation Plan into DSL program
    */
-  static dslEmitter(scenePlan: any, animationPlan?: any): LlmMessage[] {
+  static dslEmitter(contentPlan: any, animationPlan?: any): LlmMessage[] {
     return [
       {
         role: 'system',
-        content: `You are a DSL Emitter that translates Scene Plan JSON + Animation Plan to DSL commands.
+        content: `You are a DSL Emitter that translates Content Plan + Animation Plan to DSL commands.
 
 STRICT RULES:
 1. Output ONLY the DSL inside one \`\`\`dsl fenced block
@@ -464,9 +369,9 @@ ANIMATION INTEGRATION:
       },
       {
         role: 'user',
-        content: `Convert this Scene Plan JSON and Animation Plan to DSL:
+        content: `Convert this Content Plan and Animation Plan to DSL:
 
-Scene Plan: ${JSON.stringify(scenePlan, null, 2)}
+Content Plan: ${JSON.stringify(contentPlan, null, 2)}
 
 ${animationPlan ? `Animation Plan: ${JSON.stringify(animationPlan, null, 2)}` : 'No animation plan provided - generate static content only'}`
       }
