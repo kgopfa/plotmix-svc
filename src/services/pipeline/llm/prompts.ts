@@ -60,80 +60,71 @@ export class PromptTemplates {
 
 
   /**
-   * Animation Planner (LLM #3) - creates step-by-step animations for algorithm explanations
-   */
+ * Animation Planner (LLM #2) — generic + minimal
+ * - Consumes: contentPlan (expects algorithmExplanation and/or pseudocode)
+ * - Produces: scenario, stepwise STATE evolution, minimal visual hints, and a reference (pseudocode or outline)
+ * - No timing; JSON-only.
+ */
   static animationPlanner(contentPlan: any): LlmMessage[] {
     return [
       {
-        role: 'system',
-        content: `You are an Animation Planner that creates step-by-step animations for educational content.
+        role: "system",
+        content: `You convert conceptual teaching content into a concrete, state-driven demonstration.
+Return JSON ONLY. No markdown, no comments, no extra fields.
 
-CRITICAL: Your response MUST be valid JSON only. Do NOT include any explanatory text, markdown, or prose outside the JSON object.
+GOALS
+- Create a tiny, illustrative scenario.
+- Produce a clear sequence of meaningful state changes.
+- Include minimal visual hints (generic, renderer-agnostic).
+- Include a compact reference (prefer pseudocode; if not suitable, provide a short outline).
 
-Your task:
-1. Analyze the content being explained
-2. Create a logical sequence of animations that demonstrate the process
-3. Map each animation step to specific array elements
-4. Ensure animations tell a clear story
-
-Your output MUST be valid JSON matching this exact schema:
+STRICT OUTPUT SHAPE
 {
-  "algorithm": "string (algorithm name, e.g., 'binary search', 'two sum', 'sliding window')",
+  "title": "string",                     // concise name (algorithm or concept)
+  "scenario": {
+    "goal": "string",                    // what the demo aims to show
+    "inputs": { },                       // small, self-contained demo inputs (any domain)
+    "assumptions": ["string", "..."]     // preconditions relevant to the demo
+  },
   "steps": [
     {
-      "id": "string (unique identifier)",
-      "description": "string (what this step demonstrates)",
-      "targetElements": [number|string|boolean] (array elements to animate),
-      "animationType": "highlight|select|focus|compare",
-      "explanation": "string (text to show during this step)"
+      "id": "string",
+      "label": "string",                 // short, human-friendly caption
+      "state": { },                      // small JSON: variables/components/status; only what's necessary
+      "visual": {                        // optional, minimal hints; no styling, no timing
+        "highlight": ["string|number"],  // ids/keys/indices/nodes/regions your renderer can map
+        "pointers": { },                 // generic key→value pointers (e.g., low/high/mid, leader/followers)
+        "relations": [["a","b"]]         // pairs/edges to emphasize (for flows/topologies)
+      },
+      "explanation": "string"            // 1–2 sentences: what changed and why
     }
   ],
-  "timing": {
-    "totalSteps": number (total number of animation steps)
-  }
+  "reference": {
+    "kind": "pseudocode|outline",
+    "lines": ["string", "..."]           // concise; <= 12 lines
+  },
+  "metrics": { "totalSteps": number }    // must equal steps.length
 }
 
-ANIMATION TYPES:
-- highlight: Show ranges/areas being considered (e.g., search space, window)
-- select: Emphasize current element being examined (e.g., middle element, pivot)
-- focus: Draw attention to specific element (e.g., target found, comparison result)
-- compare: Show elements being compared side-by-side (e.g., two sum pairs)
-
-ANIMATION PATTERNS:
-- Search algorithms: highlight search range → select current element → compare with target → highlight new range → repeat until found
-- Comparison processes: highlight pair → compare elements → highlight result → select next pair
-- Data transformation: highlight input → select elements → highlight output → repeat
-- Step-by-step processes: select current → highlight change → select next → repeat
-- Sorting algorithms: highlight unsorted → select pivot → compare elements → highlight sorted → repeat
-- Mathematical concepts: highlight input → select operation → highlight result → repeat
-
-TIMING GUIDELINES:
-- Do NOT include timing information (startTime, duration) - this is handled automatically
-- Focus on the logical sequence of steps
-- Elements in targetElements must exist in the arrays from the scene plan
-
-CRITICAL RULES:
-- Only animate elements that exist in the scene plan arrays
-- Each step should have a clear purpose in explaining the content
-- Animation sequence should follow the logical flow of the process
-- Use appropriate animation types for each step's purpose
-
-CONTENT EXAMPLES:
-Search algorithm: [1,3,5,7,9] → highlight range → select middle → compare → highlight new range
-Comparison process: [2,4,6,8] → highlight pair → compare → highlight result → next pair
-Data transformation: [10,20,30] → highlight input → select → highlight output
-Mathematical concept: [1,2,3,4] → highlight input → select operation → highlight result
-
-FINAL REMINDER: Return ONLY valid JSON. Do NOT include any text before or after the JSON object.`
+RULES
+- Keep everything compact and concrete; do not invent large data.
+- No timing fields. No UI styles. No domain-specific keys unless needed in 'state'.
+- 'state' should only include the minimal changing facts per step (variables, flags, active nodes, counters, etc.).
+- Prefer echoing provided pseudocode; otherwise synthesize a minimal, correct reference.
+- If pseudocode is inappropriate (e.g., system design), use 'outline' with crisp bullet-like lines.
+- Ensure 'inputs' satisfy the concept’s preconditions (e.g., “sorted” if relevant).
+- Validate: metrics.totalSteps === steps.length.
+`
       },
       {
-        role: 'user',
-        content: `Create animation plan for this educational content:
+        role: "user",
+        content: `Create an animation plan from this content plan:
 
-Content Plan: ${JSON.stringify(contentPlan, null, 2)}`
+${JSON.stringify(contentPlan)}`
       }
     ];
   }
+
 
   /**
    * DSL Emitter (LLM #3) - turns Content Plan + Animation Plan into DSL program
@@ -142,239 +133,71 @@ Content Plan: ${JSON.stringify(contentPlan, null, 2)}`
     return [
       {
         role: 'system',
-        content: `You are a DSL Emitter that translates Content Plan + Animation Plan to DSL commands.
-
-STRICT RULES:
-1. Output ONLY the DSL inside one \`\`\`dsl fenced block
-2. Do NOT specify grid positions - the procedural system will handle layout automatically
-3. Use array command ONLY for actual data arrays (numbers/strings representing array elements)
-4. Use animate command for animation steps from the animation plan
-5. Use caption command for synchronized text explanations during animations
-6. No prose, comments, or explanations outside the DSL block
-
-DSL Syntax:
-\`\`\`dsl
-seed <int>
-style <auto|Minimal|Monospace|...>
-
-heading "<title>"
-subtitle "<description>"
-explanation "<general explanation of the concept>"
-approach <order> "<step-by-step breakdown of the approach>"
-example "<problem example with target value>"
-array [v1,v2,v3]
-animate <type> [elements]
-caption <order> "<text>"
-conclusion <order> "<text>"
-\`\`\`
-
-Animation Types (for any 1-D array problem):
-- highlight: Visual highlighting of array elements (background color change)
-- select: Selection state (scaling for emphasis)
-- focus: Focus state (subtle scaling for attention)
-- compare: Comparison state (background color for comparison)
-
-**IMPORTANT**: All animation commands use 0-based array indices, not values!
-- For array [1,3,5,7,9]: use indices 0,1,2,3,4 (NOT values 1,3,5,7,9)
-
-CRITICAL ANIMATION USAGE RULES:
-- compare: ONLY for comparing TWO ELEMENTS WITHIN THE ARRAY
-  ✓ animate compare [2,7] - Compare elements at indices 2 and 7
-  ✓ animate compare [0,4] - Compare first and last elements (for array [1,3,5,7,9])
-  ✗ animate compare [2,5] when comparing array element with external target value
-- focus: For highlighting the current element being examined OR comparing with external target
-  ✓ animate focus [2] - Focus on middle element (value 5) at index 2
-  ✓ animate focus [2] - Compare middle element (5) with external target value (5)
-  ✓ animate focus [1] - Focus on current element in search (value 3) at index 1
-- select: For emphasizing a specific element (stronger than focus)
-  ✓ animate select [2] - Select the target element (value 5) at index 2
-  ✓ animate select [3] - Select the pivot element (value 7) at index 3
-- highlight: For showing ranges or areas being processed
-  ✓ animate highlight [0,4] - Highlight entire search range (indices 0 to 4)
-  ✓ animate highlight [2,4] - Highlight right half of array (indices 2 to 4)
-
-Heading Rules:
-- Generate a clear, descriptive title for the algorithm or concept being demonstrated
-- Keep headings concise but informative (e.g., "Binary Search Algorithm", "Bubble Sort Visualization")
-- Use title case formatting
-- Positioned at the top of the canvas, same distance from center as captions
-
-Subtitle Rules:
-- Generate a short, concise description of what the algorithm does
-- Keep subtitles very brief - maximum 6-8 words (e.g., "Finding target value in sorted array", "Sorting by swapping adjacent pairs")
-- Use sentence case formatting
-- Avoid full sentences - use phrases instead
-- Positioned below the heading, between heading and array content
-
-Explanation Rules:
-- Extract the general explanation from the content plan's problem.description field
-- Provide a clear, concise explanation of the concept being demonstrated
-- Use the exact text from the problem.description field
-- Positioned below the subtitle, between subtitle and approach steps
-- Helps learners understand the concept before seeing the detailed breakdown
-
-Approach Rules - CRITICAL:
-- Convert the content plan's approaches.optimal.keyIdeas array into sequential approach steps
-- Each key idea becomes an approach step with the format: approach <order> "<detailed step explanation>"
-- Steps should be ordered sequentially: approach 1, approach 2, approach 3, etc.
-- Each step should focus on HOW the algorithm works, not just what it does
-- Include technical details like formulas, data structures, or key concepts
-- Examples of good approach steps:
-  - "Binary search is implemented using 2 boundary pointers, start and end"
-  - "The boundary pointers are used to find the mid position"
-  - "The formula for finding the mid position is mid = (start + end) / 2"
-  - "Using the value at the mid position, if it's not the target, we can determine which subarray to focus on"
-  - "This is why it's important for the array to be sorted"
-- Positioned between explanation and example
-- Helps learners understand the detailed mechanics before seeing the example
-- CRITICAL: If approaches.optimal.keyIdeas is empty or missing, generate 3-5 approach steps based on the algorithm being explained
-
-Example Rules:
-- Extract the problem example from the content plan's problem.example field
-- Show the complete example including the target value being searched for
-- Use the exact text from the problem.example field
-- Positioned below the approach steps, between approach and array content
-- Helps learners understand what we're searching for after understanding the approach
-
-Caption Rules - CRITICAL:
-- Captions are simplified to only include order and text
-- DO NOT include any timing parameters, transition types, or animation specifications
-- DO NOT include "fade-in", "fade-out", "slide-up", "slide-down" or any other transition keywords
-- DO NOT include startTime, duration, exitTime, or any timing values
-- Caption format is EXACTLY: caption <order> "<text>"
-- Timing is automatically calculated based on caption order
-- Each caption gets: fadeIn (0.5s) + visibleTime (3s) + fadeOut (0.5s) = 4s total
-- Only one caption is visible at a time
-- Captions appear sequentially: caption 1, then caption 2, then caption 3, etc.
-- Entry/exit animations (fade in/out) are handled automatically by the system
-
-Caption Content Guidelines:
-- Captions should explain the ALGORITHMIC APPROACH, not just what's being highlighted
-- Focus on HOW the algorithm solves the problem, not just what's visually happening
-- Explain the reasoning behind each step (e.g., "Compare middle element with target to determine search direction")
-- Avoid generic descriptions like "Highlight the array" or "Select element 5"
-- Instead use: "Compare middle element with target to determine which half to search"
-- Each caption should advance the learner's understanding of the algorithm's logic
-
-Note: Animation styling (colors, scale factors, easing, duration) is procedurally generated based on the seed for consistent, theme-appropriate results.
-
-CRITICAL: 
-- Arrays are ONLY for visualizing actual data: [1,2,3], [5,10,15], [true,false]
-- Arrays are NEVER for concepts, explanations, or text content
-- Do NOT include grid positioning - the system will handle layout automatically
-- Use animate commands to show step-by-step process progression
-- **ANIMATION INDICES ARE 0-BASED**: Use array indices (0, 1, 2, 3...) NOT values
-- For array [1,3,5,7,9]: index 0=value 1, index 1=value 3, index 2=value 5, index 3=value 7, index 4=value 9
-- Do NOT include timing parameters (startTime, duration) - timing is handled automatically
-- Use caption commands for synchronized text explanations that appear during animations
-- Caption order should be sequential (1, 2, 3, etc.)
-- Caption timing is automatically synchronized with animation steps
-- Only one caption should be visible at a time (handled automatically)
-- Use conclusion command at the end to show time/space complexity and use cases
-- Conclusion automatically fades out the array and displays complexity information
-
-Conclusion Rules - CRITICAL:
-- Use the new ordered format: conclusion <order> "<text>"
-- Each conclusion renders over 2 rows with proper spacing
-- Conclusions are grouped in pairs and displayed together
-- Be explicit about complexity types: "Time Complexity: O(log n)", "Space Complexity: O(1)"
-- Include use cases: "Use Case: Searching in sorted arrays"
-- Make complexity analysis clear and educational
-- Example format:
-  conclusion 1 "Time Complexity: O(log n)"
-  conclusion 2 "Space Complexity: O(1)" 
-  conclusion 3 "Use Case: Searching in sorted arrays"
-
-GENERIC ANIMATION GUIDELINES:
-- Use animations for any process that involves step-by-step progression through data
-- Show current focus/selection at each step
-- Highlight relevant ranges or elements being processed
-- Demonstrate comparisons, transformations, or other operations
-- Do NOT include timing parameters - timing is handled automatically
-- **Use 0-based array indices**: For array [1,3,5,7,9], use indices 0,1,2,3,4 (NOT values 1,3,5,7,9)
-- Elements in animate commands must exist in the array (valid indices only)
-
-Example Pattern (works for any 1-D array problem):
-heading "Binary Search Algorithm"
-subtitle "Finding target value in sorted array"
-explanation "The binary search algorithm efficiently finds a target value within a sorted array by repeatedly dividing the search interval in half."
-approach 1 "Binary search is implemented using 2 boundary pointers, start and end"
-approach 2 "The boundary pointers are used to find the mid position"
-approach 3 "The formula for finding the mid position is mid = (start + end) / 2"
-approach 4 "Using the value at the mid position, if it's not the target, we can determine which subarray to focus on"
-approach 5 "This is why it's important for the array to be sorted"
-example "Given a sorted array [1, 3, 5, 7, 9] and a target value of 5, the algorithm will find the target in 3 steps."
-array [1,2,3,4,5,6,7,8,9]
-animate highlight [0,8]
-caption 1 "Start with the entire sorted array as our search range"
-animate focus [4]
-caption 2 "Find the middle element (5) and compare it with our target (5)"
-animate select [4]
-caption 3 "We found our target value 5 at the middle position"
-conclusion 1 "Time Complexity: O(log n)"
-conclusion 2 "Space Complexity: O(1)"
-conclusion 3 "Use Case: Searching in sorted arrays"
-
-Note: Timing is automatically calculated - animations start 0.5s after captions, captions appear sequentially, etc.
-Conclusion appears after all animations complete and fades out the array to show complexity information.
-
-Example of CORRECT usage:
-heading "Binary Search Algorithm"
-subtitle "Finding target value in sorted array"
-explanation "The binary search algorithm efficiently finds a target value within a sorted array by repeatedly dividing the search interval in half."
-approach 1 "Binary search is implemented using 2 boundary pointers, start and end"
-approach 2 "The boundary pointers are used to find the mid position"
-approach 3 "The formula for finding the mid position is mid = (start + end) / 2"
-approach 4 "Using the value at the mid position, if it's not the target, we can determine which subarray to focus on"
-approach 5 "This is why it's important for the array to be sorted"
-example "Given a sorted array [1, 3, 5, 7, 9] and a target value of 5, the algorithm will find the target in 3 steps."
-array [1,3,5,7,9]
-animate highlight [0,4]
-caption 1 "Start with the entire sorted array as our search range"
-animate focus [2]
-caption 2 "Find the middle element (5) and compare it with our target (5)"
-animate select [2]
-caption 3 "We found our target value 5 at the middle position"
-conclusion 1 "Time Complexity: O(log n)"
-conclusion 2 "Space Complexity: O(1)"
-conclusion 3 "Use Case: Searching in sorted arrays"
-
-COMMON ANIMATION MISTAKES TO AVOID:
-❌ animate compare [4,5] when caption says "compare middle element with target"
-  ✅ Use: animate focus [4] (focus on the element being examined)
-❌ animate compare [2,7] when comparing array element to external value
-  ✅ Use: animate focus [2] (focus on the array element)
-❌ animate select [10] when element doesn't exist in array
-  ✅ Only use elements that exist in the array
-❌ animate highlight [1,9] when array only has 5 elements
-  ✅ Use valid array indices
-
-Example of INCORRECT usage:
-array ["Binary Search Problem"]  ❌ - This is a title, not array data
-array ["Time: O(log n)","Space: O(1)"]  ❌ - This is complexity info, not array data
-array ["Divide and conquer", "Efficient searching"]  ❌ - These are key ideas, not array data
-array ["Target not found", "Array empty"]  ❌ - These are edge cases, not array data
-animate highlight [10,11] 0 2  ❌ - Elements don't exist in array
-caption 1 "Text" fade-in  ❌ - DO NOT include transition types
-caption 1 "Text" 0 0.5 5  ❌ - DO NOT include timing parameters
-caption 1 "Highlight the array"  ❌ - Too generic, explain the algorithmic approach
-conclusion "O(log n)" "O(1)" "Searching in sorted arrays"  ❌ - Old format, use ordered format
-conclusion 1 "O(log n)"  ❌ - Be explicit: "Time Complexity: O(log n)"
-
-ANIMATION INTEGRATION:
-- Use animation steps from the animation plan to generate animate commands
-- Each animation step should become an animate command with the specified timing
-- Use captions to provide explanations during animations
-- Ensure animation elements match the arrays in the scene plan`
+        content: `You are a DSL Emitter that converts a Content Plan (+ optional Animation Plan) into a compact DSL.
+  
+  RESPONSE FORMAT
+  - Output ONLY one \`\`\`dsl fenced block. No prose before/after.
+  
+  ALLOWED COMMANDS (line-oriented)
+  - seed <int>
+  - style <auto|Minimal|Monospace|...>
+  
+  - heading "<text>"
+  - subtitle "<text>"
+  - explanation """multiline text"""
+  
+  - approach <order> "<text>"          # ordered breakdown of the approach
+  - keyidea <order> "<text>"           # optional; ordered
+  - edgecase <order> "<text>"          # optional; ordered
+  
+  - pseudocode """multiline text"""    # optional; language-agnostic
+  
+  - example "<text>"                   # one-liner naming the demo
+  - target <scalar>                    # optional (search/look-up scenarios)
+  - goal "<text>"                      # optional (non-search demos)
+  
+  - array [v1,v2,...]                  # define data by index (numbers/strings/bools only)
+  - elements [E1,E2,...]               # define named elements for non-array demos (indices map to positions)
+  
+  - animate <type> [indices]           # types: select|highlight|focus|compare
+  - caption <order> "<text>"           # MUST immediately follow its animate line
+  
+  - conclusion <order> "<text>"        # ordered summary items (complexities, use-cases, takeaways)
+  
+  STRICT RULES
+  1) Do NOT include coordinates/layout/timing — the runtime handles those.
+  2) Use array indices (0-based) in \`animate\`; indices MUST exist in the most recent \`array\` or \`elements\` declaration.
+  3) \`animate compare\` is ONLY for comparing TWO array items (e.g., [i,j]). When comparing to an external value/target, use \`animate focus [i]\`.
+  4) Every \`caption <n>\` MUST immediately follow exactly one \`animate ...\`. The caption’s <n> values must be 1..N in order.
+  5) Keep captions explanatory (what changed & why), not purely descriptive (“highlight array” is too generic).
+  6) Use \`approach <order>\` to present the method before the demo (derive from contentPlan.approaches.optimal.keyIdeas or synthesize concise mechanics).
+  7) Always declare the demo context BEFORE animating:
+     - Use \`example "..."\` (and \`target ...\` if relevant) OR \`goal "..." \`.
+     - Then declare \`array [...]\` OR \`elements [...]\`.
+  8) If \`animationPlan\` is provided, prefer its steps. If absent, derive a minimal, clear sequence (3–7 animate/caption pairs) from the content plan’s algorithmExplanation + pseudocode.
+  9) \`pseudocode\` should be verbatim from the content plan when available; otherwise include a concise, language-agnostic version or omit if not applicable.
+  10) Keep everything compact and valid per the grammar above.
+  
+  SIMULATION GUIDANCE (generic, not prescriptive)
+  - If the topic has looped state (e.g., searches, passes, traversals), make each pair show a meaningful state change.
+  - For search-like demos: highlight current range or focus area → select/focus the current item → explain the decision → narrow/focus next area → repeat → finish.
+  - For system/process flows: highlight involved components/relations per step and explain the transition.
+  
+  OUTPUT ONLY:
+  \`\`\`dsl
+  ...your DSL...
+  \`\`\``
       },
       {
         role: 'user',
-        content: `Convert this Content Plan and Animation Plan to DSL:
-
-Content Plan: ${JSON.stringify(contentPlan, null, 2)}
-
-${animationPlan ? `Animation Plan: ${JSON.stringify(animationPlan, null, 2)}` : 'No animation plan provided - generate static content only'}`
+        content: `Emit DSL for the following inputs.
+  
+  Content Plan:
+  ${JSON.stringify(contentPlan, null, 2)}
+  
+  ${animationPlan ? `Animation Plan:\n${JSON.stringify(animationPlan, null, 2)}` : 'No Animation Plan provided (derive a minimal but clear demo).'}`
       }
     ];
   }
+
 }
