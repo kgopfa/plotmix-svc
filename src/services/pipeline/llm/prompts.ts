@@ -144,7 +144,7 @@ ${JSON.stringify(contentPlan)}`
   
   - heading "<text>"                    # required, from contentPlan.problem.title
   - subtitle "<text>"                   # required, short tagline, from contentPlan.problem.description
-  - explanation """multiline text"""    # general explanation, from contentPlan.algorithmExplanation
+  - explanation <order> "<text>"        # general explanation, from contentPlan.algorithmExplanation
   
   - approach <order> "<text>"           # ordered breakdown (from approaches.optimal.keyIdeas; rephrase as procedural steps)
   - keyidea <order> "<text>"            # ordered high-level principles (from keyIdeas; phrasing distinct from approach)
@@ -192,8 +192,15 @@ ${JSON.stringify(contentPlan)}`
      - Emit edgecase lines AFTER the animation section and BEFORE conclusions.
   10) Allowed commands ONLY:
      - Do NOT output unsupported commands (e.g., "animate relations ...", or any undeclared keyword).
-  11) Captions must explain algorithmic reasoning (what changed & why), not generic descriptions.
-  12) Keep all lines compact and educational; avoid duplication across lines.
+  11) explanation lines:
+    - Use explanation <order> "<text>".
+    - Emit 1–4 lines total. Keep each line short (max ~20 words).
+    - Lines should explain the mechanics at a high level (no arrays/indices).
+  12) example MUST be explicit:
+    - If animating an array, example MUST mention both the array and the target, e.g.:
+      example "Search for target=7 in array [1,3,5,7,9,11]"
+  13) Captions must explain algorithmic reasoning (what changed & why), not generic descriptions.
+  14) Keep all lines compact and educational; avoid duplication across lines.
   
   MAPPING SOURCES
   - heading ← contentPlan.problem.title
