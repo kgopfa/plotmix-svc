@@ -146,8 +146,8 @@ ${JSON.stringify(contentPlan)}`
   - subtitle "<text>"                   # required, short tagline, from contentPlan.problem.description
   - explanation """multiline text"""    # general explanation, from contentPlan.algorithmExplanation
   
-  - approach <order> "<text>"           # ordered breakdown (from approaches.optimal.keyIdeas)
-  - keyidea <order> "<text>"            # optional; ordered
+  - approach <order> "<text>"           # ordered breakdown (from approaches.optimal.keyIdeas; rephrase as procedural steps)
+  - keyidea <order> "<text>"            # ordered high-level principles (from keyIdeas; phrasing distinct from approach)
   - pseudocode """multiline text"""     # optional, from contentPlan.pseudocode
   
   - example "<text>"                    # concise demo description, from contentPlan.problem.example or synthesized
@@ -165,29 +165,49 @@ ${JSON.stringify(contentPlan)}`
   - alternative <order> "<text>"        # naive/other approaches, ordered (from approaches.naive)
   
   STRICT RULES
-  1) Do NOT include coordinates, layout, or timing — the runtime handles those.
+  1) No coordinates, layout, styling, or timing — the runtime handles those.
   2) subtitle:
-     - Derived from problem.description
-     - Keep it short (6–10 words), phrased as what the concept does.
-     - Examples: "How binary search finds a target value in a sorted array", "Sorting by swapping adjacent pairs"
-  3) Use 0-based indices in animate commands; they must exist in the most recent array/elements declaration.
-  4) animate compare is ONLY for comparing two array indices. For comparisons against external targets, use animate focus [i].
-  5) Every caption <n> must immediately follow an animate. Caption numbers are sequential.
-  6) Always declare demo context BEFORE animating:
-     - example + target (or goal), then array or elements.
-  7) Mapping sources:
-     - heading ← problem.title
-     - subtitle ← problem.description
-     - explanation ← algorithmExplanation
-     - approach ← approaches.optimal.keyIdeas
-     - pseudocode ← pseudocode array
-     - example ← problem.example (or synthesize)
-     - target/goal ← from animationPlan.scenario
-     - edgecase ← edgeCases
-     - conclusion ← complexities/use-cases (synthesize if absent)
-     - alternative ← approaches.naive (title + description + complexity)
-  8) Captions must explain algorithmic reasoning, not just visuals.
-  9) Keep all lines compact and educational.
+     - Derive from problem.description.
+     - Keep it short (≈6–10 words), action-oriented (what the concept does).
+  3) Demo context MUST precede animations:
+     - Emit example (and target if relevant) OR goal.
+     - Then declare array [...] OR elements [...].
+  4) Animations:
+     - Use 0-based indices that exist in the most recent array/elements.
+     - animate compare is ONLY for two array indices [i,j]. To compare against an external target, use animate focus [i].
+     - Every caption <n> MUST immediately follow exactly one animate; caption numbers are sequential with no gaps.
+  5) Canonical section order:
+     heading → subtitle → explanation → approach* → keyidea* → pseudocode? → example → (target|goal) → array|elements → [animate+caption]* → edgecase* → conclusion* → alternative*
+  6) 1-based ordering ONLY:
+     - approach, keyidea, edgecase, caption, conclusion, alternative all use 1..N with no gaps inside their own section.
+  7) Key ideas are MANDATORY when present:
+     - If contentPlan.approaches.optimal.keyIdeas exists, you MUST emit BOTH:
+       a) approach <order> lines (procedural mechanics), and
+       b) keyidea <order> lines (principles with distinct phrasing).
+       Target 2–5 keyidea lines; avoid duplicating approach text.
+  8) Alternatives are MANDATORY when naive exists:
+     - If contentPlan.approaches.naive exists, emit at least one alternative <order> line:
+       "<title> — <description> (<complexity>)".
+  9) Edge cases placement:
+     - Emit edgecase lines AFTER the animation section and BEFORE conclusions.
+  10) Allowed commands ONLY:
+     - Do NOT output unsupported commands (e.g., "animate relations ...", or any undeclared keyword).
+  11) Captions must explain algorithmic reasoning (what changed & why), not generic descriptions.
+  12) Keep all lines compact and educational; avoid duplication across lines.
+  
+  MAPPING SOURCES
+  - heading ← contentPlan.problem.title
+  - subtitle ← contentPlan.problem.description (shortened)
+  - explanation ← contentPlan.algorithmExplanation
+  - approach ← contentPlan.approaches.optimal.keyIdeas (rephrased as steps)
+  - keyidea ← contentPlan.approaches.optimal.keyIdeas (principles, distinct phrasing)
+  - pseudocode ← contentPlan.pseudocode (join as multiline)
+  - example ← contentPlan.problem.example (or synthesize concise one-liner)
+  - target/goal ← animationPlan.scenario if provided; otherwise synthesize consistent with example
+  - array/elements ← animationPlan.scenario.inputs if provided; otherwise synthesize small, valid inputs
+  - edgecase ← contentPlan.edgeCases (de-duplicate)
+  - conclusion ← complexities/use-cases (synthesize if absent)
+  - alternative ← contentPlan.approaches.naive (title + description + complexity)
   
   OUTPUT ONLY:
   \`\`\`dsl
