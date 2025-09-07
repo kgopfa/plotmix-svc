@@ -15,27 +15,9 @@ export interface ChainedExecutionResult {
 
 export class ChainedCaller {
   private client: LlmClient;
-  private lastCallTime: number = 0;
-  private readonly minCallInterval = 1000; // 1 second between calls
 
   constructor() {
     this.client = LlmFactory.create();
-  }
-
-  /**
-   * Rate limiting helper
-   */
-  private async rateLimit(): Promise<void> {
-    const now = Date.now();
-    const timeSinceLastCall = now - this.lastCallTime;
-    
-    if (timeSinceLastCall < this.minCallInterval) {
-      const delay = this.minCallInterval - timeSinceLastCall;
-      logger.info('llm-pipeline:rate_limiting', { delay });
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-    
-    this.lastCallTime = Date.now();
   }
 
   /**
@@ -46,7 +28,6 @@ export class ChainedCaller {
       logger.info('llm-pipeline:start', { promptLength: prompt.length });
 
       // Stage 1: Content Planner
-      await this.rateLimit();
       const contentPlanResult = await this.executeContentPlanner(prompt);
       if (!contentPlanResult.success) {
         logger.error('llm-pipeline:content_planner_failed', { error: contentPlanResult.error });
@@ -64,7 +45,6 @@ export class ChainedCaller {
       });
 
       // Stage 2: Visual Planner
-      await this.rateLimit();
       const scenePlanResult = await this.executeVisualPlanner(contentPlan);
       if (!scenePlanResult.success) {
         logger.error('llm-pipeline:visual_planner_failed', { error: scenePlanResult.error });
@@ -82,7 +62,6 @@ export class ChainedCaller {
       });
 
       // Stage 3: Animation Planner
-      await this.rateLimit();
       const animationPlanResult = await this.executeAnimationPlanner(scenePlan, contentPlan);
       if (!animationPlanResult.success) {
         logger.error('llm-pipeline:animation_planner_failed', { error: animationPlanResult.error });
@@ -100,7 +79,6 @@ export class ChainedCaller {
       });
 
       // Stage 4: DSL Emitter
-      await this.rateLimit();
       const dslResult = await this.executeDslEmitter(scenePlan, animationPlan);
       if (!dslResult.success) {
         logger.error('llm-pipeline:dsl_emitter_failed', { error: dslResult.error });
