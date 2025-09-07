@@ -142,46 +142,52 @@ ${JSON.stringify(contentPlan)}`
   - seed <int>
   - style <auto|Minimal|Monospace|...>
   
-  - heading "<text>"
-  - subtitle "<text>"
-  - explanation """multiline text"""
+  - heading "<text>"                    # required, from contentPlan.problem.title
+  - subtitle "<text>"                   # required, short tagline, from contentPlan.problem.description
+  - explanation """multiline text"""    # general explanation, from contentPlan.algorithmExplanation
   
-  - approach <order> "<text>"          # ordered breakdown of the approach
-  - keyidea <order> "<text>"           # optional; ordered
-  - edgecase <order> "<text>"          # optional; ordered
+  - approach <order> "<text>"           # ordered breakdown (from approaches.optimal.keyIdeas)
+  - keyidea <order> "<text>"            # optional; ordered
+  - pseudocode """multiline text"""     # optional, from contentPlan.pseudocode
   
-  - pseudocode """multiline text"""    # optional; language-agnostic
+  - example "<text>"                    # concise demo description, from contentPlan.problem.example or synthesized
+  - target <scalar>                     # optional, for search/find demos
+  - goal "<text>"                       # optional, for non-search demos
   
-  - example "<text>"                   # one-liner naming the demo
-  - target <scalar>                    # optional (search/look-up scenarios)
-  - goal "<text>"                      # optional (non-search demos)
+  - array [v1,v2,...]                   # numbers/strings/bools only
+  - elements [E1,E2,...]                # named items for non-array demos
   
-  - array [v1,v2,...]                  # define data by index (numbers/strings/bools only)
-  - elements [E1,E2,...]               # define named elements for non-array demos (indices map to positions)
+  - animate <type> [indices]            # types: select|highlight|focus|compare
+  - caption <order> "<text>"            # MUST immediately follow its animate line
   
-  - animate <type> [indices]           # types: select|highlight|focus|compare
-  - caption <order> "<text>"           # MUST immediately follow its animate line
-  
-  - conclusion <order> "<text>"        # ordered summary items (complexities, use-cases, takeaways)
+  - edgecase <order> "<text>"           # pitfalls (from contentPlan.edgeCases), ordered
+  - conclusion <order> "<text>"         # complexities/use-cases, ordered
+  - alternative <order> "<text>"        # naive/other approaches, ordered (from approaches.naive)
   
   STRICT RULES
-  1) Do NOT include coordinates/layout/timing — the runtime handles those.
-  2) Use array indices (0-based) in \`animate\`; indices MUST exist in the most recent \`array\` or \`elements\` declaration.
-  3) \`animate compare\` is ONLY for comparing TWO array items (e.g., [i,j]). When comparing to an external value/target, use \`animate focus [i]\`.
-  4) Every \`caption <n>\` MUST immediately follow exactly one \`animate ...\`. The caption’s <n> values must be 1..N in order.
-  5) Keep captions explanatory (what changed & why), not purely descriptive (“highlight array” is too generic).
-  6) Use \`approach <order>\` to present the method before the demo (derive from contentPlan.approaches.optimal.keyIdeas or synthesize concise mechanics).
-  7) Always declare the demo context BEFORE animating:
-     - Use \`example "..."\` (and \`target ...\` if relevant) OR \`goal "..." \`.
-     - Then declare \`array [...]\` OR \`elements [...]\`.
-  8) If \`animationPlan\` is provided, prefer its steps. If absent, derive a minimal, clear sequence (3–7 animate/caption pairs) from the content plan’s algorithmExplanation + pseudocode.
-  9) \`pseudocode\` should be verbatim from the content plan when available; otherwise include a concise, language-agnostic version or omit if not applicable.
-  10) Keep everything compact and valid per the grammar above.
-  
-  SIMULATION GUIDANCE (generic, not prescriptive)
-  - If the topic has looped state (e.g., searches, passes, traversals), make each pair show a meaningful state change.
-  - For search-like demos: highlight current range or focus area → select/focus the current item → explain the decision → narrow/focus next area → repeat → finish.
-  - For system/process flows: highlight involved components/relations per step and explain the transition.
+  1) Do NOT include coordinates, layout, or timing — the runtime handles those.
+  2) subtitle:
+     - Derived from problem.description
+     - Keep it short (6–10 words), phrased as what the concept does.
+     - Examples: "How binary search finds a target value in a sorted array", "Sorting by swapping adjacent pairs"
+  3) Use 0-based indices in animate commands; they must exist in the most recent array/elements declaration.
+  4) animate compare is ONLY for comparing two array indices. For comparisons against external targets, use animate focus [i].
+  5) Every caption <n> must immediately follow an animate. Caption numbers are sequential.
+  6) Always declare demo context BEFORE animating:
+     - example + target (or goal), then array or elements.
+  7) Mapping sources:
+     - heading ← problem.title
+     - subtitle ← problem.description
+     - explanation ← algorithmExplanation
+     - approach ← approaches.optimal.keyIdeas
+     - pseudocode ← pseudocode array
+     - example ← problem.example (or synthesize)
+     - target/goal ← from animationPlan.scenario
+     - edgecase ← edgeCases
+     - conclusion ← complexities/use-cases (synthesize if absent)
+     - alternative ← approaches.naive (title + description + complexity)
+  8) Captions must explain algorithmic reasoning, not just visuals.
+  9) Keep all lines compact and educational.
   
   OUTPUT ONLY:
   \`\`\`dsl
