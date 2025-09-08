@@ -150,9 +150,7 @@ ${JSON.stringify(contentPlan)}`
   - keyidea <order> "<text>"            # ordered high-level principles (from keyIdeas; phrasing distinct from approach)
   - pseudocode """multiline text"""     # optional, from contentPlan.pseudocode
   
-  - example "<text>"                    # concise demo description, from contentPlan.problem.example or synthesized
-  - target <scalar>                     # optional, for search/find demos
-  - goal "<text>"                       # optional, for non-search demos
+  - example "<text>"                    # explicit example with target and data structure (for example an array), from contentPlan.problem.example or synthesized
   
   - array [v1,v2,...]                   # numbers/strings/bools only
   - elements [E1,E2,...]                # named items for non-array demos
@@ -196,9 +194,9 @@ ${JSON.stringify(contentPlan)}`
     - Use explanation <order> "<text>".
     - Emit 1–4 lines total. Keep each line short (max ~20 words).
     - Lines should explain the mechanics at a high level (no arrays/indices).
-  12) example MUST be explicit:
+  12) IMPORTANT: example MUST be explicit:
     - If animating an array, example MUST mention both the array and the target, e.g.:
-      example "Search for target=7 in array [1,3,5,7,9,11]"
+      example "Search for target=a in array [a,b,c,d,e]"
   13) Captions must explain algorithmic reasoning (what changed & why), not generic descriptions.
   14) Keep all lines compact and educational; avoid duplication across lines.
   
@@ -210,7 +208,6 @@ ${JSON.stringify(contentPlan)}`
   - keyidea ← contentPlan.approaches.optimal.keyIdeas (principles, distinct phrasing)
   - pseudocode ← contentPlan.pseudocode (join as multiline)
   - example ← contentPlan.problem.example (or synthesize concise one-liner)
-  - target/goal ← animationPlan.scenario if provided; otherwise synthesize consistent with example
   - array/elements ← animationPlan.scenario.inputs if provided; otherwise synthesize small, valid inputs
   - edgecase ← contentPlan.edgeCases (de-duplicate)
   - conclusion ← complexities/use-cases (synthesize if absent)

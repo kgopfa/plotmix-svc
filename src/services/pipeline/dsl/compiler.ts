@@ -67,8 +67,8 @@ export class DslCompiler {
         return this.parsePseudocode(line);
       case 'keyidea':
         return this.parseKeyidea(line);
-      case 'goal':
-        return this.parseGoal(line);
+      /* case 'goal':
+        return this.parseGoal(line); */
       default:
         logger.error(`Unknown DSL command: ${command}`);
         throw new Error(`Unknown DSL command: ${command}`);
@@ -342,6 +342,7 @@ export class DslCompiler {
     };
   }
 
+  /*
   private static parseGoal(line: string): Action | null {
     // Parse: goal "Demonstrate how binary search efficiently finds a target in a sorted array."
     const goalMatch = line.match(/^goal\s+"([^"]+)"/);
@@ -357,4 +358,5 @@ export class DslCompiler {
       text
     };
   }
+  */
 }
