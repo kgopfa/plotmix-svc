@@ -168,14 +168,14 @@ ${JSON.stringify(contentPlan)}`
      - Derive from problem.description.
      - Keep it short (≈6–10 words), action-oriented (what the concept does).
   3) Demo context MUST precede animations:
-     - Emit example (and target if relevant) OR goal.
+     - Emit example (and target if relevant).
      - Then declare array [...] OR elements [...].
   4) Animations:
      - Use 0-based indices that exist in the most recent array/elements.
      - animate compare is ONLY for two array indices [i,j]. To compare against an external target, use animate focus [i].
      - Every caption <n> MUST immediately follow exactly one animate; caption numbers are sequential with no gaps.
   5) Canonical section order:
-     heading → subtitle → explanation → approach* → keyidea* → pseudocode? → example → (target|goal) → array|elements → [animate+caption]* → edgecase* → conclusion* → alternative*
+     heading → subtitle → explanation → approach* → keyidea* → pseudocode? → example → array|elements → [animate+caption]* → edgecase* → conclusion* → alternative*
   6) 1-based ordering ONLY:
      - approach, keyidea, edgecase, caption, conclusion, alternative all use 1..N with no gaps inside their own section.
   7) Key ideas are MANDATORY when present:
