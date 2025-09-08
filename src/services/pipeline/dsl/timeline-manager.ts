@@ -46,7 +46,7 @@ const TIMING_CONFIG = {
 };
 
 // Calculate all timing values based on configuration
-function calculateTimingValues() {
+function calculateTimingValues(explanationCount: number = 1) {
   // Heading timing
   const headingEndTime = TIMING_CONFIG.headingStartTime + TIMING_CONFIG.fadeInDuration;
   
@@ -55,9 +55,12 @@ function calculateTimingValues() {
   const subtitleEndTime = subtitleStartTime + TIMING_CONFIG.fadeInDuration;
   
   // Explanation timing - starts after subtitle
+  // Each explanation takes: fadeIn + visibleTime + fadeOut
+  const explanationStepDuration = TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.explanationVisibleTime + TIMING_CONFIG.fadeOutDuration;
+  const totalExplanationDuration = explanationCount * explanationStepDuration;
   const explanationStartTime = subtitleEndTime;
-  const explanationEndTime = explanationStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.explanationVisibleTime;
-  const explanationRemovedTime = explanationEndTime + TIMING_CONFIG.fadeOutDuration;
+  const explanationEndTime = explanationStartTime + totalExplanationDuration;
+  const explanationRemovedTime = explanationEndTime;
   
   // Pseudocode timing - starts after explanation is removed
   const pseudocodeStartTime = explanationRemovedTime;
@@ -117,7 +120,7 @@ export const DEFAULT_TIMELINE_CONFIG: VideoTimelineConfig = {
   
   // Element-specific timing - calculated from variables
   get elementTiming() {
-    const timing = calculateTimingValues();
+    const timing = calculateTimingValues(1); // Default to 1 explanation for static config
     
     return {
       heading: { 
@@ -216,6 +219,7 @@ export class TimelineManager {
   private animationCount: number = 0;
   private conclusionCount: number = 0;
   private approachCount: number = 0;
+  private explanationCount: number = 0;
   private edgecaseCount: number = 0;
   private alternativeCount: number = 0;
   private keyideaCount: number = 0;
@@ -228,7 +232,7 @@ export class TimelineManager {
    * Override elementTiming to use dynamically calculated values
    */
   get elementTiming() {
-    const timing = calculateTimingValues();
+    const timing = calculateTimingValues(this.explanationCount);
     
     // Calculate dynamic timing based on content counts
     const approachStepDuration = TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.approachVisibleTime + TIMING_CONFIG.fadeOutDuration;
@@ -313,7 +317,7 @@ export class TimelineManager {
     animationCount: number, 
     conclusionCount: number = 0, 
     approachCount: number = 0,
-    _explanationCount: number = 0,
+    explanationCount: number = 0,
     edgecaseCount: number = 0,
     alternativeCount: number = 0,
     keyideaCount: number = 0,
@@ -323,6 +327,7 @@ export class TimelineManager {
     this.animationCount = animationCount;
     this.conclusionCount = conclusionCount;
     this.approachCount = approachCount;
+    this.explanationCount = explanationCount;
     this.edgecaseCount = edgecaseCount;
     this.alternativeCount = alternativeCount;
     this.keyideaCount = keyideaCount;
@@ -333,7 +338,7 @@ export class TimelineManager {
    * Calculate dynamic timing for all sections based on content counts
    */
   private calculateDynamicTiming(): void {
-    const timing = calculateTimingValues();
+    const timing = calculateTimingValues(this.explanationCount);
     
     // Calculate approach section duration based on number of approach steps
     const approachStepDuration = TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.approachVisibleTime + TIMING_CONFIG.fadeOutDuration;
@@ -452,7 +457,7 @@ export class TimelineManager {
    * Get section timing
    */
   getSectionTiming(sectionName: string): { startTime: number; endTime: number } | null {
-    const timing = calculateTimingValues();
+    const timing = calculateTimingValues(this.explanationCount);
     
     // Calculate approach section duration based on number of approach steps
     const approachStepDuration = TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.approachVisibleTime + TIMING_CONFIG.fadeOutDuration;
@@ -496,7 +501,7 @@ export class TimelineManager {
    * Calculate caption timing for a specific caption order
    */
   calculateCaptionTiming(captionOrder: number): { startTime: number; fadeInEnd: number; fadeOutStart: number; endTime: number } {
-    const timing = calculateTimingValues();
+    const timing = calculateTimingValues(this.explanationCount);
     
     // Calculate array timing - starts after example is fully removed
     const approachStepDuration = TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.approachVisibleTime + TIMING_CONFIG.fadeOutDuration;
@@ -525,7 +530,7 @@ export class TimelineManager {
    * Calculate animation timing for a specific animation order
    */
   calculateAnimationTiming(animationOrder: number): { startTime: number; endTime: number } {
-    const timing = calculateTimingValues();
+    const timing = calculateTimingValues(this.explanationCount);
     
     const startTime = timing.firstCaptionStartTime + (animationOrder - 1) * timing.totalCaptionDuration + TIMING_CONFIG.animationOffset;
     
@@ -539,7 +544,7 @@ export class TimelineManager {
    * Calculate conclusion timing for a specific conclusion order
    */
   calculateConclusionTiming(conclusionOrder: number): { startTime: number; fadeInEnd: number; fadeOutStart: number; endTime: number } {
-    const timing = calculateTimingValues();
+    const timing = calculateTimingValues(this.explanationCount);
     
     // Calculate main section end time
     const approachStepDuration = TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.approachVisibleTime + TIMING_CONFIG.fadeOutDuration;
@@ -572,7 +577,7 @@ export class TimelineManager {
    * Get total video duration
    */
   getTotalDuration(): number {
-    const timing = calculateTimingValues();
+    const timing = calculateTimingValues(this.explanationCount);
     
     // Calculate approach section duration based on number of approach steps
     const approachStepDuration = TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.approachVisibleTime + TIMING_CONFIG.fadeOutDuration;

@@ -1,6 +1,14 @@
 import OpenAI from 'openai';
 // Intentionally no logging here; this is a thin connection singleton
 
+// Helper function to check if a model only supports default temperature
+export function isTemperatureRestrictedModel(modelName: string): boolean {
+  const temperatureRestrictedModels = ['o1', 'o3-mini', 'o1-preview', 'o1-mini', 'gpt-4o-mini', 'gpt-4o', 'gpt-4', 'gpt-5', 'gpt-5-mini'];
+  return temperatureRestrictedModels.some(restricted => 
+    modelName.toLowerCase().includes(restricted)
+  );
+}
+
 export interface OpenAIConfig {
   apiKey: string;
   model: string;
@@ -128,16 +136,26 @@ export class OpenAIClient {
 
   public async callLLMMessages(
     messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
-    options: { json?: boolean; temperature?: number; modelOverride?: string; attempts?: number } = {}
+    options: { json?: boolean; temperature?: number | undefined; modelOverride?: string; attempts?: number } = {}
   ): Promise<any> {
     const sdk = this.getSdk();
     const attempts = options.attempts ?? 2;
     return this.withRetry(async () => {
+      const modelName = options.modelOverride || this.config.model;
+      const isTemperatureRestricted = isTemperatureRestrictedModel(modelName);
+
       const body: any = {
-        model: options.modelOverride || this.config.model,
+        model: modelName,
         messages,
-        temperature: options.temperature ?? 0.2,
       };
+
+      // Only set temperature if the model supports it and temperature is provided
+      if (!isTemperatureRestricted && options.temperature !== undefined) {
+        body.temperature = options.temperature;
+      }
+      
+      console.log(`[OpenAI] callLLMMessages - Model: ${modelName}, Temperature restricted: ${isTemperatureRestricted}, Body temperature: ${body.temperature || 'not set'}`);
+
       if (options.json !== false) {
         body.response_format = { type: 'json_object' } as const;
       }
@@ -157,7 +175,7 @@ export class OpenAIClient {
 
   public async callLLMPrompt(
     prompt: string,
-    options: { json?: boolean; temperature?: number; modelOverride?: string; attempts?: number } = {}
+    options: { json?: boolean; temperature?: number | undefined; modelOverride?: string; attempts?: number } = {}
   ): Promise<any> {
     return this.callLLMMessages([{ role: 'user', content: prompt }], options);
   }
@@ -212,9 +230,14 @@ Generate JavaScript code that accomplishes this request:`;
     ];
 
     try {
+      // Check if the model only supports default temperature (like o1, o3-mini series)
+      const isTemperatureRestricted = isTemperatureRestrictedModel(this.config.model);
+      
+      console.log(`[OpenAI] Model: ${this.config.model}, Temperature restricted: ${isTemperatureRestricted}`);
+
       const response = await this.callLLMMessages(messages, { 
         json: false, 
-        temperature: 0.3,
+        temperature: isTemperatureRestricted ? undefined : 0.3,
         attempts: 2 
       });
       

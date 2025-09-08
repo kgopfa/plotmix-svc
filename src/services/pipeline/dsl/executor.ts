@@ -193,7 +193,6 @@ export function execute(program: ActionProgram): Scene {
   
   // Track animation order for synchronization
   let animationOrder = 0;
-  let explanationOrder = 0;
   let exampleOrder = 0;
 
   // Preprocessing: Count content for timeline manager initialization
@@ -713,16 +712,19 @@ export function execute(program: ActionProgram): Scene {
         textStrokeWidth: 0
       };
 
-      // Get timing from config
-      explanationOrder++;
+      // Get timing from config - explanations should appear sequentially like captions
       const explanationTiming = timelineManager.getElementTiming('explanation');
       
       if (explanationTiming) {
-        // Add fade-in animation for explanation
+        // Calculate sequential timing for each explanation step (same pattern as captions)
+        const totalExplanationDuration = explanationTiming.fadeInDuration! + explanationTiming.visibleTime! + explanationTiming.fadeOutDuration!;
+        const explanationStartTime = explanationTiming.startTime! + (act.order - 1) * totalExplanationDuration;
+        
+        // Add fade-in animation for explanation step
         explanation.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: explanationTiming.startTime!,
+          startTime: explanationStartTime,
           duration: explanationTiming.fadeInDuration!,
           properties: { alpha: 1 },
           easing: "power1.inOut",
@@ -732,11 +734,11 @@ export function execute(program: ActionProgram): Scene {
           repeatDelay: 0
         });
 
-        // Add fade-out animation for explanation
+        // Add fade-out animation for explanation step
         explanation.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: explanationTiming.fadeOutStartTime!,
+          startTime: explanationStartTime + explanationTiming.fadeInDuration! + explanationTiming.visibleTime!,
           duration: explanationTiming.fadeOutDuration!,
           properties: { alpha: 0 },
           easing: "power1.inOut",

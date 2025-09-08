@@ -6,7 +6,7 @@ export type PipelineStage = 'planner' | 'animation' | 'dsl';
 export type Stage = 'planner' | 'entities' | 'actions';
 
 export interface LlmClient {
-  callStage(stage: Stage | PipelineStage, messages: Array<{ role: Role; content: string }>, opts?: { json?: boolean; temperature?: number }): Promise<any>;
+  callStage(stage: Stage | PipelineStage, messages: Array<{ role: Role; content: string }>, opts?: { json?: boolean; temperature?: number | undefined }): Promise<any>;
 }
 
 export interface BaseLlmConfig {

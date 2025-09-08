@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import type { LlmClient, Stage, Role, OpenAiConfig, PipelineStage } from './types';
+import { isTemperatureRestrictedModel } from '../openai.client';
 
 export class OpenAiLlmClient implements LlmClient {
   private readonly sdk: OpenAI;
@@ -23,17 +24,25 @@ export class OpenAiLlmClient implements LlmClient {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  async callStage(stage: Stage | PipelineStage, messages: Array<{ role: Role; content: string }>, opts: { json?: boolean; temperature?: number } = {}): Promise<any> {
+  async callStage(stage: Stage | PipelineStage, messages: Array<{ role: Role; content: string }>, opts: { json?: boolean; temperature?: number | undefined } = {}): Promise<any> {
     const maxRetries = 3;
     let lastError: any;
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
+        const modelName = this.modelFor(stage);
+        const isTemperatureRestricted = isTemperatureRestrictedModel(modelName);
+
         const body: any = {
-          model: this.modelFor(stage),
+          model: modelName,
           messages,
-          temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.2,
         };
+
+        // Only set temperature if the model supports it and temperature is provided
+        if (!isTemperatureRestricted && opts.temperature !== undefined) {
+          body.temperature = opts.temperature;
+        }
+
         if (opts.json !== false) body.response_format = { type: 'json_object' } as const;
         
         const res = await this.sdk.chat.completions.create(body);
