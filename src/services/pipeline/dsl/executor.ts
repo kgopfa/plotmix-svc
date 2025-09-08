@@ -201,6 +201,11 @@ export function execute(program: ActionProgram): Scene {
   let animationCount = 0;
   let conclusionCount = 0;
   let approachCount = 0;
+  let explanationCount = 0;
+  let edgecaseCount = 0;
+  let alternativeCount = 0;
+  let keyideaCount = 0;
+  let pseudocodeCount = 0;
   
   for (const act of program) {
     if (act.kind === "CAPTION") {
@@ -211,11 +216,31 @@ export function execute(program: ActionProgram): Scene {
       conclusionCount++;
     } else if (act.kind === "APPROACH") {
       approachCount++;
+    } else if (act.kind === "EXPLANATION") {
+      explanationCount++;
+    } else if (act.kind === "EDGECASE") {
+      edgecaseCount++;
+    } else if (act.kind === "ALTERNATIVE") {
+      alternativeCount++;
+    } else if (act.kind === "KEYIDEA") {
+      keyideaCount++;
+    } else if (act.kind === "PSEUDOCODE") {
+      pseudocodeCount++;
     }
   }
   
   // Initialize timeline manager with content counts
-  timelineManager.setContentCounts(captionCount, animationCount, conclusionCount, approachCount);
+  timelineManager.setContentCounts(
+    captionCount, 
+    animationCount, 
+    conclusionCount, 
+    approachCount,
+    explanationCount,
+    edgecaseCount,
+    alternativeCount,
+    keyideaCount,
+    pseudocodeCount
+  );
 
   // First pass: process setup and build caption timing map
   for (const act of program) {
@@ -655,7 +680,7 @@ export function execute(program: ActionProgram): Scene {
         x: explanationX,
         y: explanationY,
         id: explanationId,
-        name: `Explanation`,
+        name: `Explanation ${act.order}`,
         text: act.text,
         type: "text",
         width: explanationWidth, // Use calculated width, max 1200px
@@ -703,7 +728,7 @@ export function execute(program: ActionProgram): Scene {
           easing: "power1.inOut",
           yoyo: false,
           repeat: 0,
-          displayName: "explanation-fade-in",
+          displayName: `explanation-${act.order}-fade-in`,
           repeatDelay: 0
         });
 
@@ -717,7 +742,7 @@ export function execute(program: ActionProgram): Scene {
           easing: "power1.inOut",
           yoyo: false,
           repeat: 0,
-          displayName: "explanation-fade-out",
+          displayName: `explanation-${act.order}-fade-out`,
           repeatDelay: 0
         });
       }
@@ -992,6 +1017,362 @@ export function execute(program: ActionProgram): Scene {
       });
 
       elements.push(conclusion);
+    }
+
+    if (act.kind === "EDGECASE") {
+      // Handle edgecase commands - create static text elements
+      const edgecaseId = randomUUID();
+      
+      // Position edgecases below the array area
+      const edgecaseY = 120; // Below array area
+      const edgecaseX = 0; // Center horizontally
+      
+      // Create edgecase text element
+      const edgecaseFontSize = style.typography.size * 0.75;
+      const calculatedEdgecaseWidth = calculateTextWidth(act.text, edgecaseFontSize, style.typography.family);
+      const edgecaseWidth = Math.min(calculatedEdgecaseWidth, 1000);
+      const edgecaseHeight = style.typography.size * 1.1;
+      
+      const edgecase: TextEl = {
+        animations: [],
+        fill: style.palette.text,
+        x: edgecaseX,
+        y: edgecaseY,
+        id: edgecaseId,
+        name: `Edgecase ${act.order}`,
+        text: act.text,
+        type: "text",
+        width: edgecaseWidth,
+        height: edgecaseHeight,
+        fontFamily: style.typography.family,
+        fontSize: edgecaseFontSize,
+        fontWeight: "normal",
+        textAlign: "center",
+        pivotX: edgecaseWidth / 2,
+        pivotY: edgecaseHeight / 2,
+        zIndex: 12,
+        opacity: 0,
+        visible: true,
+        groupId: "",
+        wordWrap: true,
+        fontStyle: "normal",
+        lineHeight: 1.2,
+        shadowBlur: 0,
+        shadowColor: "#000000",
+        strokeWidth: 0,
+        cornerRadius: 0,
+        letterSpacing: 0,
+        shadowEnabled: false,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowOpacity: 0,
+        wordWrapWidth: edgecaseWidth,
+        textStrokeJoin: "round",
+        isAnimationPath: false,
+        textStrokeWidth: 0
+      };
+
+      // Get timing from config
+      const edgecaseTiming = timelineManager.getElementTiming('edgecase');
+      
+      if (edgecaseTiming) {
+        // Add fade-in animation for edgecase
+        edgecase.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: edgecaseTiming.startTime!,
+          duration: edgecaseTiming.fadeInDuration!,
+          properties: { alpha: 1 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `edgecase-${act.order}-fade-in`,
+          repeatDelay: 0
+        });
+
+        // Add fade-out animation for edgecase
+        edgecase.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: edgecaseTiming.fadeOutStartTime!,
+          duration: edgecaseTiming.fadeOutDuration!,
+          properties: { alpha: 0 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `edgecase-${act.order}-fade-out`,
+          repeatDelay: 0
+        });
+      }
+
+      elements.push(edgecase);
+    }
+
+    if (act.kind === "ALTERNATIVE") {
+      // Handle alternative commands - create static text elements
+      const alternativeId = randomUUID();
+      
+      // Position alternatives below edgecases
+      const alternativeY = 180; // Below edgecases
+      const alternativeX = 0; // Center horizontally
+      
+      // Create alternative text element
+      const alternativeFontSize = style.typography.size * 0.75;
+      const calculatedAlternativeWidth = calculateTextWidth(act.text, alternativeFontSize, style.typography.family);
+      const alternativeWidth = Math.min(calculatedAlternativeWidth, 1200);
+      const alternativeHeight = style.typography.size * 1.1;
+      
+      const alternative: TextEl = {
+        animations: [],
+        fill: style.palette.text,
+        x: alternativeX,
+        y: alternativeY,
+        id: alternativeId,
+        name: `Alternative ${act.order}`,
+        text: act.text,
+        type: "text",
+        width: alternativeWidth,
+        height: alternativeHeight,
+        fontFamily: style.typography.family,
+        fontSize: alternativeFontSize,
+        fontWeight: "normal",
+        textAlign: "center",
+        pivotX: alternativeWidth / 2,
+        pivotY: alternativeHeight / 2,
+        zIndex: 13,
+        opacity: 0,
+        visible: true,
+        groupId: "",
+        wordWrap: true,
+        fontStyle: "normal",
+        lineHeight: 1.2,
+        shadowBlur: 0,
+        shadowColor: "#000000",
+        strokeWidth: 0,
+        cornerRadius: 0,
+        letterSpacing: 0,
+        shadowEnabled: false,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowOpacity: 0,
+        wordWrapWidth: alternativeWidth,
+        textStrokeJoin: "round",
+        isAnimationPath: false,
+        textStrokeWidth: 0
+      };
+
+      // Get timing from config
+      const alternativeTiming = timelineManager.getElementTiming('alternative');
+      
+      if (alternativeTiming) {
+        // Add fade-in animation for alternative
+        alternative.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: alternativeTiming.startTime!,
+          duration: alternativeTiming.fadeInDuration!,
+          properties: { alpha: 1 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `alternative-${act.order}-fade-in`,
+          repeatDelay: 0
+        });
+
+        // Add fade-out animation for alternative
+        alternative.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: alternativeTiming.fadeOutStartTime!,
+          duration: alternativeTiming.fadeOutDuration!,
+          properties: { alpha: 0 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `alternative-${act.order}-fade-out`,
+          repeatDelay: 0
+        });
+      }
+
+      elements.push(alternative);
+    }
+
+    if (act.kind === "PSEUDOCODE") {
+      // Handle pseudocode commands - create static text element with monospace font
+      const pseudocodeId = randomUUID();
+      
+      // Position pseudocode to the right of the array
+      const pseudocodeY = 0; // Same level as array
+      const pseudocodeX = 600; // To the right of array
+      
+      // Create pseudocode text element with monospace font
+      const pseudocodeFontSize = style.typography.size * 0.7;
+      const calculatedPseudocodeWidth = calculateTextWidth(act.text, pseudocodeFontSize, 'monospace');
+      const pseudocodeWidth = Math.min(calculatedPseudocodeWidth, 800);
+      const pseudocodeHeight = style.typography.size * 2; // Allow for multiple lines
+      
+      const pseudocode: TextEl = {
+        animations: [],
+        fill: style.palette.text,
+        x: pseudocodeX,
+        y: pseudocodeY,
+        id: pseudocodeId,
+        name: `Pseudocode`,
+        text: act.text,
+        type: "text",
+        width: pseudocodeWidth,
+        height: pseudocodeHeight,
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace', // Use monospace for code
+        fontSize: pseudocodeFontSize,
+        fontWeight: "normal",
+        textAlign: "left", // Left align for code
+        pivotX: pseudocodeWidth / 2,
+        pivotY: pseudocodeHeight / 2,
+        zIndex: 14,
+        opacity: 0,
+        visible: true,
+        groupId: "",
+        wordWrap: true,
+        fontStyle: "normal",
+        lineHeight: 1.4, // Slightly more line height for code
+        shadowBlur: 0,
+        shadowColor: "#000000",
+        strokeWidth: 0,
+        cornerRadius: 0,
+        letterSpacing: 0,
+        shadowEnabled: false,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowOpacity: 0,
+        wordWrapWidth: pseudocodeWidth,
+        textStrokeJoin: "round",
+        isAnimationPath: false,
+        textStrokeWidth: 0
+      };
+
+      // Get timing from config
+      const pseudocodeTiming = timelineManager.getElementTiming('pseudocode');
+      
+      if (pseudocodeTiming) {
+        // Add fade-in animation for pseudocode
+        pseudocode.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: pseudocodeTiming.startTime!,
+          duration: pseudocodeTiming.fadeInDuration!,
+          properties: { alpha: 1 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: "pseudocode-fade-in",
+          repeatDelay: 0
+        });
+
+        // Add fade-out animation for pseudocode
+        pseudocode.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: pseudocodeTiming.fadeOutStartTime!,
+          duration: pseudocodeTiming.fadeOutDuration!,
+          properties: { alpha: 0 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: "pseudocode-fade-out",
+          repeatDelay: 0
+        });
+      }
+
+      elements.push(pseudocode);
+    }
+
+    if (act.kind === "KEYIDEA") {
+      // Handle keyidea commands - create static text elements
+      const keyideaId = randomUUID();
+      
+      // Position keyideas to the left of the array
+      const keyideaY = 0; // Same level as array
+      const keyideaX = -600; // To the left of array
+      
+      // Create keyidea text element
+      const keyideaFontSize = style.typography.size * 0.75;
+      const calculatedKeyideaWidth = calculateTextWidth(act.text, keyideaFontSize, style.typography.family);
+      const keyideaWidth = Math.min(calculatedKeyideaWidth, 500);
+      const keyideaHeight = style.typography.size * 1.2;
+      
+      const keyidea: TextEl = {
+        animations: [],
+        fill: style.palette.text,
+        x: keyideaX,
+        y: keyideaY,
+        id: keyideaId,
+        name: `Key Idea ${act.order}`,
+        text: act.text,
+        type: "text",
+        width: keyideaWidth,
+        height: keyideaHeight,
+        fontFamily: style.typography.family,
+        fontSize: keyideaFontSize,
+        fontWeight: "bold", // Bold for key ideas
+        textAlign: "center",
+        pivotX: keyideaWidth / 2,
+        pivotY: keyideaHeight / 2,
+        zIndex: 15,
+        opacity: 0,
+        visible: true,
+        groupId: "",
+        wordWrap: true,
+        fontStyle: "normal",
+        lineHeight: 1.2,
+        shadowBlur: 0,
+        shadowColor: "#000000",
+        strokeWidth: 0,
+        cornerRadius: 0,
+        letterSpacing: 0,
+        shadowEnabled: false,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowOpacity: 0,
+        wordWrapWidth: keyideaWidth,
+        textStrokeJoin: "round",
+        isAnimationPath: false,
+        textStrokeWidth: 0
+      };
+
+      // Get timing from config
+      const keyideaTiming = timelineManager.getElementTiming('keyidea');
+      
+      if (keyideaTiming) {
+        // Add fade-in animation for keyidea
+        keyidea.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: keyideaTiming.startTime!,
+          duration: keyideaTiming.fadeInDuration!,
+          properties: { alpha: 1 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `keyidea-${act.order}-fade-in`,
+          repeatDelay: 0
+        });
+
+        // Add fade-out animation for keyidea
+        keyidea.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: keyideaTiming.fadeOutStartTime!,
+          duration: keyideaTiming.fadeOutDuration!,
+          properties: { alpha: 0 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `keyidea-${act.order}-fade-out`,
+          repeatDelay: 0
+        });
+      }
+
+      elements.push(keyidea);
     }
 
     // Only process arrays for now - text elements are ignored

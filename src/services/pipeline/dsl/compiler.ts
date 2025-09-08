@@ -6,7 +6,10 @@ export class DslCompiler {
     // Strip markdown fence blocks if present
     const cleanDsl = dsl.replace(/^```dsl\s*\n?/, '').replace(/\n?```$/, '');
     
-    const lines = cleanDsl.trim().split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    // Preprocess pseudocode to escape newlines within triple quotes
+    const processedDsl = this.preprocessPseudocode(cleanDsl);
+    
+    const lines = processedDsl.trim().split('\n').map(line => line.trim()).filter(line => line.length > 0);
     const program: Action[] = [];
 
     for (const line of lines) {
@@ -17,6 +20,16 @@ export class DslCompiler {
     }
 
     return program;
+  }
+
+  private static preprocessPseudocode(dsl: string): string {
+    // Replace newlines within triple-quoted pseudocode with escaped newlines
+    // This regex matches: pseudocode """...content with newlines..."""
+    return dsl.replace(/pseudocode\s+"""([^"]+)"""/g, (_match, content) => {
+      // Replace newlines in the content with \n escape sequences
+      const escapedContent = content.replace(/\n/g, '\\n');
+      return `pseudocode """${escapedContent}"""`;
+    });
   }
 
   private static parseLine(line: string): Action | null {
@@ -46,6 +59,16 @@ export class DslCompiler {
         return this.parseExample(line);
       case 'conclusion':
         return this.parseConclusion(line);
+      case 'edgecase':
+        return this.parseEdgecase(line);
+      case 'alternative':
+        return this.parseAlternative(line);
+      case 'pseudocode':
+        return this.parsePseudocode(line);
+      case 'keyidea':
+        return this.parseKeyidea(line);
+      case 'goal':
+        return this.parseGoal(line);
       default:
         logger.error(`Unknown DSL command: ${command}`);
         throw new Error(`Unknown DSL command: ${command}`);
@@ -193,16 +216,18 @@ export class DslCompiler {
   }
 
   private static parseExplanation(line: string): Action | null {
-    const explanationMatch = line.match(/^explanation\s+"([^"]+)"/);
+    const explanationMatch = line.match(/^explanation\s+(\d+)\s+"([^"]+)"/);
     
     if (!explanationMatch) {
       return null;
     }
 
-    const text = explanationMatch[1]!;
+    const order = parseInt(explanationMatch[1]!);
+    const text = explanationMatch[2]!;
 
     return {
       kind: "EXPLANATION",
+      order,
       text
     };
   }
@@ -238,6 +263,97 @@ export class DslCompiler {
     return {
       kind: "CONCLUSION",
       order,
+      text
+    };
+  }
+
+  private static parseEdgecase(line: string): Action | null {
+    // Parse: edgecase 1 "Empty array."
+    const edgecaseMatch = line.match(/^edgecase\s+(\d+)\s+"([^"]+)"/);
+    if (!edgecaseMatch) {
+      return null;
+    }
+    
+    const order = parseInt(edgecaseMatch[1]!);
+    const text = edgecaseMatch[2]!;
+    
+    return {
+      kind: "EDGECASE",
+      order,
+      text
+    };
+  }
+
+  private static parseAlternative(line: string): Action | null {
+    // Parse: alternative 1 "Linear Search — Checks each element sequentially until the target is found or the end of the array is reached. (Time: O(n), Space: O(1))"
+    const alternativeMatch = line.match(/^alternative\s+(\d+)\s+"([^"]+)"/);
+    if (!alternativeMatch) {
+      return null;
+    }
+    
+    const order = parseInt(alternativeMatch[1]!);
+    const text = alternativeMatch[2]!;
+    
+    return {
+      kind: "ALTERNATIVE",
+      order,
+      text
+    };
+  }
+
+  private static parsePseudocode(line: string): Action | null {
+    // Parse: pseudocode "multi-line text"
+    // This handles multi-line text enclosed in triple quotes or similar
+    const pseudocodeMatch = line.match(/^pseudocode\s+"""([^"]+)"""/);
+    if (!pseudocodeMatch) {
+      // Fallback to single quotes if triple quotes not found
+      const fallbackMatch = line.match(/^pseudocode\s+"([^"]+)"/);
+      if (!fallbackMatch) {
+        return null;
+      }
+      return {
+        kind: "PSEUDOCODE",
+        text: fallbackMatch[1]!.replace(/\\n/g, '\n')
+      };
+    }
+    
+    const text = pseudocodeMatch[1]!.replace(/\\n/g, '\n');
+    
+    return {
+      kind: "PSEUDOCODE",
+      text
+    };
+  }
+
+  private static parseKeyidea(line: string): Action | null {
+    // Parse: keyidea 1 "Requires a sorted array."
+    const keyideaMatch = line.match(/^keyidea\s+(\d+)\s+"([^"]+)"/);
+    if (!keyideaMatch) {
+      return null;
+    }
+    
+    const order = parseInt(keyideaMatch[1]!);
+    const text = keyideaMatch[2]!;
+    
+    return {
+      kind: "KEYIDEA",
+      order,
+      text
+    };
+  }
+
+  private static parseGoal(line: string): Action | null {
+    // Parse: goal "Demonstrate how binary search efficiently finds a target in a sorted array."
+    const goalMatch = line.match(/^goal\s+"([^"]+)"/);
+    if (!goalMatch) {
+      return null;
+    }
+    
+    const text = goalMatch[1]!;
+    
+    // For now, treat goal as an example since it's similar content
+    return {
+      kind: "EXAMPLE",
       text
     };
   }

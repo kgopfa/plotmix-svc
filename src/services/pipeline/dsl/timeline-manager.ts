@@ -39,6 +39,10 @@ const TIMING_CONFIG = {
   explanationVisibleTime: 2.5, // How long explanation is fully visible
   exampleVisibleTime: 2.5,      // How long example is fully visible
   approachVisibleTime: 2.0,      // How long each approach step is fully visible
+  edgecaseVisibleTime: 2.0,     // How long each edgecase is fully visible
+  alternativeVisibleTime: 2.0,  // How long each alternative is fully visible
+  keyideaVisibleTime: 2.0,       // How long each keyidea is fully visible
+  pseudocodeVisibleTime: 3.0,    // How long pseudocode is fully visible
 };
 
 // Calculate all timing values based on configuration
@@ -50,14 +54,19 @@ function calculateTimingValues() {
   const subtitleStartTime = headingEndTime;
   const subtitleEndTime = subtitleStartTime + TIMING_CONFIG.fadeInDuration;
   
-  // Explanation timing
+  // Explanation timing - starts after subtitle
   const explanationStartTime = subtitleEndTime;
   const explanationEndTime = explanationStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.explanationVisibleTime;
   const explanationRemovedTime = explanationEndTime + TIMING_CONFIG.fadeOutDuration;
   
-  // Approach timing - starts after explanation is removed
+  // Pseudocode timing - starts after explanation is removed
+  const pseudocodeStartTime = explanationRemovedTime;
+  const pseudocodeEndTime = pseudocodeStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.pseudocodeVisibleTime;
+  const pseudocodeRemovedTime = pseudocodeEndTime + TIMING_CONFIG.fadeOutDuration;
+  
+  // Approach timing - starts after pseudocode is removed
   // Each approach step takes: fadeIn + visibleTime + fadeOut
-  const approachStartTime = explanationRemovedTime;
+  const approachStartTime = pseudocodeRemovedTime;
   // Note: approachEndTime will be calculated dynamically based on number of approach steps
   
   // Example timing - starts after all approach steps are complete
@@ -81,11 +90,14 @@ function calculateTimingValues() {
     explanationStartTime,
     explanationEndTime,
     explanationRemovedTime,
+    pseudocodeStartTime,
+    pseudocodeEndTime,
+    pseudocodeRemovedTime,
+    approachStartTime,
+    approachEndTime: 0, // Will be calculated dynamically
     exampleStartTime,
     exampleEndTime,
     exampleRemovedTime,
-    approachStartTime,
-    approachEndTime: 0, // Will be calculated dynamically
     arrayStartTime,
     arrayFullyVisibleTime,
     firstCaptionStartTime,
@@ -126,6 +138,14 @@ export const DEFAULT_TIMELINE_CONFIG: VideoTimelineConfig = {
         endTime: timing.explanationEndTime,
         fadeOutStartTime: timing.explanationStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.explanationVisibleTime
       },
+      pseudocode: {
+        fadeInDuration: TIMING_CONFIG.fadeInDuration,
+        fadeOutDuration: TIMING_CONFIG.fadeOutDuration,
+        visibleTime: TIMING_CONFIG.pseudocodeVisibleTime,
+        startTime: timing.pseudocodeStartTime,
+        endTime: timing.pseudocodeEndTime,
+        fadeOutStartTime: timing.pseudocodeStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.pseudocodeVisibleTime
+      },
       approach: {
         fadeInDuration: TIMING_CONFIG.fadeInDuration,
         fadeOutDuration: TIMING_CONFIG.fadeOutDuration,
@@ -161,6 +181,30 @@ export const DEFAULT_TIMELINE_CONFIG: VideoTimelineConfig = {
         visibleTime: TIMING_CONFIG.captionVisibleTime,
         startTime: 0, // Will be calculated dynamically
         endTime: 0 // Will be calculated dynamically
+      },
+      edgecase: {
+        fadeInDuration: TIMING_CONFIG.fadeInDuration,
+        fadeOutDuration: TIMING_CONFIG.fadeOutDuration,
+        visibleTime: TIMING_CONFIG.edgecaseVisibleTime,
+        startTime: 0, // Will be calculated dynamically
+        endTime: 0, // Will be calculated dynamically
+        fadeOutStartTime: 0 // Will be calculated dynamically
+      },
+      alternative: {
+        fadeInDuration: TIMING_CONFIG.fadeInDuration,
+        fadeOutDuration: TIMING_CONFIG.fadeOutDuration,
+        visibleTime: TIMING_CONFIG.alternativeVisibleTime,
+        startTime: 0, // Will be calculated dynamically
+        endTime: 0, // Will be calculated dynamically
+        fadeOutStartTime: 0 // Will be calculated dynamically
+      },
+      keyidea: {
+        fadeInDuration: TIMING_CONFIG.fadeInDuration,
+        fadeOutDuration: TIMING_CONFIG.fadeOutDuration,
+        visibleTime: TIMING_CONFIG.keyideaVisibleTime,
+        startTime: 0, // Will be calculated dynamically
+        endTime: 0, // Will be calculated dynamically
+        fadeOutStartTime: 0 // Will be calculated dynamically
       }
     };
   }
@@ -172,6 +216,9 @@ export class TimelineManager {
   private animationCount: number = 0;
   private conclusionCount: number = 0;
   private approachCount: number = 0;
+  private edgecaseCount: number = 0;
+  private alternativeCount: number = 0;
+  private keyideaCount: number = 0;
 
   constructor(config: VideoTimelineConfig = DEFAULT_TIMELINE_CONFIG) {
     this.config = config;
@@ -261,11 +308,24 @@ export class TimelineManager {
   /**
    * Set content counts for dynamic timing calculation
    */
-  setContentCounts(captionCount: number, animationCount: number, conclusionCount: number = 0, approachCount: number = 0): void {
+  setContentCounts(
+    captionCount: number, 
+    animationCount: number, 
+    conclusionCount: number = 0, 
+    approachCount: number = 0,
+    _explanationCount: number = 0,
+    edgecaseCount: number = 0,
+    alternativeCount: number = 0,
+    keyideaCount: number = 0,
+    _pseudocodeCount: number = 0
+  ): void {
     this.captionCount = captionCount;
     this.animationCount = animationCount;
     this.conclusionCount = conclusionCount;
     this.approachCount = approachCount;
+    this.edgecaseCount = edgecaseCount;
+    this.alternativeCount = alternativeCount;
+    this.keyideaCount = keyideaCount;
     this.calculateDynamicTiming();
   }
 
@@ -292,8 +352,23 @@ export class TimelineManager {
     // Calculate main section duration based on captions/animations
     const mainEndTime = arrayFullyVisibleTime + (Math.max(this.captionCount, this.animationCount) * timing.totalCaptionDuration);
     
-    // Calculate conclusion section timing
-    const conclusionStartTime = mainEndTime;
+    // Calculate final section timing: keyidea -> edgecase -> alternative -> conclusion
+    const finalSectionStartTime = mainEndTime;
+    
+    // Keyidea timing
+    const keyideaStartTime = finalSectionStartTime;
+    const keyideaEndTime = keyideaStartTime + (this.keyideaCount * (TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.keyideaVisibleTime + TIMING_CONFIG.fadeOutDuration));
+    
+    // Edgecase timing
+    const edgecaseStartTime = keyideaEndTime;
+    const edgecaseEndTime = edgecaseStartTime + (this.edgecaseCount * (TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.edgecaseVisibleTime + TIMING_CONFIG.fadeOutDuration));
+    
+    // Alternative timing
+    const alternativeStartTime = edgecaseEndTime;
+    const alternativeEndTime = alternativeStartTime + (this.alternativeCount * (TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.alternativeVisibleTime + TIMING_CONFIG.fadeOutDuration));
+    
+    // Conclusion timing
+    const conclusionStartTime = alternativeEndTime;
     const conclusionEndTime = conclusionStartTime + (this.conclusionCount * timing.totalCaptionDuration);
     
     // Update element timing with calculated values
@@ -320,7 +395,25 @@ export class TimelineManager {
         this.config.elementTiming['caption'].endTime = mainEndTime;
       }
       
-      // Conclusion elements
+      // Final section elements
+      if (this.config.elementTiming['keyidea']) {
+        this.config.elementTiming['keyidea'].startTime = keyideaStartTime;
+        this.config.elementTiming['keyidea'].endTime = keyideaEndTime;
+        this.config.elementTiming['keyidea'].fadeOutStartTime = keyideaStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.keyideaVisibleTime;
+      }
+      
+      if (this.config.elementTiming['edgecase']) {
+        this.config.elementTiming['edgecase'].startTime = edgecaseStartTime;
+        this.config.elementTiming['edgecase'].endTime = edgecaseEndTime;
+        this.config.elementTiming['edgecase'].fadeOutStartTime = edgecaseStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.edgecaseVisibleTime;
+      }
+      
+      if (this.config.elementTiming['alternative']) {
+        this.config.elementTiming['alternative'].startTime = alternativeStartTime;
+        this.config.elementTiming['alternative'].endTime = alternativeEndTime;
+        this.config.elementTiming['alternative'].fadeOutStartTime = alternativeStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.alternativeVisibleTime;
+      }
+      
       if (this.config.elementTiming['conclusion']) {
         this.config.elementTiming['conclusion'].startTime = conclusionStartTime;
         this.config.elementTiming['conclusion'].endTime = conclusionEndTime;
