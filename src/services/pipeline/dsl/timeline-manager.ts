@@ -558,19 +558,8 @@ export class TimelineManager {
   calculateConclusionTiming(conclusionOrder: number): { startTime: number; fadeInEnd: number; fadeOutStart: number; endTime: number } {
     const timing = calculateTimingValues(this.explanationCount);
     
-    // Calculate main section end time
-    const approachStepDuration = TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.approachVisibleTime + TIMING_CONFIG.fadeOutDuration;
-    const totalApproachDuration = this.approachCount * approachStepDuration;
-    const approachEndTime = timing.approachStartTime + totalApproachDuration;
-    
-    const exampleStartTime = approachEndTime;
-    const exampleEndTime = exampleStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.exampleVisibleTime;
-    const exampleRemovedTime = exampleEndTime + TIMING_CONFIG.fadeOutDuration;
-    
-    const arrayStartTime = exampleRemovedTime + TIMING_CONFIG.arrayStartDelay;
-    const arrayFullyVisibleTime = arrayStartTime + TIMING_CONFIG.fadeInDuration;
-    
-    const mainEndTime = arrayFullyVisibleTime + (Math.max(this.captionCount, this.animationCount) * timing.totalCaptionDuration);
+    // Use the timeline manager's mainEndTime to ensure consistency
+    const mainEndTime = this.getElementTiming('array').endTime;
     
     // Calculate conclusion start time based on main section end
     // Group conclusions in pairs (1,2), (3,4), (5,6), etc.
