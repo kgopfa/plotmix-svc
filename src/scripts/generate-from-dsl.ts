@@ -42,13 +42,13 @@ example "Search for target=9 in array [1,3,5,7,9,11,13,15]"
 array [1,3,5,7,9,11,13,15]
 animate highlight [0,7]
 caption 1 "Start with low=0 and high=7 representing the array range."
-animate highlight [3]
+animate focus [3]
 caption 2 "Calculate the midpoint at index 3, value=7, and compare it to the target."
 animate highlight [4,7]
 caption 3 "Adjust low to 4 since target 9 is greater than midpoint value 7."
-animate highlight [5]
+animate focus [5]
 caption 4 "New midpoint is 5, and the value at this index matches the target."
-animate highlight [5]
+animate select [5]
 caption 5 "The target value 9 is found at index 5."
 edgecase 1 "Empty array may lead to immediate failure."
 edgecase 2 "Target less than smallest element results in no match."

@@ -225,18 +225,34 @@ export function execute(program: ActionProgram): Scene {
     pseudocodeCount
   );
 
-  // First pass: calculate maximum approach width for alignment
+  // First pass: calculate maximum widths for alignment
   let maxApproachWidth = 0;
+  let maxEdgecaseWidth = 0;
+  let maxAlternativeWidth = 0;
+  
   for (const act of program) {
     if (act.kind === "APPROACH") {
       const numberedText = `${act.order}. ${act.text}`;
       const approachFontSize = style.typography.size * 0.8;
       const calculatedWidth = calculateTextWidth(numberedText, approachFontSize, style.typography.family);
       maxApproachWidth = Math.max(maxApproachWidth, calculatedWidth);
+    } else if (act.kind === "EDGECASE") {
+      const numberedText = `${act.order}. ${act.text}`;
+      const edgecaseFontSize = style.typography.size * 0.8; // Match approach font size
+      const calculatedWidth = calculateTextWidth(numberedText, edgecaseFontSize, style.typography.family);
+      maxEdgecaseWidth = Math.max(maxEdgecaseWidth, calculatedWidth);
+    } else if (act.kind === "ALTERNATIVE") {
+      const numberedText = `${act.order}. ${act.text}`;
+      const alternativeFontSize = style.typography.size * 0.8; // Match approach font size
+      const calculatedWidth = calculateTextWidth(numberedText, alternativeFontSize, style.typography.family);
+      maxAlternativeWidth = Math.max(maxAlternativeWidth, calculatedWidth);
     }
   }
-  // Cap the maximum width at 1200px
+  
+  // Cap the maximum widths at 1200px
   maxApproachWidth = Math.min(maxApproachWidth, 1200);
+  maxEdgecaseWidth = Math.min(maxEdgecaseWidth, 1200);
+  maxAlternativeWidth = Math.min(maxAlternativeWidth, 1200);
 
   // Second pass: process setup and build caption timing map
   for (const act of program) {
@@ -1029,18 +1045,22 @@ export function execute(program: ActionProgram): Scene {
     }
 
     if (act.kind === "EDGECASE") {
-      // Handle edgecase commands - create static text elements
+      // Handle edgecase commands - create static text elements with numbering and alignment
       const edgecaseId = randomUUID();
       
-      // Position edgecases below the array area
-      const edgecaseY = 120; // Below array area
+      // Add numbering to the edgecase text
+      const numberedText = `${act.order}. ${act.text}`;
+      
+      // Position edgecases - within each group of 5, edgecases appear one under the other
+      // Use different Y range to avoid overlap with conclusions
+      const positionInGroup = (act.order - 1) % 5; // 0, 1, 2, 3, 4 for positions within group
+      const edgecaseY = -200 + (positionInGroup * 60); // Start at -200, then -140, -80, -20, 40
       const edgecaseX = 0; // Center horizontally
       
       // Create edgecase text element
-      const edgecaseFontSize = style.typography.size * 0.75;
-      const calculatedEdgecaseWidth = calculateTextWidth(act.text, edgecaseFontSize, style.typography.family);
-      const edgecaseWidth = Math.min(calculatedEdgecaseWidth, 1000);
-      const edgecaseHeight = style.typography.size * 1.1;
+      const edgecaseFontSize = style.typography.size * 0.8; // Match approach font size
+      const edgecaseWidth = maxEdgecaseWidth; // Use maximum width for alignment
+      const edgecaseHeight = style.typography.size * 1.2; // Match approach height
       
       const edgecase: TextEl = {
         animations: [],
@@ -1049,7 +1069,7 @@ export function execute(program: ActionProgram): Scene {
         y: edgecaseY,
         id: edgecaseId,
         name: `Edgecase ${act.order}`,
-        text: act.text,
+        text: numberedText,
         type: "text",
         width: edgecaseWidth,
         height: edgecaseHeight,
@@ -1085,11 +1105,21 @@ export function execute(program: ActionProgram): Scene {
       const edgecaseTiming = timelineManager.getElementTiming('edgecase');
       
       if (edgecaseTiming) {
+        // Calculate sequential timing for each edgecase step (same pattern as approaches)
+        const totalEdgecaseDuration = edgecaseTiming.fadeInDuration! + edgecaseTiming.visibleTime! + edgecaseTiming.fadeOutDuration!;
+        const edgecaseStartTime = edgecaseTiming.startTime! + (act.order - 1) * totalEdgecaseDuration;
+        
+        // Calculate group-based fade-out timing
+        // All edgecases in a group of 5 fade out together at the end of the group
+        const groupIndex = Math.floor((act.order - 1) / 5);
+        const lastEdgecaseInGroup = Math.min(5, edgecaseCount - (groupIndex * 5));
+        const groupFadeOutStartTime = edgecaseTiming.startTime! + (groupIndex * 5 + lastEdgecaseInGroup - 1) * totalEdgecaseDuration + edgecaseTiming.fadeInDuration! + edgecaseTiming.visibleTime!;
+        
         // Add fade-in animation for edgecase
         edgecase.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: edgecaseTiming.startTime!,
+          startTime: edgecaseStartTime,
           duration: edgecaseTiming.fadeInDuration!,
           properties: { alpha: 1 },
           easing: "power1.inOut",
@@ -1099,11 +1129,11 @@ export function execute(program: ActionProgram): Scene {
           repeatDelay: 0
         });
 
-        // Add fade-out animation for edgecase
+        // Add fade-out animation for edgecase (all in group fade out together)
         edgecase.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: edgecaseTiming.fadeOutStartTime!,
+          startTime: groupFadeOutStartTime,
           duration: edgecaseTiming.fadeOutDuration!,
           properties: { alpha: 0 },
           easing: "power1.inOut",
@@ -1118,18 +1148,22 @@ export function execute(program: ActionProgram): Scene {
     }
 
     if (act.kind === "ALTERNATIVE") {
-      // Handle alternative commands - create static text elements
+      // Handle alternative commands - create static text elements with numbering and alignment
       const alternativeId = randomUUID();
       
-      // Position alternatives below edgecases
-      const alternativeY = 180; // Below edgecases
+      // Add numbering to the alternative text
+      const numberedText = `${act.order}. ${act.text}`;
+      
+      // Position alternatives - within each group of 5, alternatives appear one under the other
+      // Use different Y range to avoid overlap with conclusions
+      const positionInGroup = (act.order - 1) % 5; // 0, 1, 2, 3, 4 for positions within group
+      const alternativeY = 200 + (positionInGroup * 60); // Start at 200, then 260, 320, 380, 440
       const alternativeX = 0; // Center horizontally
       
       // Create alternative text element
-      const alternativeFontSize = style.typography.size * 0.75;
-      const calculatedAlternativeWidth = calculateTextWidth(act.text, alternativeFontSize, style.typography.family);
-      const alternativeWidth = Math.min(calculatedAlternativeWidth, 1200);
-      const alternativeHeight = style.typography.size * 1.1;
+      const alternativeFontSize = style.typography.size * 0.8; // Match approach font size
+      const alternativeWidth = maxAlternativeWidth; // Use maximum width for alignment
+      const alternativeHeight = style.typography.size * 1.2; // Match approach height
       
       const alternative: TextEl = {
         animations: [],
@@ -1138,7 +1172,7 @@ export function execute(program: ActionProgram): Scene {
         y: alternativeY,
         id: alternativeId,
         name: `Alternative ${act.order}`,
-        text: act.text,
+        text: numberedText,
         type: "text",
         width: alternativeWidth,
         height: alternativeHeight,
@@ -1174,11 +1208,21 @@ export function execute(program: ActionProgram): Scene {
       const alternativeTiming = timelineManager.getElementTiming('alternative');
       
       if (alternativeTiming) {
+        // Calculate sequential timing for each alternative step (same pattern as approaches)
+        const totalAlternativeDuration = alternativeTiming.fadeInDuration! + alternativeTiming.visibleTime! + alternativeTiming.fadeOutDuration!;
+        const alternativeStartTime = alternativeTiming.startTime! + (act.order - 1) * totalAlternativeDuration;
+        
+        // Calculate group-based fade-out timing
+        // All alternatives in a group of 5 fade out together at the end of the group
+        const groupIndex = Math.floor((act.order - 1) / 5);
+        const lastAlternativeInGroup = Math.min(5, alternativeCount - (groupIndex * 5));
+        const groupFadeOutStartTime = alternativeTiming.startTime! + (groupIndex * 5 + lastAlternativeInGroup - 1) * totalAlternativeDuration + alternativeTiming.fadeInDuration! + alternativeTiming.visibleTime!;
+        
         // Add fade-in animation for alternative
         alternative.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: alternativeTiming.startTime!,
+          startTime: alternativeStartTime,
           duration: alternativeTiming.fadeInDuration!,
           properties: { alpha: 1 },
           easing: "power1.inOut",
@@ -1188,11 +1232,11 @@ export function execute(program: ActionProgram): Scene {
           repeatDelay: 0
         });
 
-        // Add fade-out animation for alternative
+        // Add fade-out animation for alternative (all in group fade out together)
         alternative.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: alternativeTiming.fadeOutStartTime!,
+          startTime: groupFadeOutStartTime,
           duration: alternativeTiming.fadeOutDuration!,
           properties: { alpha: 0 },
           easing: "power1.inOut",

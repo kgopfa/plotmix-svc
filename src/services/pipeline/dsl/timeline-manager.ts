@@ -252,8 +252,17 @@ export class TimelineManager {
     
     const mainEndTime = arrayFullyVisibleTime + (Math.max(this.captionCount, this.animationCount) * timing.totalCaptionDuration);
     
-    const conclusionStartTime = mainEndTime;
+    // Calculate edgecase timing - starts after main section ends, before conclusions
+    const edgecaseStartTime = mainEndTime;
+    const edgecaseEndTime = edgecaseStartTime + (this.edgecaseCount * timing.totalCaptionDuration);
+    
+    // Calculate conclusion timing - starts after edgecases
+    const conclusionStartTime = edgecaseEndTime;
     const conclusionEndTime = conclusionStartTime + (this.conclusionCount * timing.totalCaptionDuration);
+    
+    // Calculate alternative timing - starts after conclusions
+    const alternativeStartTime = conclusionEndTime;
+    const alternativeEndTime = alternativeStartTime + (this.alternativeCount * timing.totalCaptionDuration);
     
     return {
       heading: { 
@@ -311,12 +320,29 @@ export class TimelineManager {
         startTime: arrayFullyVisibleTime,
         endTime: mainEndTime
       },
+      edgecase: {
+        fadeInDuration: TIMING_CONFIG.captionFadeInDuration,
+        fadeOutDuration: TIMING_CONFIG.captionFadeOutDuration,
+        visibleTime: TIMING_CONFIG.captionVisibleTime,
+        startTime: edgecaseStartTime,
+        endTime: edgecaseEndTime,
+        fadeOutStartTime: edgecaseStartTime + TIMING_CONFIG.captionFadeInDuration + TIMING_CONFIG.captionVisibleTime
+      },
       conclusion: {
         fadeInDuration: TIMING_CONFIG.captionFadeInDuration,
         fadeOutDuration: TIMING_CONFIG.captionFadeOutDuration,
         visibleTime: TIMING_CONFIG.captionVisibleTime,
         startTime: conclusionStartTime,
-        endTime: conclusionEndTime
+        endTime: conclusionEndTime,
+        fadeOutStartTime: conclusionStartTime + TIMING_CONFIG.captionFadeInDuration + TIMING_CONFIG.captionVisibleTime
+      },
+      alternative: {
+        fadeInDuration: TIMING_CONFIG.captionFadeInDuration,
+        fadeOutDuration: TIMING_CONFIG.captionFadeOutDuration,
+        visibleTime: TIMING_CONFIG.captionVisibleTime,
+        startTime: alternativeStartTime,
+        endTime: alternativeEndTime,
+        fadeOutStartTime: alternativeStartTime + TIMING_CONFIG.captionFadeInDuration + TIMING_CONFIG.captionVisibleTime
       }
     };
   }
@@ -488,15 +514,25 @@ export class TimelineManager {
     // Calculate main section duration based on captions/animations
     const mainEndTime = arrayFullyVisibleTime + (Math.max(this.captionCount, this.animationCount) * timing.totalCaptionDuration);
     
+    // Calculate edgecase section timing
+    const edgecaseStartTime = mainEndTime;
+    const edgecaseEndTime = edgecaseStartTime + (this.edgecaseCount * timing.totalCaptionDuration);
+    
     // Calculate conclusion section timing
-    const conclusionStartTime = mainEndTime;
+    const conclusionStartTime = edgecaseEndTime;
     const conclusionEndTime = conclusionStartTime + (this.conclusionCount * timing.totalCaptionDuration);
+    
+    // Calculate alternative section timing
+    const alternativeStartTime = conclusionEndTime;
+    const alternativeEndTime = alternativeStartTime + (this.alternativeCount * timing.totalCaptionDuration);
     
     // Calculate section timing based on sequential flow
     const sections = {
       intro: { startTime: 0, endTime: exampleRemovedTime }, // Example fully removed
       main: { startTime: arrayStartTime, endTime: mainEndTime }, // Array starts to main end
-      conclusion: { startTime: conclusionStartTime, endTime: conclusionEndTime } // Conclusion section
+      edgecase: { startTime: edgecaseStartTime, endTime: edgecaseEndTime }, // Edgecase section
+      conclusion: { startTime: conclusionStartTime, endTime: conclusionEndTime }, // Conclusion section
+      alternative: { startTime: alternativeStartTime, endTime: alternativeEndTime } // Alternative section
     };
     
     return sections[sectionName as keyof typeof sections] ?? null;
@@ -558,13 +594,14 @@ export class TimelineManager {
   calculateConclusionTiming(conclusionOrder: number): { startTime: number; fadeInEnd: number; fadeOutStart: number; endTime: number } {
     const timing = calculateTimingValues(this.explanationCount);
     
-    // Use the timeline manager's mainEndTime to ensure consistency
-    const mainEndTime = this.getElementTiming('array').endTime;
+    // Use the edgecase end time to ensure conclusions start after edgecases finish
+    const edgecaseTiming = this.getElementTiming('edgecase');
+    const edgecaseEndTime = edgecaseTiming ? edgecaseTiming.endTime : this.getElementTiming('array').endTime;
     
-    // Calculate conclusion start time based on main section end
+    // Calculate conclusion start time based on edgecase section end
     // Group conclusions in pairs (1,2), (3,4), (5,6), etc.
     const groupIndex = Math.floor((conclusionOrder - 1) / 2);
-    const startTime = mainEndTime + groupIndex * timing.totalCaptionDuration;
+    const startTime = edgecaseEndTime + groupIndex * timing.totalCaptionDuration;
     
     return {
       startTime,
