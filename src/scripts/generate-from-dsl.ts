@@ -10,35 +10,55 @@ import * as path from 'path';
 import { prisma } from '../clients/database.client';
 
 // Default DSL input for testing
-const DEFAULT_DSL = `seed 42
-style educational
-
-heading "Binary Search Algorithm"
-subtitle "Finding target value in sorted array"
-explanation "Binary search is an efficient search algorithm that finds a target value in a sorted array by repeatedly dividing the search interval in half"
-approach 1 "Binary search is implemented using 2 boundary pointers, start and end"
-approach 2 "The boundary pointers are used to find the mid position"
-approach 3 "The formula for finding the mid position is mid = (start + end) / 2"
-approach 4 "Using the value at the mid position, if it's not the target, we can determine which subarray to focus on"
-approach 5 "This is why it's important for the array to be sorted"
-example "Given a sorted array and a target value of 23, the algorithm will find the target efficiently"
-array [2,5,8,12,16,23,38,56,72,91]
-animate highlight [0,9]
-caption 1 "Start with the entire sorted array as our search range"
-animate focus [4]
-caption 2 "Find the middle element (16) and compare it with our target (23)"
-animate compare [4,5]
-caption 3 "Since 16 < 23, we eliminate the left half and search only the right portion"
-animate highlight [5,9]
-caption 4 "Our new search range is narrowed to the right half of the array"
-animate focus [6]
-caption 5 "Find the new middle element (38) in our reduced search range"
-animate select [5]
-caption 6 "We found our target value 23 at index 5 of the array"
-conclusion 1 "Time Complexity: O(log n)"
-conclusion 2 "Space Complexity: O(1)"
-conclusion 3 "Use Case: Searching in sorted arrays"
-conclusion 4 "Requirement: Array must be sorted"`;
+const DEFAULT_DSL = `
+heading "Binary Search"
+subtitle "Efficiently find a target in a sorted array."
+explanation 1 "Binary search defines a search interval that covers the entire array."
+explanation 2 "It repeatedly compares the midpoint value to the target, adjusting the interval."
+explanation 3 "This method continues until the target is found or the interval is empty."
+approach 1 "Start with low and high pointers indicating the full array range."
+approach 2 "Calculate the midpoint of the current search interval."
+approach 3 "If the target is greater than the midpoint value, adjust the low pointer."
+approach 4 "If the target is less than the midpoint value, adjust the high pointer."
+approach 5 "Repeat until the target is located or the search interval is exhausted."
+keyidea 1 "Requires a sorted array for efficiency."
+keyidea 2 "Utilizes a divide and conquer strategy."
+keyidea 3 "Can be implemented using iteration or recursion."
+keyidea 4 "Significantly reduces the search space at each step."
+keyidea 5 "Highly efficient for large datasets."
+pseudocode """function binarySearch(array, target)
+   low = 0
+   high = length(array) - 1
+   while low <= high
+       mid = (low + high) / 2
+       if array[mid] == target
+           return mid
+       else if array[mid] < target
+           low = mid + 1
+       else
+           high = mid - 1
+   return -1"""
+example "Search for target=9 in array [1,3,5,7,9,11,13,15]"
+array [1,3,5,7,9,11,13,15]
+animate highlight [0,7]
+caption 1 "Start with low=0 and high=7 representing the array range."
+animate highlight [3]
+caption 2 "Calculate the midpoint at index 3, value=7, and compare it to the target."
+animate highlight [4,7]
+caption 3 "Adjust low to 4 since target 9 is greater than midpoint value 7."
+animate highlight [5]
+caption 4 "New midpoint is 5, and the value at this index matches the target."
+animate highlight [5]
+caption 5 "The target value 9 is found at index 5."
+edgecase 1 "Empty array may lead to immediate failure."
+edgecase 2 "Target less than smallest element results in no match."
+edgecase 3 "Target greater than largest element results in no match."
+edgecase 4 "Target in the middle can lead to a quick success."
+edgecase 5 "Repeated elements may affect performance but not functionality."
+edgecase 6 "Target as the first element requires careful pointer handling."
+conclusion 1 "Time complexity is O(log n), making it efficient for large arrays."
+conclusion 2 "Space complexity is O(1), as it uses minimal extra space."
+alternative 1 "Linear Search — Check each element sequentially until found (O(n))."`;
 
 function getDslInput(): string {
   const args = process.argv.slice(2);

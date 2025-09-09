@@ -19,20 +19,20 @@ export class PromptTemplates {
   - Keep it concise: no rambling, no repetition.
   
   SCHEMA (strict)
-  {
-    "problem": {
-      "title": "string",
+{
+  "problem": {
+    "title": "string",
       "description": "string (1–3 sentences)",
-      "example": "string (optional)"
-    },
-    "approaches": {
-      "naive": {
-        "title": "string",
+    "example": "string (optional)"
+  },
+  "approaches": {
+    "naive": {
+      "title": "string",
         "description": "string (1–2 sentences)",
         "complexity": "string (e.g., 'Time: O(n), Space: O(1)')"
-      },
-      "optimal": {
-        "title": "string",
+    },
+    "optimal": {
+      "title": "string", 
         "description": "string (1–2 sentences)",
         "complexity": "string (e.g., 'Time: O(log n), Space: O(1)')",
         "keyIdeas": ["string", "string", "... up to 7 items"]
@@ -64,7 +64,7 @@ export class PromptTemplates {
  * - Consumes: contentPlan (expects algorithmExplanation and/or pseudocode)
  * - Produces: scenario, stepwise STATE evolution, minimal visual hints, and a reference (pseudocode or outline)
  * - No timing; JSON-only.
- */
+   */
   static animationPlanner(contentPlan: any): LlmMessage[] {
     return [
       {
@@ -221,10 +221,10 @@ ${JSON.stringify(contentPlan)}`
       {
         role: 'user',
         content: `Emit DSL for the following inputs.
-  
+
   Content Plan:
   ${JSON.stringify(contentPlan, null, 2)}
-  
+
   ${animationPlan ? `Animation Plan:\n${JSON.stringify(animationPlan, null, 2)}` : 'No Animation Plan provided (derive a minimal but clear demo).'}`
       }
     ];

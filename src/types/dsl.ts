@@ -120,8 +120,18 @@ export type TextEl = {
   wordWrapWidth: number; textStrokeJoin: "round"|"miter"|"bevel"; isAnimationPath: boolean; textStrokeWidth: number;
 };
 
+export type CodeEditorEl = {
+  animations: any[]; fill: string; x: number; y: number; id: string; name: string; text: string; type: "code-editor";
+  width: number; height: number; pivotX: number; pivotY: number; zIndex: number; groupId: string; opacity: number; visible: boolean;
+  fontSize: number; wordWrap: boolean; fontStyle: "normal"|"italic"; textAlign: "left"|"right"|"center";
+  fontFamily: string; fontWeight: string|number; lineHeight: number; shadowBlur: number; shadowColor: string; strokeWidth: number;
+  cornerRadius: number; letterSpacing: number; shadowEnabled: boolean; shadowOffsetX: number; shadowOffsetY: number; shadowOpacity: number;
+  wordWrapWidth: number; textStrokeJoin: "round"|"miter"|"bevel"; isAnimationPath: boolean; textStrokeWidth: number;
+  tabSize?: number; language?: string; syntaxTheme?: string; showLineNumbers?: boolean; showLineHighlight?: boolean;
+};
+
 export type Scene = {
   groups: Group[];
-  elements: (Rect|TextEl)[];
+  elements: (Rect|TextEl|CodeEditorEl)[];
   timeline: { scale: number; duration: number; currentTime: number; animationStates: Record<string, unknown> };
 };

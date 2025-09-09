@@ -1,4 +1,4 @@
-import type { ActionProgram, Scene, Group, Rect, TextEl } from '../../../types';
+import type { ActionProgram, Scene, Group, Rect, TextEl, CodeEditorEl } from '../../../types';
 import type { StylePack } from '../../../types';
 import { pickStyle } from '../procedural/seed';
 import STYLES from '../procedural/layout/styles';
@@ -183,7 +183,7 @@ export function execute(program: ActionProgram): Scene {
   let style: StylePack = STYLES[0]!;
   
   const groups: Group[] = [];
-  const elements: (Rect|TextEl)[] = [];
+  const elements: (Rect|TextEl|CodeEditorEl)[] = [];
   
   // Initialize TimelineManager for section-based timing
   const timelineManager = new TimelineManager();
@@ -1200,64 +1200,130 @@ export function execute(program: ActionProgram): Scene {
     }
 
     if (act.kind === "PSEUDOCODE") {
-      // Handle pseudocode commands - create static text element with monospace font
-      const pseudocodeId = randomUUID();
+      // Handle pseudocode commands - create code block with background rectangle and code text
+      const groupId = `group-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const rectangleId = randomUUID();
+      const codeId = randomUUID();
       
       // Position pseudocode to the right of the array
-      const pseudocodeY = 0; // Same level as array
-      const pseudocodeX = 600; // To the right of array
+      const pseudocodeY = -175; // Position for code block
+      const pseudocodeX = -200; // Position for code block
       
-      // Create pseudocode text element with monospace font
-      const pseudocodeFontSize = style.typography.size * 0.7;
-      const calculatedPseudocodeWidth = calculateTextWidth(act.text, pseudocodeFontSize, 'monospace');
-      const pseudocodeWidth = Math.min(calculatedPseudocodeWidth, 800);
-      const pseudocodeHeight = style.typography.size * 2; // Allow for multiple lines
+      // Calculate code block dimensions based on content
+      const codeLines = act.text.split('\n');
+      const codeBlockPadding = 40; // 40px padding around the code editor
+      const lineHeight = 1.5;
+      const fontSize = 26;
       
-      const pseudocode: TextEl = {
+      // Calculate width: find longest line (including indentation)
+      let maxLineWidth = 0;
+      for (const line of codeLines) {
+        const lineWidth = calculateTextWidth(line, fontSize, 'Monaco, Consolas, "Courier New", monospace');
+        maxLineWidth = Math.max(maxLineWidth, lineWidth);
+      }
+      
+      // Calculate code editor dimensions (inner)
+      const codeEditorWidth = Math.max(maxLineWidth, 300);
+      const codeEditorHeight = Math.max(codeLines.length * lineHeight * fontSize, 200);
+      
+      // Calculate rectangle dimensions (outer) with 40px padding
+      const codeBlockWidth = codeEditorWidth + (codeBlockPadding * 2); // 40px on each side
+      const codeBlockHeight = codeEditorHeight + (codeBlockPadding * 2); // 40px top and bottom
+      
+      // Create background rectangle
+      const rectangle: Rect = {
         animations: [],
-        fill: style.palette.text,
+        fill: "#ffffff",
         x: pseudocodeX,
         y: pseudocodeY,
-        id: pseudocodeId,
-        name: `Pseudocode`,
-        text: act.text,
-        type: "text",
-        width: pseudocodeWidth,
-        height: pseudocodeHeight,
-        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace', // Use monospace for code
-        fontSize: pseudocodeFontSize,
-        fontWeight: "normal",
-        textAlign: "left", // Left align for code
-        pivotX: pseudocodeWidth / 2,
-        pivotY: pseudocodeHeight / 2,
-        zIndex: 14,
-        opacity: 0,
+        id: rectangleId,
+        name: "Rectangle 1",
+        type: "rectangle",
+        width: codeBlockWidth,
+        height: codeBlockHeight,
+        pivotX: 50,
+        pivotY: 50,
+        stroke: "#000000",
+        zIndex: 1,
+        groupId: groupId,
+        opacity: 1,
         visible: true,
-        groupId: "",
-        wordWrap: true,
-        fontStyle: "normal",
-        lineHeight: 1.4, // Slightly more line height for code
         shadowBlur: 0,
         shadowColor: "#000000",
-        strokeWidth: 0,
+        strokeWidth: 1,
+        cornerRadius: 13,
+        shadowEnabled: false,
+        shadowOffsetX: 10,
+        shadowOffsetY: 10,
+        shadowOpacity: 0.5,
+        isAnimationPath: false
+      };
+      
+      // Create code text element
+      const codeText: CodeEditorEl = {
+        animations: [],
+        fill: "#1e1e1e",
+        x: pseudocodeX,
+        y: pseudocodeY,
+        id: codeId,
+        name: "Code Editor",
+        text: act.text,
+        type: "code-editor",
+        width: codeEditorWidth,
+        height: codeEditorHeight,
+        pivotX: codeEditorWidth / 2,
+        pivotY: codeEditorHeight / 2,
+        zIndex: 2,
+        groupId: groupId,
+        opacity: 1,
+        visible: true,
+        fontSize: fontSize,
+        wordWrap: true,
+        fontStyle: "normal",
+        textAlign: "left",
+        fontFamily: 'Monaco, Consolas, "Courier New", monospace',
+        fontWeight: "400",
+        lineHeight: 1.5,
+        shadowBlur: 0,
+        shadowColor: "#000000",
+        strokeWidth: 1,
         cornerRadius: 0,
         letterSpacing: 0,
         shadowEnabled: false,
-        shadowOffsetX: 0,
-        shadowOffsetY: 0,
-        shadowOpacity: 0,
-        wordWrapWidth: pseudocodeWidth,
+        shadowOffsetX: 10,
+        shadowOffsetY: 10,
+        shadowOpacity: 0.5,
+        wordWrapWidth: codeEditorWidth,
         textStrokeJoin: "round",
         isAnimationPath: false,
-        textStrokeWidth: 0
+        textStrokeWidth: 0,
+        tabSize: 4,
+        language: "javascript",
+        syntaxTheme: "light",
+        showLineNumbers: false,
+        showLineHighlight: true
+      };
+      
+      // Create group for code block
+      const codeGroup: Group = {
+        animations: [],
+        elementIds: [rectangleId, codeId],
+        x: pseudocodeX,
+        y: pseudocodeY,
+        id: groupId,
+        name: "Code Block",
+        type: "custom",
+        opacity: 1,
+        rotation: 0,
+        isDefaultGroup: false
       };
 
       // Get timing from config
       const pseudocodeTiming = timelineManager.getElementTiming('pseudocode');
       
       if (pseudocodeTiming) {
-        // Add fade-in animation for pseudocode
-        pseudocode.animations.push({
+        // Add fade-in animation for rectangle
+        rectangle.animations.push({
           id: randomUUID(),
           type: "fade",
           startTime: pseudocodeTiming.startTime!,
@@ -1266,12 +1332,26 @@ export function execute(program: ActionProgram): Scene {
           easing: "power1.inOut",
           yoyo: false,
           repeat: 0,
-          displayName: "pseudocode-fade-in",
+          displayName: "pseudocode-rect-fade-in",
           repeatDelay: 0
         });
 
-        // Add fade-out animation for pseudocode
-        pseudocode.animations.push({
+        // Add fade-in animation for code text
+        codeText.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: pseudocodeTiming.startTime!,
+          duration: pseudocodeTiming.fadeInDuration!,
+          properties: { alpha: 1 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: "pseudocode-code-fade-in",
+          repeatDelay: 0
+        });
+
+        // Add fade-out animation for rectangle
+        rectangle.animations.push({
           id: randomUUID(),
           type: "fade",
           startTime: pseudocodeTiming.fadeOutStartTime!,
@@ -1280,12 +1360,29 @@ export function execute(program: ActionProgram): Scene {
           easing: "power1.inOut",
           yoyo: false,
           repeat: 0,
-          displayName: "pseudocode-fade-out",
+          displayName: "pseudocode-rect-fade-out",
+          repeatDelay: 0
+        });
+
+        // Add fade-out animation for code text
+        codeText.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: pseudocodeTiming.fadeOutStartTime!,
+          duration: pseudocodeTiming.fadeOutDuration!,
+          properties: { alpha: 0 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: "pseudocode-code-fade-out",
           repeatDelay: 0
         });
       }
 
-      elements.push(pseudocode);
+      // Add elements and group to scene
+      elements.push(rectangle);
+      elements.push(codeText);
+      groups.push(codeGroup);
     }
 
     if (act.kind === "KEYIDEA") {

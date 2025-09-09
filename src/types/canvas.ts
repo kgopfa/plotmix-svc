@@ -10,6 +10,7 @@ export type ElementType =
   | "path" 
   | "image" 
   | "text" 
+  | "code-editor"
   | "polygon";
 
 export type FontWeight = "normal" | "bold" | "100" | "200" | "300" | "400" | "500" | "600" | "700" | "800" | "900";
@@ -308,7 +309,7 @@ export interface ProjectDocument {
 
 // Validation helpers
 export const isValidElementType = (type: string): type is ElementType => {
-  return ["rectangle", "circle", "triangle", "arc", "line", "path", "image", "text", "polygon"].includes(type);
+  return ["rectangle", "circle", "triangle", "arc", "line", "path", "image", "text", "code-editor", "polygon"].includes(type);
 };
 
 export const isValidAnimationType = (type: string): type is AnimationType => {

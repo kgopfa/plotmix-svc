@@ -53,7 +53,7 @@ function isColorStringOrNone(v: unknown): boolean {
 // -------------------------
 
 const ELEMENT_TYPES: Set<string> = new Set([
-  'rectangle', 'circle', 'triangle', 'arc', 'line', 'path', 'image', 'text', 'polygon',
+  'rectangle', 'circle', 'triangle', 'arc', 'line', 'path', 'image', 'text', 'code-editor', 'polygon',
 ]);
 
 // Pipeline/frontend-supported fonts allowlist
@@ -66,6 +66,7 @@ const FONT_ALLOWLIST: Set<string> = new Set([
   'Dancing Script','Pacifico','Great Vibes','Satisfy','Kaushan Script','Allura','Alex Brush',
   // Monospace
   'Geist Mono','Source Code Pro','Fira Code','JetBrains Mono','Inconsolata','Courier New','Consolas','Monaco','Menlo',
+  'Monaco, Consolas, "Courier New", monospace',
   // CSS Font Stacks
   'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
   'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
@@ -213,6 +214,21 @@ function validateText(obj: any): string[] {
   return errors;
 }
 
+function validateCodeEditor(obj: any): string[] {
+  const errors: string[] = [];
+  // Code editor extends text validation
+  errors.push(...validateText(obj));
+  
+  // Code editor specific validations
+  if (obj.tabSize !== undefined && !isNumber(obj.tabSize)) errors.push('tabSize must be a number');
+  if (obj.language !== undefined && !isString(obj.language)) errors.push('language must be a string');
+  if (obj.syntaxTheme !== undefined && !isString(obj.syntaxTheme)) errors.push('syntaxTheme must be a string');
+  if (obj.showLineNumbers !== undefined && !isBoolean(obj.showLineNumbers)) errors.push('showLineNumbers must be a boolean');
+  if (obj.showLineHighlight !== undefined && !isBoolean(obj.showLineHighlight)) errors.push('showLineHighlight must be a boolean');
+  
+  return errors;
+}
+
 // -------------------------
 // Public validators
 // -------------------------
@@ -251,6 +267,9 @@ export function validateAnimatedCanvasObject(obj: unknown): ValidationResult<Can
       break;
     case 'text':
       errors.push(...validateText(o));
+      break;
+    case 'code-editor':
+      errors.push(...validateCodeEditor(o));
       break;
     default:
       // Unknown type already handled in common fields
