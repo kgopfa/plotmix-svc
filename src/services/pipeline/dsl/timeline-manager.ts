@@ -39,8 +39,8 @@ const TIMING_CONFIG = {
   explanationVisibleTime: 2.0, // How long explanation is fully visible
   exampleVisibleTime: 2.0,      // How long example is fully visible
   approachVisibleTime: 1.0,      // How long each approach step is fully visible
-  edgecaseVisibleTime: 2.0,     // How long each edgecase is fully visible
-  alternativeVisibleTime: 2.0,  // How long each alternative is fully visible
+  edgecaseVisibleTime: 1.0,     // How long each edgecase is fully visible
+  alternativeVisibleTime: 1.0,  // How long each alternative is fully visible
   keyideaVisibleTime: 2.0,       // How long each keyidea is fully visible
   pseudocodeVisibleTime: 3.0,    // How long pseudocode is fully visible
 };
@@ -179,8 +179,8 @@ export const DEFAULT_TIMELINE_CONFIG: VideoTimelineConfig = {
         endTime: 0 // Will be calculated dynamically based on number of captions
       },
       conclusion: {
-        fadeInDuration: TIMING_CONFIG.captionFadeInDuration,
-        fadeOutDuration: TIMING_CONFIG.captionFadeOutDuration,
+        fadeInDuration: TIMING_CONFIG.fadeInDuration,
+        fadeOutDuration: TIMING_CONFIG.fadeOutDuration,
         visibleTime: TIMING_CONFIG.captionVisibleTime,
         startTime: 0, // Will be calculated dynamically
         endTime: 0 // Will be calculated dynamically
@@ -329,12 +329,12 @@ export class TimelineManager {
         fadeOutStartTime: edgecaseStartTime + TIMING_CONFIG.captionFadeInDuration + TIMING_CONFIG.captionVisibleTime
       },
       conclusion: {
-        fadeInDuration: TIMING_CONFIG.captionFadeInDuration,
-        fadeOutDuration: TIMING_CONFIG.captionFadeOutDuration,
+        fadeInDuration: TIMING_CONFIG.fadeInDuration,
+        fadeOutDuration: TIMING_CONFIG.fadeOutDuration,
         visibleTime: TIMING_CONFIG.captionVisibleTime,
         startTime: conclusionStartTime,
         endTime: conclusionEndTime,
-        fadeOutStartTime: conclusionStartTime + TIMING_CONFIG.captionFadeInDuration + TIMING_CONFIG.captionVisibleTime
+        fadeOutStartTime: conclusionStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.captionVisibleTime
       },
       alternative: {
         fadeInDuration: TIMING_CONFIG.captionFadeInDuration,

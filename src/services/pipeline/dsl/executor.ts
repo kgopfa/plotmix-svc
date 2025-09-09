@@ -1155,9 +1155,9 @@ export function execute(program: ActionProgram): Scene {
       const numberedText = `${act.order}. ${act.text}`;
       
       // Position alternatives - within each group of 5, alternatives appear one under the other
-      // Use different Y range to avoid overlap with conclusions
+      // Use same Y coordinates as edgecases
       const positionInGroup = (act.order - 1) % 5; // 0, 1, 2, 3, 4 for positions within group
-      const alternativeY = 200 + (positionInGroup * 60); // Start at 200, then 260, 320, 380, 440
+      const alternativeY = -200 + (positionInGroup * 60); // Start at -200, then -140, -80, -20, 40 (same as edgecases)
       const alternativeX = 0; // Center horizontally
       
       // Create alternative text element
