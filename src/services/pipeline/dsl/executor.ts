@@ -386,10 +386,9 @@ export function execute(program: ActionProgram): Scene {
             repeatDelay: 0
           });
           
-          // Add fade-out animation - array should fade out after the last caption is fully faded out
-          const fadeOutStartTime = conclusionCount > 0 ? 
-            timelineManager.getSectionTiming('conclusion')!.startTime - arrayTiming.fadeOutDuration! : 
-            timelineManager.calculateCaptionTiming(captionCount).endTime;
+          // Add fade-out animation - array should fade out after ALL captions and animations are finished
+          const mainEndTime = timelineManager.getElementTiming('array').endTime;
+          const fadeOutStartTime = mainEndTime - arrayTiming.fadeOutDuration!;
           
           group.animations.push({
             id: randomUUID(),
