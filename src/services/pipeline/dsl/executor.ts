@@ -5,32 +5,17 @@ import STYLES from '../procedural/layout/styles';
 import { getAnimationConfig } from '../procedural/animation';
 import { randomUUID } from 'crypto';
 import { computeCenteredXPositions } from '../../../utils/grid';
+import { measureTextWidthAdvanced } from '../../../utils/text-width';
 import { TimelineManager } from './timeline-manager';
 
-// Helper function to calculate text width for proper centering
-function calculateTextWidth(text: string, fontSize: number, fontFamily: string): number {
-  const isMonospace = fontFamily.includes('monospace');
-  // Use different character widths based on font size for better accuracy
-  let charWidth: number;
-  if (isMonospace) {
-    charWidth = 0.4;
-  } else if (fontSize >= 60) {
-    charWidth = 0.485; // For large fonts (headings)
-  } else if (fontSize >= 44) {
-    charWidth = 0.699; // For caption fonts (44px) - adjusted to match target
-  } else if (fontSize >= 40) {
-    charWidth = 0.465; // For conclusion fonts (40px) - adjusted to match target
-  } else {
-    charWidth = 0.407; // For subtitle fonts (39.6px) - calculated from target ratio
-  }
-  return text.length * (fontSize * charWidth);
+// Helper function to calculate text width using Canvas API for accurate measurements
+function calculateTextWidth(text: string, fontSize: number, fontFamily: string, fontWeight: string = 'normal'): number {
+  return measureTextWidthAdvanced(text, fontSize, fontFamily, fontWeight);
 }
 
-// Helper function to calculate word wrap width (used for pivotX calculation)
-function calculateWordWrapWidth(text: string, fontSize: number, fontFamily: string): number {
-  const isMonospace = fontFamily.includes('monospace');
-  const charWidth = isMonospace ? 0.6 : 0.7; // Original character width for word wrap
-  return text.length * (fontSize * charWidth);
+// Helper function to calculate word wrap width using Canvas API for consistency
+function calculateWordWrapWidth(text: string, fontSize: number, fontFamily: string, fontWeight: string = 'normal'): number {
+  return measureTextWidthAdvanced(text, fontSize, fontFamily, fontWeight);
 }
  
 // Calculate optimal cell dimensions based on content
@@ -237,7 +222,6 @@ export function execute(program: ActionProgram): Scene {
     explanationCount,
     edgecaseCount,
     alternativeCount,
-    keyideaCount,
     pseudocodeCount
   );
 
@@ -519,8 +503,8 @@ export function execute(program: ActionProgram): Scene {
       
       // Create heading text element
       const headingFontSize = style.typography.size * 1.5;
-      const headingTextWidth = calculateTextWidth(act.text, headingFontSize, style.typography.family);
-      const headingWordWrapWidth = calculateWordWrapWidth(act.text, headingFontSize, style.typography.family);
+      const headingTextWidth = calculateTextWidth(act.text, headingFontSize, style.typography.family, 'bold');
+      const headingWordWrapWidth = calculateWordWrapWidth(act.text, headingFontSize, style.typography.family, 'bold');
       const headingHeight = style.typography.size * 2;
       
       const heading: TextEl = {
@@ -1205,9 +1189,9 @@ export function execute(program: ActionProgram): Scene {
       const rectangleId = randomUUID();
       const codeId = randomUUID();
       
-      // Position pseudocode to the right of the array
-      const pseudocodeY = -175; // Position for code block
-      const pseudocodeX = -200; // Position for code block
+      // Position pseudocode at center
+      const pseudocodeY = 0; // Center vertically
+      const pseudocodeX = 0; // Center horizontally
       
       // Calculate code block dimensions based on content
       const codeLines = act.text.split('\n');
@@ -1246,7 +1230,7 @@ export function execute(program: ActionProgram): Scene {
         stroke: "#000000",
         zIndex: 1,
         groupId: groupId,
-        opacity: 1,
+        opacity: 1, // Group handles animation
         visible: true,
         shadowBlur: 0,
         shadowColor: "#000000",
@@ -1275,7 +1259,7 @@ export function execute(program: ActionProgram): Scene {
         pivotY: codeEditorHeight / 2,
         zIndex: 2,
         groupId: groupId,
-        opacity: 1,
+        opacity: 1, // Group handles animation
         visible: true,
         fontSize: fontSize,
         wordWrap: true,
@@ -1313,7 +1297,7 @@ export function execute(program: ActionProgram): Scene {
         id: groupId,
         name: "Code Block",
         type: "custom",
-        opacity: 1,
+        opacity: 0, // Start invisible for fade-in animation
         rotation: 0,
         isDefaultGroup: false
       };
@@ -1322,8 +1306,8 @@ export function execute(program: ActionProgram): Scene {
       const pseudocodeTiming = timelineManager.getElementTiming('pseudocode');
       
       if (pseudocodeTiming) {
-        // Add fade-in animation for rectangle
-        rectangle.animations.push({
+        // Add fade-in animation to the group (like array does)
+        codeGroup.animations.push({
           id: randomUUID(),
           type: "fade",
           startTime: pseudocodeTiming.startTime!,
@@ -1332,26 +1316,12 @@ export function execute(program: ActionProgram): Scene {
           easing: "power1.inOut",
           yoyo: false,
           repeat: 0,
-          displayName: "pseudocode-rect-fade-in",
+          displayName: "pseudocode-fade-in",
           repeatDelay: 0
         });
 
-        // Add fade-in animation for code text
-        codeText.animations.push({
-          id: randomUUID(),
-          type: "fade",
-          startTime: pseudocodeTiming.startTime!,
-          duration: pseudocodeTiming.fadeInDuration!,
-          properties: { alpha: 1 },
-          easing: "power1.inOut",
-          yoyo: false,
-          repeat: 0,
-          displayName: "pseudocode-code-fade-in",
-          repeatDelay: 0
-        });
-
-        // Add fade-out animation for rectangle
-        rectangle.animations.push({
+        // Add fade-out animation to the group
+        codeGroup.animations.push({
           id: randomUUID(),
           type: "fade",
           startTime: pseudocodeTiming.fadeOutStartTime!,
@@ -1360,21 +1330,7 @@ export function execute(program: ActionProgram): Scene {
           easing: "power1.inOut",
           yoyo: false,
           repeat: 0,
-          displayName: "pseudocode-rect-fade-out",
-          repeatDelay: 0
-        });
-
-        // Add fade-out animation for code text
-        codeText.animations.push({
-          id: randomUUID(),
-          type: "fade",
-          startTime: pseudocodeTiming.fadeOutStartTime!,
-          duration: pseudocodeTiming.fadeOutDuration!,
-          properties: { alpha: 0 },
-          easing: "power1.inOut",
-          yoyo: false,
-          repeat: 0,
-          displayName: "pseudocode-code-fade-out",
+          displayName: "pseudocode-fade-out",
           repeatDelay: 0
         });
       }

@@ -33,8 +33,10 @@ export interface ContentPlan {
       complexity: string;
       keyIdeas: string[];
     };
+    algorithmExplanation: string;
+    pseudocode: string[];
+    edgeCases: string[];
   };
-  edgeCases: string[];
 }
 
 export interface LlmClient {

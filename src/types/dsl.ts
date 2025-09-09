@@ -89,11 +89,29 @@ export interface AnimationStep {
 }
 
 export interface AnimationPlan {
-  algorithm: string;
-  steps: AnimationStep[];
-  timing: {
-    totalDuration: number;
-    stepDuration: number;
+  title: string;
+  scenario: {
+    goal: string;
+    inputs: any;
+    assumptions: string[];
+  };
+  steps: Array<{
+    id: string;
+    label: string;
+    state: any;
+    visual?: {
+      highlight?: (string | number)[];
+      pointers?: any;
+      relations?: string[][];
+    };
+    explanation: string;
+  }>;
+  reference: {
+    kind: "pseudocode" | "outline";
+    lines: string[];
+  };
+  metrics: {
+    totalSteps: number;
   };
 }
 

@@ -62,14 +62,14 @@ function calculateTimingValues(explanationCount: number = 1) {
   const explanationEndTime = explanationStartTime + totalExplanationDuration;
   const explanationRemovedTime = explanationEndTime;
   
-  // Pseudocode timing - starts after explanation is removed
-  const pseudocodeStartTime = explanationRemovedTime;
-  const pseudocodeEndTime = pseudocodeStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.pseudocodeVisibleTime;
-  const pseudocodeRemovedTime = pseudocodeEndTime + TIMING_CONFIG.fadeOutDuration;
-  
-  // Approach timing - starts after pseudocode is removed
+  // Approach timing - starts after explanation is removed
   // Each approach step takes: fadeIn + visibleTime + fadeOut
-  const approachStartTime = pseudocodeRemovedTime;
+  const approachStartTime = explanationRemovedTime;
+  
+  // Pseudocode timing - starts after approach is removed (will be calculated dynamically)
+  const pseudocodeStartTime = 0; // Will be calculated dynamically
+  const pseudocodeEndTime = 0; // Will be calculated dynamically
+  const pseudocodeRemovedTime = 0; // Will be calculated dynamically
   // Note: approachEndTime will be calculated dynamically based on number of approach steps
   
   // Example timing - starts after all approach steps are complete
@@ -239,7 +239,11 @@ export class TimelineManager {
     const totalApproachDuration = this.approachCount * approachStepDuration;
     const approachEndTime = timing.approachStartTime + totalApproachDuration;
     
-    const exampleStartTime = approachEndTime;
+    // Calculate pseudocode timing - starts after approach is complete
+    const pseudocodeStartTime = approachEndTime;
+    const pseudocodeEndTime = pseudocodeStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.pseudocodeVisibleTime;
+    
+    const exampleStartTime = pseudocodeEndTime + TIMING_CONFIG.fadeOutDuration;
     const exampleEndTime = exampleStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.exampleVisibleTime;
     const exampleRemovedTime = exampleEndTime + TIMING_CONFIG.fadeOutDuration;
     
@@ -277,6 +281,14 @@ export class TimelineManager {
         startTime: timing.approachStartTime,
         endTime: approachEndTime,
         fadeOutStartTime: timing.approachStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.approachVisibleTime
+      },
+      pseudocode: {
+        fadeInDuration: TIMING_CONFIG.fadeInDuration,
+        fadeOutDuration: TIMING_CONFIG.fadeOutDuration,
+        visibleTime: TIMING_CONFIG.pseudocodeVisibleTime,
+        startTime: pseudocodeStartTime,
+        endTime: pseudocodeEndTime,
+        fadeOutStartTime: pseudocodeStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.pseudocodeVisibleTime
       },
       example: {
         fadeInDuration: TIMING_CONFIG.fadeInDuration,
