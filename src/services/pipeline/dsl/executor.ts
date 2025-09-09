@@ -1188,8 +1188,8 @@ export function execute(program: ActionProgram): Scene {
       const rectangleId = randomUUID();
       const codeId = randomUUID();
       
-      // Position pseudocode at center
-      const pseudocodeY = 0; // Center vertically
+      // Position pseudocode at center with slight offset
+      const pseudocodeY = 30; // Slightly below center
       const pseudocodeX = 0; // Center horizontally
       
       // Calculate code block dimensions based on content
