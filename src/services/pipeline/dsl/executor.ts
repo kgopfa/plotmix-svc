@@ -225,7 +225,20 @@ export function execute(program: ActionProgram): Scene {
     pseudocodeCount
   );
 
-  // First pass: process setup and build caption timing map
+  // First pass: calculate maximum approach width for alignment
+  let maxApproachWidth = 0;
+  for (const act of program) {
+    if (act.kind === "APPROACH") {
+      const numberedText = `${act.order}. ${act.text}`;
+      const approachFontSize = style.typography.size * 0.8;
+      const calculatedWidth = calculateTextWidth(numberedText, approachFontSize, style.typography.family);
+      maxApproachWidth = Math.max(maxApproachWidth, calculatedWidth);
+    }
+  }
+  // Cap the maximum width at 1200px
+  maxApproachWidth = Math.min(maxApproachWidth, 1200);
+
+  // Second pass: process setup and build caption timing map
   for (const act of program) {
     if (act.kind === "SETUP") {
       // Only update seed when it is a meaningful value (non-zero)
@@ -736,19 +749,39 @@ export function execute(program: ActionProgram): Scene {
     }
 
     if (act.kind === "APPROACH") {
-      // Handle approach commands - create static text elements with sequential ordering
+      // Handle approach commands - show 5 approaches at a time in vertical layout
       const approachId = randomUUID();
       
-      // Position approach steps at the same position as explanation and example
-      // Each step appears in the same position but at different times
-      const approachY = 0; // Same position as explanation and example
-      const approachX = 0; // Center horizontally
+      // Add numbering to the approach text
+      const numberedText = `${act.order}. ${act.text}`;
       
       // Create approach text element with procedural styling
       const approachFontSize = style.typography.size * 0.8;
-      const calculatedApproachWidth = calculateTextWidth(act.text, approachFontSize, style.typography.family);
-      const approachWidth = Math.min(calculatedApproachWidth, 1200); // Use calculated width, max 1200px
+      const approachWidth = maxApproachWidth; // Use maximum width for alignment
       const approachHeight = style.typography.size * 1.2;
+      
+      // Get timing from config - approach steps should appear sequentially like captions
+      const approachTiming = timelineManager.getElementTiming('approach');
+      
+      if (!approachTiming) {
+        throw new Error('Approach timing not configured');
+      }
+      
+      // Calculate sequential timing for each approach step (same pattern as captions)
+      const totalApproachDuration = approachTiming.fadeInDuration! + approachTiming.visibleTime! + approachTiming.fadeOutDuration!;
+      const approachStartTime = approachTiming.startTime! + (act.order - 1) * totalApproachDuration;
+      
+      // Calculate group-based fade-out timing
+      // All approaches in a group of 5 fade out together at the end of the group
+      const groupIndex = Math.floor((act.order - 1) / 5);
+      const lastApproachInGroup = Math.min(5, approachCount - (groupIndex * 5));
+      const groupFadeOutStartTime = approachTiming.startTime! + (groupIndex * 5 + lastApproachInGroup - 1) * totalApproachDuration + approachTiming.fadeInDuration! + approachTiming.visibleTime!;
+      
+      // Position approaches - within each group of 5, approaches appear one under the other
+      // But each group appears in the same positions (since previous groups fade out)
+      const positionInGroup = (act.order - 1) % 5; // 0, 1, 2, 3, 4 for positions within group
+      const approachY = -120 + (positionInGroup * 60); // Start at -120, then -60, 0, 60, 120
+      const approachX = 0; // Center horizontally
       
       const approach: TextEl = {
         animations: [],
@@ -757,7 +790,7 @@ export function execute(program: ActionProgram): Scene {
         y: approachY,
         id: approachId,
         name: `Approach ${act.order}`,
-        text: act.text,
+        text: numberedText,
         type: "text",
         width: approachWidth,
         height: approachHeight,
@@ -789,42 +822,33 @@ export function execute(program: ActionProgram): Scene {
         textStrokeWidth: 0
       };
 
-      // Get timing from config - approach steps should appear sequentially like captions
-      const approachTiming = timelineManager.getElementTiming('approach');
-      
-      if (approachTiming) {
-        // Calculate sequential timing for each approach step (same pattern as captions)
-        const totalApproachDuration = approachTiming.fadeInDuration! + approachTiming.visibleTime! + approachTiming.fadeOutDuration!;
-        const approachStartTime = approachTiming.startTime! + (act.order - 1) * totalApproachDuration;
-        
-        // Add fade-in animation for approach step
-        approach.animations.push({
-          id: randomUUID(),
-          type: "fade",
-          startTime: approachStartTime,
-          duration: approachTiming.fadeInDuration!,
-          properties: { alpha: 1 },
-          easing: "power1.inOut",
-          yoyo: false,
-          repeat: 0,
-          displayName: `approach-${act.order}-fade-in`,
-          repeatDelay: 0
-        });
+      // Add fade-in animation for approach step
+      approach.animations.push({
+        id: randomUUID(),
+        type: "fade",
+        startTime: approachStartTime,
+        duration: approachTiming.fadeInDuration!,
+        properties: { alpha: 1 },
+        easing: "power1.inOut",
+        yoyo: false,
+        repeat: 0,
+        displayName: `approach-${act.order}-fade-in`,
+        repeatDelay: 0
+      });
 
-        // Add fade-out animation for approach step
-        approach.animations.push({
-          id: randomUUID(),
-          type: "fade",
-          startTime: approachStartTime + approachTiming.fadeInDuration! + approachTiming.visibleTime!,
-          duration: approachTiming.fadeOutDuration!,
-          properties: { alpha: 0 },
-          easing: "power1.inOut",
-          yoyo: false,
-          repeat: 0,
-          displayName: `approach-${act.order}-fade-out`,
-          repeatDelay: 0
-        });
-      }
+      // Add fade-out animation for approach step (all in group fade out together)
+      approach.animations.push({
+        id: randomUUID(),
+        type: "fade",
+        startTime: groupFadeOutStartTime,
+        duration: approachTiming.fadeOutDuration!,
+        properties: { alpha: 0 },
+        easing: "power1.inOut",
+        yoyo: false,
+        repeat: 0,
+        displayName: `approach-${act.order}-fade-out`,
+        repeatDelay: 0
+      });
 
       elements.push(approach);
     }

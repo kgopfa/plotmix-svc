@@ -36,9 +36,9 @@ const TIMING_CONFIG = {
   headingStartTime: 0.5,       // When heading starts
   
   // Visible durations
-  explanationVisibleTime: 2.5, // How long explanation is fully visible
-  exampleVisibleTime: 2.5,      // How long example is fully visible
-  approachVisibleTime: 2.0,      // How long each approach step is fully visible
+  explanationVisibleTime: 2.0, // How long explanation is fully visible
+  exampleVisibleTime: 2.0,      // How long example is fully visible
+  approachVisibleTime: 1.0,      // How long each approach step is fully visible
   edgecaseVisibleTime: 2.0,     // How long each edgecase is fully visible
   alternativeVisibleTime: 2.0,  // How long each alternative is fully visible
   keyideaVisibleTime: 2.0,       // How long each keyidea is fully visible
@@ -573,6 +573,7 @@ export class TimelineManager {
       endTime: startTime + timing.totalCaptionDuration
     };
   }
+
 
   /**
    * Get total video duration

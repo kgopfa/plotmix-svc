@@ -190,10 +190,12 @@ ${JSON.stringify(contentPlan)}`
      - Emit edgecase lines AFTER the animation section and BEFORE conclusions.
   10) Allowed commands ONLY:
      - Do NOT output unsupported commands (e.g., "animate relations ...", or any undeclared keyword).
-  11) explanation lines:
+  11) explanation lines (mini-narrative, not fragments):
     - Use explanation <order> "<text>".
-    - Emit 1–4 lines total. Keep each line short (max ~20 words).
-    - Lines should explain the mechanics at a high level (no arrays/indices).
+    - explanation 1 = lead-in definition. One full sentence (≈12–20 words) that states what the concept is and why it’s used, with no arrays/indices/timing.
+    - explanation 2..N = mechanics. 1–3 short sentences total that describe how it works at a high level (still no arrays/indices/timing).
+    - Keep each line self-contained but naturally flowing if read together. Avoid repetition across lines.
+    - Total lines: 1–4. Never omit the lead-in.
   12) IMPORTANT: example MUST be explicit:
     - If animating an array, example MUST mention both the array and the target, e.g.:
       example "Search for target=a in array [a,b,c,d,e]"
