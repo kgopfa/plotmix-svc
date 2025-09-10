@@ -143,7 +143,7 @@ ${JSON.stringify(contentPlan)}`
   - style <auto|Minimal|Monospace|...>
   
   - heading "<text>"                    # required, from contentPlan.problem.title
-  - subtitle "<text>"                   # required, short tagline, from contentPlan.problem.description
+  - subtitle <order> [section] "<text>" # contextual subtitles for different phases
   - explanation <order> "<text>"        # general explanation, from contentPlan.algorithmExplanation
   
   - approach <order> "<text>"           # ordered breakdown (from approaches.optimal.keyIdeas; rephrase as procedural steps)
@@ -165,8 +165,13 @@ ${JSON.stringify(contentPlan)}`
   STRICT RULES
   1) No coordinates, layout, styling, or timing — the runtime handles those.
   2) subtitle:
-     - Derive from problem.description.
-     - Keep it short (≈6–10 words), action-oriented (what the concept does).
+     - Generate 2-4 contextual subtitles that describe what's happening in each phase.
+     - subtitle 1: "How [Algorithm] works" (for explanation/approach/pseudocode phase)
+     - subtitle 2: "Find target=[value] in [data structure]" (for array animations/captions phase)
+     - subtitle 3: "Edge cases and limitations" (for edgecases phase, if present)
+     - subtitle 4: "Summary and key takeaways" (for conclusion phase, if present)
+     - Keep each subtitle short (≈6–10 words), action-oriented.
+     - Optional section parameter: "intro", "demo", "edgecases", "conclusion"
   3) Demo context MUST precede animations:
      - Emit example (and target if relevant).
      - Then declare array [...] OR elements [...].
@@ -175,7 +180,7 @@ ${JSON.stringify(contentPlan)}`
      - animate compare is ONLY for two array indices [i,j]. To compare against an external target, use animate focus [i].
      - Every caption <n> MUST immediately follow exactly one animate; caption numbers are sequential with no gaps.
   5) Canonical section order:
-     heading → subtitle → explanation → approach* → keyidea* → pseudocode? → example → array|elements → [animate+caption]* → edgecase* → conclusion* → alternative*
+     heading → subtitle* → explanation → approach* → keyidea* → pseudocode? → example → array|elements → [animate+caption]* → edgecase* → conclusion* → alternative*
   6) 1-based ordering ONLY:
      - approach, keyidea, edgecase, caption, conclusion, alternative all use 1..N with no gaps inside their own section.
   7) Key ideas are MANDATORY when present:
@@ -204,7 +209,7 @@ ${JSON.stringify(contentPlan)}`
   
   MAPPING SOURCES
   - heading ← contentPlan.problem.title
-  - subtitle ← contentPlan.problem.description (shortened)
+  - subtitle ← contextual descriptions for each phase (generated based on content)
   - explanation ← contentPlan.algorithmExplanation
   - approach ← contentPlan.approaches.optimal.keyIdeas (rephrased as steps)
   - keyidea ← contentPlan.approaches.optimal.keyIdeas (principles, distinct phrasing)

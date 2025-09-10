@@ -219,6 +219,7 @@ export class TimelineManager {
   private animationCount: number = 0;
   private conclusionCount: number = 0;
   private approachCount: number = 0;
+  private subtitleCount: number = 0;
   private explanationCount: number = 0;
   private edgecaseCount: number = 0;
   private alternativeCount: number = 0;
@@ -359,7 +360,8 @@ export class TimelineManager {
     edgecaseCount: number = 0,
     alternativeCount: number = 0,
     keyideaCount: number = 0,
-    _pseudocodeCount: number = 0
+    _pseudocodeCount: number = 0,
+    subtitleCount: number = 0
   ): void {
     this.captionCount = captionCount;
     this.animationCount = animationCount;
@@ -369,7 +371,54 @@ export class TimelineManager {
     this.edgecaseCount = edgecaseCount;
     this.alternativeCount = alternativeCount;
     this.keyideaCount = keyideaCount;
+    this.subtitleCount = subtitleCount;
     this.calculateDynamicTiming();
+  }
+
+  /**
+   * Calculate subtitle timing based on sections
+   */
+  private calculateSubtitleTiming(): { [key: number]: { startTime: number; endTime: number } } {
+    const subtitleTimings: { [key: number]: { startTime: number; endTime: number } } = {};
+    
+    if (this.subtitleCount === 0) return subtitleTimings;
+    
+    // Calculate timing for each subtitle based on sections
+    const timing = calculateTimingValues(this.explanationCount);
+    
+    // Subtitle 1: During explanation/approach/pseudocode phase
+    subtitleTimings[1] = {
+      startTime: timing.subtitleStartTime,
+      endTime: timing.approachEndTime + TIMING_CONFIG.fadeOutDuration // End when approaches finish
+    };
+    
+    // Subtitle 2: During array animations/captions phase  
+    subtitleTimings[2] = {
+      startTime: timing.arrayStartTime,
+      endTime: timing.arrayStartTime + (Math.max(this.captionCount, this.animationCount) * (TIMING_CONFIG.captionFadeInDuration + TIMING_CONFIG.captionVisibleTime + TIMING_CONFIG.captionFadeOutDuration))
+    };
+    
+    // Subtitle 3: During edgecases phase
+    if (this.edgecaseCount > 0) {
+      const edgecaseStartTime = timing.arrayStartTime + (Math.max(this.captionCount, this.animationCount) * (TIMING_CONFIG.captionFadeInDuration + TIMING_CONFIG.captionVisibleTime + TIMING_CONFIG.captionFadeOutDuration)) + TIMING_CONFIG.fadeOutDuration;
+      const edgecaseEndTime = edgecaseStartTime + (this.edgecaseCount * (TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.edgecaseVisibleTime + TIMING_CONFIG.fadeOutDuration));
+      subtitleTimings[3] = {
+        startTime: edgecaseStartTime,
+        endTime: edgecaseEndTime
+      };
+    }
+    
+    // Subtitle 4: During conclusion phase
+    if (this.conclusionCount > 0) {
+      const conclusionStartTime = subtitleTimings[3]?.endTime || subtitleTimings[2]?.endTime || timing.arrayStartTime;
+      const conclusionEndTime = conclusionStartTime + (this.conclusionCount * (TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.captionVisibleTime + TIMING_CONFIG.fadeOutDuration));
+      subtitleTimings[4] = {
+        startTime: conclusionStartTime,
+        endTime: conclusionEndTime
+      };
+    }
+    
+    return subtitleTimings;
   }
 
   /**
@@ -536,6 +585,26 @@ export class TimelineManager {
     };
     
     return sections[sectionName as keyof typeof sections] ?? null;
+  }
+
+  /**
+   * Get subtitle timing for a specific subtitle order
+   */
+  getSubtitleTiming(order: number) {
+    const subtitleTimings = this.calculateSubtitleTiming();
+    const timing = subtitleTimings[order];
+    
+    if (!timing) {
+      return null;
+    }
+    
+    return {
+      fadeInDuration: TIMING_CONFIG.fadeInDuration,
+      fadeOutDuration: TIMING_CONFIG.fadeOutDuration,
+      startTime: timing.startTime,
+      endTime: timing.endTime,
+      fadeOutStartTime: timing.endTime - TIMING_CONFIG.fadeOutDuration
+    };
   }
 
   /**

@@ -190,6 +190,7 @@ export function execute(program: ActionProgram): Scene {
   let alternativeCount = 0;
   let keyideaCount = 0;
   let pseudocodeCount = 0;
+  let subtitleCount = 0;
   
   for (const act of program) {
     if (act.kind === "CAPTION") {
@@ -210,6 +211,8 @@ export function execute(program: ActionProgram): Scene {
       keyideaCount++;
     } else if (act.kind === "PSEUDOCODE") {
       pseudocodeCount++;
+    } else if (act.kind === "SUBTITLE") {
+      subtitleCount++;
     }
   }
   
@@ -222,7 +225,8 @@ export function execute(program: ActionProgram): Scene {
     explanationCount,
     edgecaseCount,
     alternativeCount,
-    pseudocodeCount
+    pseudocodeCount,
+    subtitleCount
   );
 
   // First pass: calculate maximum widths for alignment
@@ -597,7 +601,7 @@ export function execute(program: ActionProgram): Scene {
     }
 
     if (act.kind === "SUBTITLE") {
-      // Handle subtitle commands - create static text element below heading
+      // Handle subtitle commands - create dynamic subtitle with transitions
       const subtitleId = randomUUID();
       
       // Position subtitle below the heading, same distance from center as captions
@@ -616,7 +620,7 @@ export function execute(program: ActionProgram): Scene {
         x: subtitleX,
         y: subtitleY,
         id: subtitleId,
-        name: `Subtitle`,
+        name: `Subtitle ${act.order}`,
         text: act.text,
         type: "text",
         width: subtitleTextWidth, // Use calculated text width
@@ -649,21 +653,35 @@ export function execute(program: ActionProgram): Scene {
         textStrokeWidth: 0
       };
 
-      // Get timing from config
-      const subtitleTiming = timelineManager.getElementTiming('subtitle');
+      // Get timing for this specific subtitle order
+      const subtitleTiming = timelineManager.getSubtitleTiming(act.order);
       
       if (subtitleTiming) {
         // Add fade-in animation for subtitle
         subtitle.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: subtitleTiming.startTime!,
-          duration: subtitleTiming.fadeInDuration!,
+          startTime: subtitleTiming.startTime,
+          duration: subtitleTiming.fadeInDuration,
           properties: { alpha: 1 },
           easing: "power1.inOut",
           yoyo: false,
           repeat: 0,
-          displayName: "subtitle-fade-in",
+          displayName: `subtitle-${act.order}-fade-in`,
+          repeatDelay: 0
+        });
+
+        // Add fade-out animation for subtitle
+        subtitle.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: subtitleTiming.fadeOutStartTime,
+          duration: subtitleTiming.fadeOutDuration,
+          properties: { alpha: 0 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `subtitle-${act.order}-fade-out`,
           repeatDelay: 0
         });
       }

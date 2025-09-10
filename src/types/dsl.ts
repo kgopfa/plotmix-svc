@@ -4,7 +4,7 @@ export type Action =
   | { kind: "ANIMATE"; type: "highlight"|"select"|"focus"|"compare"; elements: (number|string)[]; startTime: number; duration: number }
   | { kind: "CAPTION"; order: number; text: string }
   | { kind: "HEADING"; text: string }
-  | { kind: "SUBTITLE"; text: string } 
+  | { kind: "SUBTITLE"; order: number; text: string; section?: string } 
   | { kind: "EXPLANATION"; order: number; text: string }
   | { kind: "APPROACH"; order: number; text: string }
   | { kind: "EXAMPLE"; text: string }

@@ -186,17 +186,22 @@ export class DslCompiler {
   }
 
   private static parseSubtitle(line: string): Action | null {
-    const subtitleMatch = line.match(/^subtitle\s+"([^"]+)"/);
+    // Parse subtitle with optional order and section: subtitle [order] [section] "text"
+    const subtitleMatch = line.match(/^subtitle\s+(?:(\d+)\s+)?(?:(\w+)\s+)?\"([^"]+)"/);
     
     if (!subtitleMatch) {
       return null;
     }
 
-    const text = subtitleMatch[1]!;
+    const order = subtitleMatch[1] ? parseInt(subtitleMatch[1], 10) : 1;
+    const section = subtitleMatch[2] || undefined;
+    const text = subtitleMatch[3]!;
 
     return {
       kind: "SUBTITLE",
-      text
+      order,
+      text,
+      ...(section && { section })
     };
   }
 
