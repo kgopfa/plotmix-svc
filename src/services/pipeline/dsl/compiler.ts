@@ -128,13 +128,13 @@ export class DslCompiler {
   // Text commands removed - only arrays and captions supported
 
   private static parseAnimate(line: string): Action | null {
-    const animateMatch = line.match(/^animate\s+(highlight|select|focus|compare)\s+\[([^\]]+)\]/);
+    const animateMatch = line.match(/^animate\s+(highlight|select|focus|compare|pointer|move)\s+\[([^\]]+)\]/);
     
     if (!animateMatch) {
       return null;
     }
 
-    const type = animateMatch[1] as "highlight"|"select"|"focus"|"compare";
+    const type = animateMatch[1] as "highlight"|"select"|"focus"|"compare"|"pointer"|"move";
     const elementsStr = animateMatch[2]!;
 
     const elements = elementsStr.split(',').map(v => {
