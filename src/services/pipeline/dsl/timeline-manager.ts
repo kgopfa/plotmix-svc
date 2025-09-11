@@ -253,16 +253,18 @@ export class TimelineManager {
     
     const mainEndTime = arrayFullyVisibleTime + (Math.max(this.captionCount, this.animationCount) * timing.totalCaptionDuration);
     
-    // Calculate edgecase timing - starts after main section ends, before conclusions
+    // Calculate edgecase timing - starts after main section ends
     const edgecaseStartTime = mainEndTime;
     const edgecaseEndTime = edgecaseStartTime + (this.edgecaseCount * timing.totalCaptionDuration);
     
     // Calculate conclusion timing - starts after edgecases
+    // Conclusions are rendered in pairs, so total duration is just totalCaptionDuration (not count * duration)
     const conclusionStartTime = edgecaseEndTime;
-    const conclusionEndTime = conclusionStartTime + (this.conclusionCount * timing.totalCaptionDuration);
+    const conclusionEndTime = conclusionStartTime + timing.totalCaptionDuration;
+    const conclusionRemovedTime = conclusionEndTime;
     
-    // Calculate alternative timing - starts after conclusions
-    const alternativeStartTime = conclusionEndTime;
+    // Calculate alternative timing - starts after conclusions are removed (no gap!)
+    const alternativeStartTime = conclusionRemovedTime;
     const alternativeEndTime = alternativeStartTime + (this.alternativeCount * timing.totalCaptionDuration);
     
     return {
@@ -386,21 +388,39 @@ export class TimelineManager {
     // Calculate timing for each subtitle based on sections
     const timing = calculateTimingValues(this.explanationCount);
     
+    // Calculate dynamic approach end time
+    const approachStepDuration = TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.approachVisibleTime + TIMING_CONFIG.fadeOutDuration;
+    const totalApproachDuration = this.approachCount * approachStepDuration;
+    const approachEndTime = timing.approachStartTime + totalApproachDuration;
+    
+    // Calculate pseudocode timing - starts after approach is complete
+    const pseudocodeStartTime = approachEndTime;
+    const pseudocodeEndTime = pseudocodeStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.pseudocodeVisibleTime;
+    
+    // Calculate example timing - starts after pseudocode
+    const exampleStartTime = pseudocodeEndTime + TIMING_CONFIG.fadeOutDuration;
+    const exampleEndTime = exampleStartTime + TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.exampleVisibleTime;
+    const exampleRemovedTime = exampleEndTime + TIMING_CONFIG.fadeOutDuration;
+    
+    // Calculate array timing - starts after example is fully removed
+    const arrayStartTime = exampleRemovedTime + TIMING_CONFIG.arrayStartDelay;
+    const arrayEndTime = arrayStartTime + (Math.max(this.captionCount, this.animationCount) * (TIMING_CONFIG.captionFadeInDuration + TIMING_CONFIG.captionVisibleTime + TIMING_CONFIG.captionFadeOutDuration));
+    
     // Subtitle 1: During explanation/approach/pseudocode phase
     subtitleTimings[1] = {
       startTime: timing.subtitleStartTime,
-      endTime: timing.approachEndTime + TIMING_CONFIG.fadeOutDuration // End when approaches finish
+      endTime: pseudocodeEndTime + TIMING_CONFIG.fadeOutDuration
     };
     
     // Subtitle 2: During array animations/captions phase  
     subtitleTimings[2] = {
-      startTime: timing.arrayStartTime,
-      endTime: timing.arrayStartTime + (Math.max(this.captionCount, this.animationCount) * (TIMING_CONFIG.captionFadeInDuration + TIMING_CONFIG.captionVisibleTime + TIMING_CONFIG.captionFadeOutDuration))
+      startTime: arrayStartTime,
+      endTime: arrayEndTime
     };
     
     // Subtitle 3: During edgecases phase
     if (this.edgecaseCount > 0) {
-      const edgecaseStartTime = timing.arrayStartTime + (Math.max(this.captionCount, this.animationCount) * (TIMING_CONFIG.captionFadeInDuration + TIMING_CONFIG.captionVisibleTime + TIMING_CONFIG.captionFadeOutDuration)) + TIMING_CONFIG.fadeOutDuration;
+      const edgecaseStartTime = arrayEndTime + TIMING_CONFIG.fadeOutDuration;
       const edgecaseEndTime = edgecaseStartTime + (this.edgecaseCount * (TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.edgecaseVisibleTime + TIMING_CONFIG.fadeOutDuration));
       subtitleTimings[3] = {
         startTime: edgecaseStartTime,
@@ -410,7 +430,7 @@ export class TimelineManager {
     
     // Subtitle 4: During conclusion phase
     if (this.conclusionCount > 0) {
-      const conclusionStartTime = subtitleTimings[3]?.endTime || subtitleTimings[2]?.endTime || timing.arrayStartTime;
+      const conclusionStartTime = subtitleTimings[3]?.endTime || arrayEndTime;
       const conclusionEndTime = conclusionStartTime + (this.conclusionCount * (TIMING_CONFIG.fadeInDuration + TIMING_CONFIG.captionVisibleTime + TIMING_CONFIG.fadeOutDuration));
       subtitleTimings[4] = {
         startTime: conclusionStartTime,
@@ -663,9 +683,9 @@ export class TimelineManager {
   calculateConclusionTiming(conclusionOrder: number): { startTime: number; fadeInEnd: number; fadeOutStart: number; endTime: number } {
     const timing = calculateTimingValues(this.explanationCount);
     
-    // Use the edgecase end time to ensure conclusions start after edgecases finish
+    // Use the actual edgecase timing from the main system (conclusions come after edgecases)
     const edgecaseTiming = this.getElementTiming('edgecase');
-    const edgecaseEndTime = edgecaseTiming ? edgecaseTiming.endTime : this.getElementTiming('array').endTime;
+    const edgecaseEndTime = edgecaseTiming ? edgecaseTiming.endTime : this.getElementTiming('array')?.endTime || 0;
     
     // Calculate conclusion start time based on edgecase section end
     // Group conclusions in pairs (1,2), (3,4), (5,6), etc.

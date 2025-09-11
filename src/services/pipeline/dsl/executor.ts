@@ -190,7 +190,7 @@ export function execute(program: ActionProgram): Scene {
   let alternativeCount = 0;
   let keyideaCount = 0;
   let pseudocodeCount = 0;
-  let subtitleCount = 0;
+  // let subtitleCount = 0; // Commented out for now
   
   for (const act of program) {
     if (act.kind === "CAPTION") {
@@ -212,21 +212,23 @@ export function execute(program: ActionProgram): Scene {
     } else if (act.kind === "PSEUDOCODE") {
       pseudocodeCount++;
     } else if (act.kind === "SUBTITLE") {
-      subtitleCount++;
+      // Skip subtitle counting for now
+      // subtitleCount++;
     }
   }
   
   // Initialize timeline manager with content counts
   timelineManager.setContentCounts(
-    captionCount, 
-    animationCount, 
-    conclusionCount, 
+    captionCount,
+    animationCount,
+    conclusionCount,
     approachCount,
     explanationCount,
     edgecaseCount,
     alternativeCount,
+    keyideaCount,
     pseudocodeCount,
-    subtitleCount
+    0 // subtitleCount - commented out for now
   );
 
   // First pass: calculate maximum widths for alignment
@@ -601,6 +603,7 @@ export function execute(program: ActionProgram): Scene {
     }
 
     if (act.kind === "SUBTITLE") {
+      /*
       // Handle subtitle commands - create dynamic subtitle with transitions
       const subtitleId = randomUUID();
       
@@ -687,6 +690,8 @@ export function execute(program: ActionProgram): Scene {
       }
 
       elements.push(subtitle);
+      */
+     continue;
     }
 
     if (act.kind === "EXPLANATION") {
@@ -783,7 +788,7 @@ export function execute(program: ActionProgram): Scene {
     }
 
     if (act.kind === "APPROACH") {
-      // Handle approach commands - show 5 approaches at a time in vertical layout
+      // Handle approach commands - show 8 approaches at a time in vertical layout
       const approachId = randomUUID();
       
       // Add numbering to the approach text
@@ -806,15 +811,15 @@ export function execute(program: ActionProgram): Scene {
       const approachStartTime = approachTiming.startTime! + (act.order - 1) * totalApproachDuration;
       
       // Calculate group-based fade-out timing
-      // All approaches in a group of 5 fade out together at the end of the group
-      const groupIndex = Math.floor((act.order - 1) / 5);
-      const lastApproachInGroup = Math.min(5, approachCount - (groupIndex * 5));
-      const groupFadeOutStartTime = approachTiming.startTime! + (groupIndex * 5 + lastApproachInGroup - 1) * totalApproachDuration + approachTiming.fadeInDuration! + approachTiming.visibleTime!;
+      // All approaches in a group of 8 fade out together at the end of the group
+      const groupIndex = Math.floor((act.order - 1) / 8);
+      const lastApproachInGroup = Math.min(8, approachCount - (groupIndex * 8));
+      const groupFadeOutStartTime = approachTiming.startTime! + (groupIndex * 8 + lastApproachInGroup - 1) * totalApproachDuration + approachTiming.fadeInDuration! + approachTiming.visibleTime!;
       
-      // Position approaches - within each group of 5, approaches appear one under the other
+      // Position approaches - within each group of 8, approaches appear one under the other
       // But each group appears in the same positions (since previous groups fade out)
-      const positionInGroup = (act.order - 1) % 5; // 0, 1, 2, 3, 4 for positions within group
-      const approachY = -120 + (positionInGroup * 60); // Start at -120, then -60, 0, 60, 120
+      const positionInGroup = (act.order - 1) % 8; // 0, 1, 2, 3, 4, 5, 6, 7 for positions within group
+      const approachY = -210 + (positionInGroup * 60); // Start at -210, then -150, -90, -30, 30, 90, 150, 210
       const approachX = 0; // Center horizontally
       
       const approach: TextEl = {
@@ -1069,10 +1074,10 @@ export function execute(program: ActionProgram): Scene {
       // Add numbering to the edgecase text
       const numberedText = `${act.order}. ${act.text}`;
       
-      // Position edgecases - within each group of 5, edgecases appear one under the other
+      // Position edgecases - within each group of 8, edgecases appear one under the other
       // Use different Y range to avoid overlap with conclusions
-      const positionInGroup = (act.order - 1) % 5; // 0, 1, 2, 3, 4 for positions within group
-      const edgecaseY = -200 + (positionInGroup * 60); // Start at -200, then -140, -80, -20, 40
+      const positionInGroup = (act.order - 1) % 8; // 0, 1, 2, 3, 4, 5, 6, 7 for positions within group
+      const edgecaseY = -280 + (positionInGroup * 60); // Start at -280, then -220, -160, -100, -40, 20, 80, 140
       const edgecaseX = 0; // Center horizontally
       
       // Create edgecase text element
@@ -1128,10 +1133,10 @@ export function execute(program: ActionProgram): Scene {
         const edgecaseStartTime = edgecaseTiming.startTime! + (act.order - 1) * totalEdgecaseDuration;
         
         // Calculate group-based fade-out timing
-        // All edgecases in a group of 5 fade out together at the end of the group
-        const groupIndex = Math.floor((act.order - 1) / 5);
-        const lastEdgecaseInGroup = Math.min(5, edgecaseCount - (groupIndex * 5));
-        const groupFadeOutStartTime = edgecaseTiming.startTime! + (groupIndex * 5 + lastEdgecaseInGroup - 1) * totalEdgecaseDuration + edgecaseTiming.fadeInDuration! + edgecaseTiming.visibleTime!;
+        // All edgecases in a group of 8 fade out together at the end of the group
+        const groupIndex = Math.floor((act.order - 1) / 8);
+        const lastEdgecaseInGroup = Math.min(8, edgecaseCount - (groupIndex * 8));
+        const groupFadeOutStartTime = edgecaseTiming.startTime! + (groupIndex * 8 + lastEdgecaseInGroup - 1) * totalEdgecaseDuration + edgecaseTiming.fadeInDuration! + edgecaseTiming.visibleTime!;
         
         // Add fade-in animation for edgecase
         edgecase.animations.push({
@@ -1172,10 +1177,10 @@ export function execute(program: ActionProgram): Scene {
       // Add numbering to the alternative text
       const numberedText = `${act.order}. ${act.text}`;
       
-      // Position alternatives - within each group of 5, alternatives appear one under the other
+      // Position alternatives - within each group of 8, alternatives appear one under the other
       // Use same Y coordinates as edgecases
-      const positionInGroup = (act.order - 1) % 5; // 0, 1, 2, 3, 4 for positions within group
-      const alternativeY = -200 + (positionInGroup * 60); // Start at -200, then -140, -80, -20, 40 (same as edgecases)
+      const positionInGroup = (act.order - 1) % 8; // 0, 1, 2, 3, 4, 5, 6, 7 for positions within group
+      const alternativeY = -280 + (positionInGroup * 60); // Start at -280, then -220, -160, -100, -40, 20, 80, 140 (same as edgecases)
       const alternativeX = 0; // Center horizontally
       
       // Create alternative text element
@@ -1231,10 +1236,10 @@ export function execute(program: ActionProgram): Scene {
         const alternativeStartTime = alternativeTiming.startTime! + (act.order - 1) * totalAlternativeDuration;
         
         // Calculate group-based fade-out timing
-        // All alternatives in a group of 5 fade out together at the end of the group
-        const groupIndex = Math.floor((act.order - 1) / 5);
-        const lastAlternativeInGroup = Math.min(5, alternativeCount - (groupIndex * 5));
-        const groupFadeOutStartTime = alternativeTiming.startTime! + (groupIndex * 5 + lastAlternativeInGroup - 1) * totalAlternativeDuration + alternativeTiming.fadeInDuration! + alternativeTiming.visibleTime!;
+        // All alternatives in a group of 8 fade out together at the end of the group
+        const groupIndex = Math.floor((act.order - 1) / 8);
+        const lastAlternativeInGroup = Math.min(8, alternativeCount - (groupIndex * 8));
+        const groupFadeOutStartTime = alternativeTiming.startTime! + (groupIndex * 8 + lastAlternativeInGroup - 1) * totalAlternativeDuration + alternativeTiming.fadeInDuration! + alternativeTiming.visibleTime!;
         
         // Add fade-in animation for alternative
         alternative.animations.push({

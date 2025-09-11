@@ -12,7 +12,10 @@ import { prisma } from '../clients/database.client';
 // Default DSL input for testing
 const DEFAULT_DSL = `
 heading "Binary Search"
-subtitle "Efficiently find a target in a sorted array."
+subtitle 1 intro "How Binary Search works"
+subtitle 2 demo "Find target=7 in array [1,3,5,7,9,11]"
+subtitle 3 edgecases "Edge cases and limitations"
+subtitle 4 conclusion "Summary and key takeaways"
 explanation 1 "Binary search defines a search interval that covers the entire array."
 explanation 2 "It repeatedly compares the midpoint value to the target, adjusting the interval."
 explanation 3 "This method continues until the target is found or the interval is empty."
