@@ -11,24 +11,43 @@ import { prisma } from '../clients/database.client';
 
 // Default DSL input for testing
 const DEFAULT_DSL = `
-heading "Binary Search"
-subtitle 1 intro "How Binary Search works"
-subtitle 2 demo "Find target=7 in array [1,3,5,7,9,11]"
-subtitle 3 edgecases "Edge cases and limitations"
-subtitle 4 conclusion "Summary and key takeaways"
+heading "Binary Search Algorithm"
+
+array [1,3,5,7,9,11,13,15]
+
+caption 1 "Binary search requires a sorted array and uses two pointers to define the search range."
+
+animate pointer ["LOW", "HIGH"]
+caption 2 "Initialize low pointer at index 0 and high pointer at index 7."
+
+animate move [3, 3]
+caption 3 "Calculate the midpoint at index 3 and compare it with the target value 9."
+
+animate highlight [4,7]
+caption 4 "Since target 9 is greater than midpoint value 7, adjust the low pointer to index 4."
+
+animate move [5, 5]
+caption 5 "Calculate new midpoint at index 5 and compare with target."
+
+animate select [5]
+caption 6 "Target value 9 is found at index 5! Binary search successfully located the element."
+
 explanation 1 "Binary search defines a search interval that covers the entire array."
 explanation 2 "It repeatedly compares the midpoint value to the target, adjusting the interval."
 explanation 3 "This method continues until the target is found or the interval is empty."
+
 approach 1 "Start with low and high pointers indicating the full array range."
 approach 2 "Calculate the midpoint of the current search interval."
 approach 3 "If the target is greater than the midpoint value, adjust the low pointer."
 approach 4 "If the target is less than the midpoint value, adjust the high pointer."
 approach 5 "Repeat until the target is located or the search interval is exhausted."
+
 keyidea 1 "Requires a sorted array for efficiency."
 keyidea 2 "Utilizes a divide and conquer strategy."
 keyidea 3 "Can be implemented using iteration or recursion."
 keyidea 4 "Significantly reduces the search space at each step."
 keyidea 5 "Highly efficient for large datasets."
+
 pseudocode """function binarySearch(array, target)
    low = 0
    high = length(array) - 1
@@ -41,26 +60,17 @@ pseudocode """function binarySearch(array, target)
        else
            high = mid - 1
    return -1"""
-example "Search for target=9 in array [1,3,5,7,9,11,13,15]"
-array [1,3,5,7,9,11,13,15]
-animate highlight [0,7]
-caption 1 "Start with low=0 and high=7 representing the array range."
-animate focus [3]
-caption 2 "Calculate the midpoint at index 3, value=7, and compare it to the target."
-animate highlight [4,7]
-caption 3 "Adjust low to 4 since target 9 is greater than midpoint value 7."
-animate focus [5]
-caption 4 "New midpoint is 5, and the value at this index matches the target."
-animate select [5]
-caption 5 "The target value 9 is found at index 5."
+
 edgecase 1 "Empty array may lead to immediate failure."
 edgecase 2 "Target less than smallest element results in no match."
 edgecase 3 "Target greater than largest element results in no match."
 edgecase 4 "Target in the middle can lead to a quick success."
 edgecase 5 "Repeated elements may affect performance but not functionality."
 edgecase 6 "Target as the first element requires careful pointer handling."
+
 conclusion 1 "Time complexity is O(log n), making it efficient for large arrays."
 conclusion 2 "Space complexity is O(1), as it uses minimal extra space."
+
 alternative 1 "Linear Search — Check each element sequentially until found (O(n))."`;
 
 function getDslInput(): string {
