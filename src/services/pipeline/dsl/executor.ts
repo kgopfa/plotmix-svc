@@ -59,7 +59,7 @@ function makeCell(
   cellWidth: number,
   cellHeight: number,
   index: number
-): { group: Group; rect: Rect; text: TextEl; indexText: TextEl; leftPointer: any; rightPointer: any; leftLabel: TextEl; rightLabel: TextEl } {
+): { group: Group; rect: Rect; text: TextEl; indexText: TextEl; leftPointer: any; rightPointer: any; leftLabel: TextEl; rightLabel: TextEl; leftPointerGroup: Group; rightPointerGroup: Group } {
   const gid = randomUUID();
   const rid = randomUUID();
   const tid = randomUUID();
@@ -188,11 +188,12 @@ function makeCell(
     textStrokeWidth: 0,
   };
 
-  // Create left pointer (positioned to the left of the cell)
+  // Create left pointer group (positioned at the center of the cell)
+  const leftPointerGroupId = randomUUID();
   const leftPointerId = randomUUID();
   const leftLabelId = randomUUID();
   const leftPointerY = centerY - (cellHeight / 2) - 50; // 50px above the cell
-  const leftPointerX = centerX - (cellWidth / 2) - 30; // 30px to the left of the cell
+  const leftPointerX = centerX; // Aligned with the center of the cell
 
   const leftPointer = {
     animations: [],
@@ -200,7 +201,7 @@ function makeCell(
     x: leftPointerX,
     y: leftPointerY,
     id: leftPointerId,
-    name: `Cell ${index} Left Pointer`,
+    name: `Triangle ${index}`,
     type: "triangle",
     width: 20,
     height: 20,
@@ -209,8 +210,8 @@ function makeCell(
     radius: 50, // For triangle shape
     stroke: "#000000",
     zIndex: 3,
-    groupId: "", // No group - positioned absolutely
-    opacity: 0, // Start invisible
+    groupId: leftPointerGroupId,
+    opacity: 1, // Visible within group
     visible: true,
     rotation: Math.PI / 2, // Pointing right (90 degrees)
     shadowBlur: 0,
@@ -226,7 +227,7 @@ function makeCell(
 
   // Create left pointer label
   const leftLabelFontSize = style.typography.size * 0.5;
-  const leftLabelTextWidth = calculateTextWidth("L", leftLabelFontSize, style.typography.family);
+  const leftLabelTextWidth = calculateTextWidth("LEFT", leftLabelFontSize, style.typography.family);
   const leftLabelTextHeight = leftLabelFontSize * 1.2;
   const leftLabelY = leftPointerY - 20; // 20px above the triangle
 
@@ -236,16 +237,16 @@ function makeCell(
     x: leftPointerX,
     y: leftLabelY,
     id: leftLabelId,
-    name: `Cell ${index} Left Label`,
-    text: "L",
+    name: `Left`,
+    text: "LEFT",
     type: "text",
     width: leftLabelTextWidth,
     height: leftLabelTextHeight,
     pivotX: leftLabelTextWidth / 2,
     pivotY: leftLabelTextHeight / 2,
     zIndex: 4,
-    groupId: "", // No group - positioned absolutely
-    opacity: 0, // Start invisible
+    groupId: leftPointerGroupId,
+    opacity: 1, // Visible within group
     visible: true,
     fontSize: leftLabelFontSize,
     wordWrap: false,
@@ -269,11 +270,25 @@ function makeCell(
     textStrokeWidth: 0,
   };
 
-  // Create right pointer (positioned to the right of the cell)
+  const leftPointerGroup: Group = {
+    animations: [],
+    elementIds: [leftPointerId, leftLabelId],
+    x: leftPointerX,
+    y: leftPointerY,
+    id: leftPointerGroupId,
+    name: `Cell ${index} Left Pointer`,
+    type: "custom",
+    opacity: 0, // Start invisible
+    rotation: 0,
+    isDefaultGroup: false,
+  };
+
+  // Create right pointer group (positioned at the center of the cell)
+  const rightPointerGroupId = randomUUID();
   const rightPointerId = randomUUID();
   const rightLabelId = randomUUID();
   const rightPointerY = centerY - (cellHeight / 2) - 50; // 50px above the cell
-  const rightPointerX = centerX + (cellWidth / 2) + 30; // 30px to the right of the cell
+  const rightPointerX = centerX; // Aligned with the center of the cell
 
   const rightPointer = {
     animations: [],
@@ -281,7 +296,7 @@ function makeCell(
     x: rightPointerX,
     y: rightPointerY,
     id: rightPointerId,
-    name: `Cell ${index} Right Pointer`,
+    name: `Triangle ${index}`,
     type: "triangle",
     width: 20,
     height: 20,
@@ -290,8 +305,8 @@ function makeCell(
     radius: 50, // For triangle shape
     stroke: "#000000",
     zIndex: 3,
-    groupId: "", // No group - positioned absolutely
-    opacity: 0, // Start invisible
+    groupId: rightPointerGroupId,
+    opacity: 1, // Visible within group
     visible: true,
     rotation: -Math.PI / 2, // Pointing left (-90 degrees)
     shadowBlur: 0,
@@ -307,7 +322,7 @@ function makeCell(
 
   // Create right pointer label
   const rightLabelFontSize = style.typography.size * 0.5;
-  const rightLabelTextWidth = calculateTextWidth("R", rightLabelFontSize, style.typography.family);
+  const rightLabelTextWidth = calculateTextWidth("RIGHT", rightLabelFontSize, style.typography.family);
   const rightLabelTextHeight = rightLabelFontSize * 1.2;
   const rightLabelY = rightPointerY - 20; // 20px above the triangle
 
@@ -317,16 +332,16 @@ function makeCell(
     x: rightPointerX,
     y: rightLabelY,
     id: rightLabelId,
-    name: `Cell ${index} Right Label`,
-    text: "R",
+    name: `Right`,
+    text: "RIGHT",
     type: "text",
     width: rightLabelTextWidth,
     height: rightLabelTextHeight,
     pivotX: rightLabelTextWidth / 2,
     pivotY: rightLabelTextHeight / 2,
     zIndex: 4,
-    groupId: "", // No group - positioned absolutely
-    opacity: 0, // Start invisible
+    groupId: rightPointerGroupId,
+    opacity: 1, // Visible within group
     visible: true,
     fontSize: rightLabelFontSize,
     wordWrap: false,
@@ -350,6 +365,19 @@ function makeCell(
     textStrokeWidth: 0,
   };
 
+  const rightPointerGroup: Group = {
+    animations: [],
+    elementIds: [rightPointerId, rightLabelId],
+    x: rightPointerX,
+    y: rightPointerY,
+    id: rightPointerGroupId,
+    name: `Cell ${index} Right Pointer`,
+    type: "custom",
+    opacity: 0, // Start invisible
+    rotation: 0,
+    isDefaultGroup: false,
+  };
+
   const group: Group = {
     animations: [],
     elementIds: [rid, tid, iid], // Include indexText ID
@@ -363,7 +391,7 @@ function makeCell(
     isDefaultGroup: false,
   };
 
-  return { group, rect, text, indexText, leftPointer, rightPointer, leftLabel, rightLabel };
+  return { group, rect, text, indexText, leftPointer, rightPointer, leftLabel, rightLabel, leftPointerGroup, rightPointerGroup };
 }
 
 
@@ -611,7 +639,7 @@ export function execute(program: ActionProgram): Scene {
       act.values.forEach((v, i) => {
         const centerX = centerXs[i]!;
         const centerY = arrayY;
-        const { group, rect, text, indexText, leftPointer, rightPointer, leftLabel, rightLabel } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight, i);
+        const { group, rect, text, indexText, leftPointer, rightPointer, leftLabel, rightLabel, leftPointerGroup, rightPointerGroup } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight, i);
         
         // Get timing from config
         const arrayTiming = timelineManager.getElementTiming('array');
@@ -651,6 +679,7 @@ export function execute(program: ActionProgram): Scene {
         
         groups.push(group);
         elements.push(rect, text, indexText, leftPointer, rightPointer, leftLabel, rightLabel);
+        groups.push(leftPointerGroup, rightPointerGroup);
       });
     }
 
@@ -680,17 +709,14 @@ export function execute(program: ActionProgram): Scene {
         const direction = act.elements[0] as string; // "left" or "right"
         const cellIndex = act.elements[1] as number;
         
-        // Find the target pointer elements
-        const pointerElement = elements.find(el => 
-          el.name === `Cell ${cellIndex} ${direction === "left" ? "Left" : "Right"} Pointer`
-        );
-        const labelElement = elements.find(el => 
-          el.name === `Cell ${cellIndex} ${direction === "left" ? "Left" : "Right"} Label`
+        // Find the target pointer group
+        const pointerGroup = groups.find(group => 
+          group.name === `Cell ${cellIndex} ${direction === "left" ? "Left" : "Right"} Pointer`
         );
 
-        if (pointerElement && labelElement) {
-          // Add fade-in animation to make the pointer visible
-          pointerElement.animations.push({
+        if (pointerGroup) {
+          // Add fade-in animation to make the pointer group visible
+          pointerGroup.animations.push({
             id: randomUUID(),
             type: "fade",
             startTime: animationStartTime,
@@ -700,19 +726,6 @@ export function execute(program: ActionProgram): Scene {
             yoyo: false,
             repeat: 0,
             displayName: `pointer-${direction}-${cellIndex}-fade-in`,
-            repeatDelay: 0
-          });
-
-          labelElement.animations.push({
-            id: randomUUID(),
-            type: "fade",
-            startTime: animationStartTime,
-            duration: 0.5,
-            properties: { alpha: 1 },
-            easing: "power1.inOut",
-            yoyo: false,
-            repeat: 0,
-            displayName: `pointer-${direction}-${cellIndex}-label-fade-in`,
             repeatDelay: 0
           });
         }
