@@ -59,7 +59,7 @@ function makeCell(
   cellWidth: number,
   cellHeight: number,
   index: number
-): { group: Group; rect: Rect; text: TextEl; indexText: TextEl } {
+): { group: Group; rect: Rect; text: TextEl; indexText: TextEl; leftPointer: any; rightPointer: any; leftLabel: TextEl; rightLabel: TextEl } {
   const gid = randomUUID();
   const rid = randomUUID();
   const tid = randomUUID();
@@ -188,47 +188,19 @@ function makeCell(
     textStrokeWidth: 0,
   };
 
-  const group: Group = {
+  // Create left pointer (positioned to the left of the cell)
+  const leftPointerId = randomUUID();
+  const leftLabelId = randomUUID();
+  const leftPointerY = centerY - (cellHeight / 2) - 50; // 50px above the cell
+  const leftPointerX = centerX - (cellWidth / 2) - 30; // 30px to the left of the cell
+
+  const leftPointer = {
     animations: [],
-    elementIds: [rid, tid],
-    x: 0,
-    y: 0,
-    id: gid,
-    name: `Array Cell ${index}`,
-    type: "custom",
-    opacity: 0, // Start invisible for fade-in
-    rotation: 0,
-    isDefaultGroup: false,
-  };
-
-  return { group, rect, text, indexText };
-}
-
-// Pointer builder function - creates pointer indicators with triangle and label
-function makePointer(
-  style: StylePack,
-  label: string,
-  targetX: number,
-  targetY: number,
-  cellHeight: number,
-  pointerId: string = "pointer"
-): { group: Group; triangle: any; labelText: TextEl } {
-  const gid = randomUUID();
-  const tid = randomUUID();
-  const lid = randomUUID();
-
-  // Position pointer above the target cell
-  const pointerY = targetY - (cellHeight / 2) - 50; // 50px above the cell
-  const pointerX = targetX; // Center horizontally with the cell
-
-  // Create triangle pointer (pointing down)
-  const triangle = {
-    animations: [],
-    fill: "#FFD700", // Gold color like in your example
-    x: pointerX,
-    y: pointerY,
-    id: tid,
-    name: `${pointerId} Triangle`,
+    fill: "#FFD700", // Gold color
+    x: leftPointerX,
+    y: leftPointerY,
+    id: leftPointerId,
+    name: `Cell ${index} Left Pointer`,
     type: "triangle",
     width: 20,
     height: 20,
@@ -237,10 +209,10 @@ function makePointer(
     radius: 50, // For triangle shape
     stroke: "#000000",
     zIndex: 3,
-    groupId: gid,
-    opacity: 1,
+    groupId: "", // No group - positioned absolutely
+    opacity: 0, // Start invisible
     visible: true,
-    rotation: Math.PI, // Pointing down (180 degrees)
+    rotation: Math.PI / 2, // Pointing right (90 degrees)
     shadowBlur: 0,
     shadowColor: "#000000",
     strokeWidth: 1,
@@ -252,30 +224,111 @@ function makePointer(
     isAnimationPath: false,
   };
 
-  // Create label text above the triangle
-  const labelFontSize = style.typography.size * 0.5; // Small font for labels
-  const labelTextWidth = calculateTextWidth(label, labelFontSize, style.typography.family);
-  const labelTextHeight = labelFontSize * 1.2;
-  const labelY = pointerY - 20; // 20px above the triangle
+  // Create left pointer label
+  const leftLabelFontSize = style.typography.size * 0.5;
+  const leftLabelTextWidth = calculateTextWidth("L", leftLabelFontSize, style.typography.family);
+  const leftLabelTextHeight = leftLabelFontSize * 1.2;
+  const leftLabelY = leftPointerY - 20; // 20px above the triangle
 
-  const labelText: TextEl = {
+  const leftLabel: TextEl = {
     animations: [],
     fill: "#000000",
-    x: pointerX,
-    y: labelY,
-    id: lid,
-    name: `${pointerId} Label`,
-    text: label,
+    x: leftPointerX,
+    y: leftLabelY,
+    id: leftLabelId,
+    name: `Cell ${index} Left Label`,
+    text: "L",
     type: "text",
-    width: labelTextWidth,
-    height: labelTextHeight,
-    pivotX: labelTextWidth / 2, // Center pivot
-    pivotY: labelTextHeight / 2, // Center pivot
+    width: leftLabelTextWidth,
+    height: leftLabelTextHeight,
+    pivotX: leftLabelTextWidth / 2,
+    pivotY: leftLabelTextHeight / 2,
     zIndex: 4,
-    groupId: gid,
-    opacity: 1,
+    groupId: "", // No group - positioned absolutely
+    opacity: 0, // Start invisible
     visible: true,
-    fontSize: labelFontSize,
+    fontSize: leftLabelFontSize,
+    wordWrap: false,
+    fontStyle: "normal",
+    textAlign: "center",
+    fontFamily: style.typography.family,
+    fontWeight: "normal",
+    lineHeight: 1.2,
+    shadowBlur: 0,
+    shadowColor: "#000000",
+    strokeWidth: 0,
+    cornerRadius: 0,
+    letterSpacing: 0,
+    shadowEnabled: false,
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
+    shadowOpacity: 0,
+    wordWrapWidth: 0,
+    textStrokeJoin: "round",
+    isAnimationPath: false,
+    textStrokeWidth: 0,
+  };
+
+  // Create right pointer (positioned to the right of the cell)
+  const rightPointerId = randomUUID();
+  const rightLabelId = randomUUID();
+  const rightPointerY = centerY - (cellHeight / 2) - 50; // 50px above the cell
+  const rightPointerX = centerX + (cellWidth / 2) + 30; // 30px to the right of the cell
+
+  const rightPointer = {
+    animations: [],
+    fill: "#FFD700", // Gold color
+    x: rightPointerX,
+    y: rightPointerY,
+    id: rightPointerId,
+    name: `Cell ${index} Right Pointer`,
+    type: "triangle",
+    width: 20,
+    height: 20,
+    pivotX: 10, // Center pivot
+    pivotY: 10, // Center pivot
+    radius: 50, // For triangle shape
+    stroke: "#000000",
+    zIndex: 3,
+    groupId: "", // No group - positioned absolutely
+    opacity: 0, // Start invisible
+    visible: true,
+    rotation: -Math.PI / 2, // Pointing left (-90 degrees)
+    shadowBlur: 0,
+    shadowColor: "#000000",
+    strokeWidth: 1,
+    cornerRadius: 0,
+    shadowEnabled: false,
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
+    shadowOpacity: 0,
+    isAnimationPath: false,
+  };
+
+  // Create right pointer label
+  const rightLabelFontSize = style.typography.size * 0.5;
+  const rightLabelTextWidth = calculateTextWidth("R", rightLabelFontSize, style.typography.family);
+  const rightLabelTextHeight = rightLabelFontSize * 1.2;
+  const rightLabelY = rightPointerY - 20; // 20px above the triangle
+
+  const rightLabel: TextEl = {
+    animations: [],
+    fill: "#000000",
+    x: rightPointerX,
+    y: rightLabelY,
+    id: rightLabelId,
+    name: `Cell ${index} Right Label`,
+    text: "R",
+    type: "text",
+    width: rightLabelTextWidth,
+    height: rightLabelTextHeight,
+    pivotX: rightLabelTextWidth / 2,
+    pivotY: rightLabelTextHeight / 2,
+    zIndex: 4,
+    groupId: "", // No group - positioned absolutely
+    opacity: 0, // Start invisible
+    visible: true,
+    fontSize: rightLabelFontSize,
     wordWrap: false,
     fontStyle: "normal",
     textAlign: "center",
@@ -299,19 +352,20 @@ function makePointer(
 
   const group: Group = {
     animations: [],
-    elementIds: [tid, lid],
+    elementIds: [rid, tid, iid], // Include indexText ID
     x: 0,
     y: 0,
     id: gid,
-    name: `${pointerId} Pointer`,
+    name: `Array Cell ${index}`,
     type: "custom",
     opacity: 0, // Start invisible for fade-in
     rotation: 0,
     isDefaultGroup: false,
   };
 
-  return { group, triangle, labelText };
+  return { group, rect, text, indexText, leftPointer, rightPointer, leftLabel, rightLabel };
 }
+
 
 // Text element function removed - only arrays are processed
 
@@ -557,7 +611,7 @@ export function execute(program: ActionProgram): Scene {
       act.values.forEach((v, i) => {
         const centerX = centerXs[i]!;
         const centerY = arrayY;
-        const { group, rect, text, indexText } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight, i);
+        const { group, rect, text, indexText, leftPointer, rightPointer, leftLabel, rightLabel } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight, i);
         
         // Get timing from config
         const arrayTiming = timelineManager.getElementTiming('array');
@@ -596,100 +650,10 @@ export function execute(program: ActionProgram): Scene {
         }
         
         groups.push(group);
-        elements.push(rect, text, indexText);
+        elements.push(rect, text, indexText, leftPointer, rightPointer, leftLabel, rightLabel);
       });
     }
 
-    if (act.kind === "CREATE_POINTER") {
-      // Handle create pointer commands - create a new pointer at specified position
-      // First, animate out any existing pointer with the same label
-      const existingTriangle = elements.find(el => el.name === `pointer-${act.label} Triangle`);
-      const existingLabel = elements.find(el => el.name === `pointer-${act.label} Label`);
-
-      if (existingTriangle) {
-        // Add fade-out animation to existing triangle
-        existingTriangle.animations.push({
-          id: randomUUID(),
-          type: "fade",
-          startTime: act.startTime,
-          duration: 0.3,
-          properties: { alpha: 0 },
-          easing: "power1.inOut",
-          yoyo: false,
-          repeat: 0,
-          displayName: `pointer-${act.label}-fade-out`,
-          repeatDelay: 0
-        });
-      }
-
-      if (existingLabel) {
-        // Add fade-out animation to existing label
-        existingLabel.animations.push({
-          id: randomUUID(),
-          type: "fade",
-          startTime: act.startTime,
-          duration: 0.3,
-          properties: { alpha: 0 },
-          easing: "power1.inOut",
-          yoyo: false,
-          repeat: 0,
-          displayName: `pointer-${act.label}-label-fade-out`,
-          repeatDelay: 0
-        });
-      }
-
-      // Find the target cell position
-      const targetCell = groups.find(g => {
-        const indexMatch = g.name.match(/Array Cell (\d+)/);
-        return indexMatch && parseInt(indexMatch[1]!) === act.position;
-      });
-
-      if (targetCell) {
-        const targetRect = elements.find(el => el.groupId === targetCell.id && el.type === "rectangle");
-        if (targetRect) {
-          // Create new pointer at the target position
-          const { group: pointerGroup, triangle, labelText } = makePointer(
-            style,
-            act.label,
-            targetRect.x,
-            targetRect.y,
-            100, // Default cell height
-            `pointer-${act.label}`
-          );
-
-          // Add fade-in animation for new pointer (start after fade-out completes)
-          const fadeInStartTime = act.startTime + 0.3; // Start after fade-out
-          triangle.animations.push({
-            id: randomUUID(),
-            type: "fade",
-            startTime: fadeInStartTime,
-            duration: 0.5,
-            properties: { alpha: 1 },
-            easing: "power1.inOut",
-            yoyo: false,
-            repeat: 0,
-            displayName: `pointer-${act.label}-fade-in`,
-            repeatDelay: 0
-          });
-
-          labelText.animations.push({
-            id: randomUUID(),
-            type: "fade",
-            startTime: fadeInStartTime,
-            duration: 0.5,
-            properties: { alpha: 1 },
-            easing: "power1.inOut",
-            yoyo: false,
-            repeat: 0,
-            displayName: `pointer-${act.label}-label-fade-in`,
-            repeatDelay: 0
-          });
-
-          groups.push(pointerGroup);
-          elements.push(triangle, labelText);
-        }
-      }
-    }
 
     if (act.kind === "ANIMATE") {
       // Handle animation commands - create animation timeline entries
@@ -701,76 +665,126 @@ export function execute(program: ActionProgram): Scene {
       
       // Calculate animation timing based on corresponding caption
       // Animation should start 0.5s after the caption starts (when caption becomes visible)
-      const captionInfo = captionTiming.get(animationOrder)!;
-      const animationStartTime = captionInfo.startTime + 0.5;
+      const captionInfo = captionTiming.get(animationOrder);
+      let animationStartTime: number;
+      if (!captionInfo) {
+        // If no caption timing found, use a default timing
+        const defaultStartTime = 2 + (animationOrder - 1) * 3; // Start at 2s, then 5s, 8s, etc.
+        animationStartTime = defaultStartTime + 0.5;
+      } else {
+        animationStartTime = captionInfo.startTime + 0.5;
+      }
 
-      // Handle other animation types (highlight, select, focus, compare)
-      const animConfig = getAnimationConfig(seed, act.type);
+      // Handle pointer animations
+      if (act.type === "pointer") {
+        const direction = act.elements[0] as string; // "left" or "right"
+        const cellIndex = act.elements[1] as number;
+        
+        // Find the target pointer elements
+        const pointerElement = elements.find(el => 
+          el.name === `Cell ${cellIndex} ${direction === "left" ? "Left" : "Right"} Pointer`
+        );
+        const labelElement = elements.find(el => 
+          el.name === `Cell ${cellIndex} ${direction === "left" ? "Left" : "Right"} Label`
+        );
 
-      // Create proper animation object using procedural configuration
-      const animationEntry = {
-        id: animationId,
-        type: animConfig.type,
-        yoyo: animConfig.yoyo,
-        easing: animConfig.easing,
-        repeat: animConfig.repeat,
-        duration: 1.5, // Fixed 1.5s duration for array animations
-        startTime: animationStartTime,
-        properties: animConfig.properties,
-        displayName: `${act.type}-1`,
-        repeatDelay: 0
-      };
+        if (pointerElement && labelElement) {
+          // Add fade-in animation to make the pointer visible
+          pointerElement.animations.push({
+            id: randomUUID(),
+            type: "fade",
+            startTime: animationStartTime,
+            duration: 0.5,
+            properties: { alpha: 1 },
+            easing: "power1.inOut",
+            yoyo: false,
+            repeat: 0,
+            displayName: `pointer-${direction}-${cellIndex}-fade-in`,
+            repeatDelay: 0
+          });
 
-      // Find the target elements that match the animation indices
-      const targetElements = elements.filter(el => {
-        if (el.type === "rectangle") {
-          // For rectangles, we need to find the group and check if it matches the target index
-          const group = groups.find(g => g.id === el.groupId);
-          if (group) {
-            // Extract the index from the group name (e.g., "Array Cell 4" -> index 4)
-            const indexMatch = group.name.match(/Array Cell (\d+)/);
-            if (indexMatch) {
-              const groupIndex = parseInt(indexMatch[1]!);
-              // Check if this group's index matches any of the target indices
-              const matches = act.elements.some(target => {
-                if (typeof target === 'number') {
-                  return target === groupIndex;
-                } else {
-                  // If target is a string, try to parse it as a number
-                  const targetNum = parseInt(target);
-                  return !isNaN(targetNum) && targetNum === groupIndex;
-                }
-              });
-              
-              return matches;
+          labelElement.animations.push({
+            id: randomUUID(),
+            type: "fade",
+            startTime: animationStartTime,
+            duration: 0.5,
+            properties: { alpha: 1 },
+            easing: "power1.inOut",
+            yoyo: false,
+            repeat: 0,
+            displayName: `pointer-${direction}-${cellIndex}-label-fade-in`,
+            repeatDelay: 0
+          });
+        }
+      } else {
+        // Handle other animation types (highlight, select, focus, compare)
+        const animConfig = getAnimationConfig(seed, act.type);
+
+        // Create proper animation object using procedural configuration
+        const animationEntry = {
+          id: animationId,
+          type: animConfig.type,
+          yoyo: animConfig.yoyo,
+          easing: animConfig.easing,
+          repeat: animConfig.repeat,
+          duration: 1.5, // Fixed 1.5s duration for array animations
+          startTime: animationStartTime,
+          properties: animConfig.properties,
+          displayName: `${act.type}-1`,
+          repeatDelay: 0
+        };
+
+        // Find the target elements that match the animation indices
+        const targetElements = elements.filter(el => {
+          if (el.type === "rectangle") {
+            // For rectangles, we need to find the group and check if it matches the target index
+            const group = groups.find(g => g.id === el.groupId);
+            if (group) {
+              // Extract the index from the group name (e.g., "Array Cell 4" -> index 4)
+              const indexMatch = group.name.match(/Array Cell (\d+)/);
+              if (indexMatch) {
+                const groupIndex = parseInt(indexMatch[1]!);
+                // Check if this group's index matches any of the target indices
+                const matches = act.elements.some(target => {
+                  if (typeof target === 'number') {
+                    return target === groupIndex;
+                  } else {
+                    // If target is a string, try to parse it as a number
+                    const targetNum = parseInt(target);
+                    return !isNaN(targetNum) && targetNum === groupIndex;
+                  }
+                });
+                
+                return matches;
+              }
             }
           }
-        }
-        return false;
-      });
+          return false;
+        });
 
-      // Apply animations based on type
-      if (animConfig.type === "color") {
-        // Color animations go to individual rectangle elements (background)
-        targetElements.forEach(element => {
-          element.animations.push(animationEntry);
-        });
-      } else if (animConfig.type === "scale") {
-        // Scale animations go to the group (affects entire cell)
-        targetElements.forEach(element => {
-          const group = groups.find(g => g.id === element.groupId);
-          if (group) {
-            group.animations.push(animationEntry);
-          }
-        });
-      } else {
-        // Default: add to group
-        targetElements.forEach(element => {
-          const group = groups.find(g => g.id === element.groupId);
-          if (group) {
-            group.animations.push(animationEntry);
-          }
-        });
+        // Apply animations based on type
+        if (animConfig.type === "color") {
+          // Color animations go to individual rectangle elements (background)
+          targetElements.forEach(element => {
+            element.animations.push(animationEntry);
+          });
+        } else if (animConfig.type === "scale") {
+          // Scale animations go to the group (affects entire cell)
+          targetElements.forEach(element => {
+            const group = groups.find(g => g.id === element.groupId);
+            if (group) {
+              group.animations.push(animationEntry);
+            }
+          });
+        } else {
+          // Default: add to group
+          targetElements.forEach(element => {
+            const group = groups.find(g => g.id === element.groupId);
+            if (group) {
+              group.animations.push(animationEntry);
+            }
+          });
+        }
       }
     }
 

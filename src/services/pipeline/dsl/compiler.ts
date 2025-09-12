@@ -45,8 +45,6 @@ export class DslCompiler {
         return this.parseArray(line);
       case 'animate':
         return this.parseAnimate(line);
-      case 'create_pointer':
-        return this.parseCreatePointer(line);
       case 'caption':
         return this.parseCaption(line);
       case 'heading':
@@ -130,6 +128,22 @@ export class DslCompiler {
   // Text commands removed - only arrays and captions supported
 
   private static parseAnimate(line: string): Action | null {
+    // Handle pointer animations: animate pointer left 1 or animate pointer right 1
+    const pointerMatch = line.match(/^animate\s+pointer\s+(left|right)\s+(\d+)/);
+    if (pointerMatch) {
+      const direction = pointerMatch[1] as "left"|"right";
+      const cellIndex = parseInt(pointerMatch[2]!);
+      
+      return {
+        kind: "ANIMATE",
+        type: "pointer",
+        elements: [direction, cellIndex],
+        startTime: 0, // Will be calculated automatically by executor
+        duration: 1 // Default duration
+      };
+    }
+
+    // Handle other animations: animate highlight [1,2,3]
     const animateMatch = line.match(/^animate\s+(highlight|select|focus|compare)\s+\[([^\]]+)\]/);
     
     if (!animateMatch) {
@@ -155,23 +169,6 @@ export class DslCompiler {
     };
   }
 
-  private static parseCreatePointer(line: string): Action | null {
-    const createMatch = line.match(/^create_pointer\s+"([^"]+)"\s+(\d+)/);
-    if (!createMatch) {
-      return null;
-    }
-    
-    const label = createMatch[1]!;
-    const position = parseInt(createMatch[2]!);
-    
-    return {
-      kind: "CREATE_POINTER",
-      label,
-      position,
-      startTime: 0, // Will be calculated automatically by executor
-      duration: 1 // Default duration
-    };
-  }
 
   private static parseCaption(line: string): Action | null {
     const captionMatch = line.match(/^caption\s+(\d+)\s+"([^"]+)"/);

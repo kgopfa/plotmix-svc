@@ -17,19 +17,19 @@ array [1,3,5,7,9,11,13,15]
 
 caption 1 "Binary search requires a sorted array and uses two pointers to define the search range."
 
-create_pointer "LOW" 0
-create_pointer "HIGH" 7
+animate pointer left 0
+animate pointer right 7
 caption 2 "Initialize low pointer at index 0 and high pointer at index 7."
 
-create_pointer "LOW" 3
-create_pointer "HIGH" 3
+animate pointer left 3
+animate pointer right 3
 caption 3 "Calculate the midpoint at index 3 and compare it with the target value 9."
 
 animate highlight [4,7]
 caption 4 "Since target 9 is greater than midpoint value 7, adjust the low pointer to index 4."
 
-create_pointer "LOW" 5
-create_pointer "HIGH" 5
+animate pointer left 5
+animate pointer right 5
 caption 5 "Calculate new midpoint at index 5 and compare with target."
 
 animate select [5]
