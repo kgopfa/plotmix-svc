@@ -709,17 +709,38 @@ export function execute(program: ActionProgram): Scene {
         const direction = act.elements[0] as string; // "left" or "right"
         const cellIndex = act.elements[1] as number;
         
-        // Find the target pointer group
-        const pointerGroup = groups.find(group => 
-          group.name === `Cell ${cellIndex} ${direction === "left" ? "Left" : "Right"} Pointer`
+        // First, fade out all existing visible pointer groups
+        const allPointerGroups = groups.filter(group => 
+          group.name.includes("Left Pointer") || group.name.includes("Right Pointer")
         );
-
-        if (pointerGroup) {
-          // Add fade-in animation to make the pointer group visible
-          pointerGroup.animations.push({
+        
+        allPointerGroups.forEach(group => {
+          // Add fade-out animation to hide existing pointers
+          group.animations.push({
             id: randomUUID(),
             type: "fade",
             startTime: animationStartTime,
+            duration: 0.5,
+            properties: { alpha: 0 },
+            easing: "power1.inOut",
+            yoyo: false,
+            repeat: 0,
+            displayName: `pointer-fade-out-${group.name}`,
+            repeatDelay: 0
+          });
+        });
+        
+        // Then fade in the target pointer group
+        const targetPointerGroup = groups.find(group => 
+          group.name === `Cell ${cellIndex} ${direction === "left" ? "Left" : "Right"} Pointer`
+        );
+
+        if (targetPointerGroup) {
+          // Add fade-in animation with a slight delay to ensure fade-out completes first
+          targetPointerGroup.animations.push({
+            id: randomUUID(),
+            type: "fade",
+            startTime: animationStartTime + 0.5, // Start after fade-out completes
             duration: 0.5,
             properties: { alpha: 1 },
             easing: "power1.inOut",
