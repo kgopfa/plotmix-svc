@@ -213,7 +213,7 @@ function makeCell(
     groupId: leftPointerGroupId,
     opacity: 1, // Visible within group
     visible: true,
-    rotation: Math.PI / 2, // Pointing right (90 degrees)
+    rotation: Math.PI, // Pointing downward (180 degrees)
     shadowBlur: 0,
     shadowColor: "#000000",
     strokeWidth: 1,
@@ -308,7 +308,7 @@ function makeCell(
     groupId: rightPointerGroupId,
     opacity: 1, // Visible within group
     visible: true,
-    rotation: -Math.PI / 2, // Pointing left (-90 degrees)
+    rotation: Math.PI, // Pointing downward (180 degrees)
     shadowBlur: 0,
     shadowColor: "#000000",
     strokeWidth: 1,
