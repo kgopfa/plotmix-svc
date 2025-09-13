@@ -1,7 +1,7 @@
 export type Action =
   | { kind: "SETUP"; seed: number; style: "auto"|string }
   | { kind: "DRAW_ARRAY"; values: (number|string)[]; gap?: number; cell?: number }
-  | { kind: "ANIMATE"; type: "highlight"|"select"|"focus"|"compare"|"pointer"; elements: (number|string)[]; startTime: number; duration: number }
+  | { kind: "ANIMATE"; type: "highlight"|"select"|"focus"|"compare"|"pointer"|"remove_pointer"; elements: (number|string)[]; startTime: number; duration: number }
   | { kind: "CAPTION"; order: number; text: string }
   | { kind: "HEADING"; text: string }
   | { kind: "SUBTITLE"; order: number; text: string; section?: string } 
