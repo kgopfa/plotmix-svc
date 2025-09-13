@@ -67,6 +67,8 @@ export class DslCompiler {
         return this.parsePseudocode(line);
       case 'keyidea':
         return this.parseKeyidea(line);
+      case 'wait':
+        return this.parseWait(line);
       /* case 'goal':
         return this.parseGoal(line); */
       default:
@@ -361,6 +363,21 @@ export class DslCompiler {
       kind: "KEYIDEA",
       order,
       text
+    };
+  }
+
+  private static parseWait(line: string): Action | null {
+    // Parse: wait 5 (wait for 5 seconds)
+    const waitMatch = line.match(/^wait\s+(\d+(?:\.\d+)?)/);
+    if (!waitMatch) {
+      return null;
+    }
+    
+    const duration = parseFloat(waitMatch[1]!);
+    
+    return {
+      kind: "WAIT",
+      duration
     };
   }
 

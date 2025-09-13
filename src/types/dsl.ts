@@ -12,7 +12,8 @@ export type Action =
   | { kind: "EDGECASE"; order: number; text: string }
   | { kind: "ALTERNATIVE"; order: number; text: string }
   | { kind: "PSEUDOCODE"; text: string }
-  | { kind: "KEYIDEA"; order: number; text: string };
+  | { kind: "KEYIDEA"; order: number; text: string }
+  | { kind: "WAIT"; duration: number };
 
 // Central configuration for video timing and section organization
 export interface VideoTimelineConfig {

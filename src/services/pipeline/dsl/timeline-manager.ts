@@ -224,6 +224,7 @@ export class TimelineManager {
   private edgecaseCount: number = 0;
   private alternativeCount: number = 0;
   private keyideaCount: number = 0;
+  private waitDuration: number = 0;
 
   constructor(config: VideoTimelineConfig = DEFAULT_TIMELINE_CONFIG) {
     this.config = config;
@@ -727,7 +728,8 @@ export class TimelineManager {
     // Calculate conclusion section timing
     const conclusionEndTime = mainEndTime + (this.conclusionCount * timing.totalCaptionDuration);
     
-    return conclusionEndTime;
+    // Add wait duration to extend the timeline
+    return conclusionEndTime + (this.waitDuration || 0);
   }
 
   /**
@@ -735,6 +737,15 @@ export class TimelineManager {
    */
   updateConfig(newConfig: VideoTimelineConfig): void {
     this.config = newConfig;
+  }
+
+  /**
+   * Add wait duration to extend the timeline
+   */
+  addWaitDuration(duration: number): void {
+    // For now, we'll track wait durations and extend the total duration
+    // This could be enhanced to create specific wait timing entries
+    this.waitDuration = (this.waitDuration || 0) + duration;
   }
 
   /**
@@ -748,7 +759,8 @@ export class TimelineManager {
         animations: this.animationCount,
         conclusions: this.conclusionCount
       },
-      totalDuration: this.getTotalDuration()
+      totalDuration: this.getTotalDuration(),
+      waitDuration: this.waitDuration || 0
     };
   }
 }

@@ -421,6 +421,9 @@ export function execute(program: ActionProgram): Scene {
   // Track animation order for synchronization
   let animationOrder = 0;
   let exampleOrder = 0;
+  
+  // Track cumulative wait duration to affect subsequent animations
+  let cumulativeWaitDuration = 0;
 
   // Preprocessing: Count content for timeline manager initialization
   let captionCount = 0;
@@ -707,6 +710,9 @@ export function execute(program: ActionProgram): Scene {
       } else {
         animationStartTime = captionInfo.startTime + 0.5;
       }
+      
+      // Add cumulative wait duration to delay this animation
+      animationStartTime += cumulativeWaitDuration;
 
       // Handle pointer animations
       if (act.type === "pointer") {
@@ -1820,6 +1826,13 @@ export function execute(program: ActionProgram): Scene {
       }
 
       elements.push(keyidea);
+    }
+
+    if (act.kind === "WAIT") {
+      // Handle wait commands - add to cumulative wait duration
+      // This will delay all subsequent animations
+      cumulativeWaitDuration += act.duration;
+      timelineManager.addWaitDuration(act.duration);
     }
 
     // Only process arrays for now - text elements are ignored
