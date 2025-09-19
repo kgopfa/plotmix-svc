@@ -101,6 +101,23 @@ export class DslCompiler {
   }
 
   private static parseArray(line: string): Action | null {
+    // Check for create_pointer command: array create_pointer ["left", "right"]
+    const createPointerMatch = line.match(/^array\s+create_pointer\s+\[([^\]]+)\]/);
+    if (createPointerMatch) {
+      const pointerIds = createPointerMatch[1]!.split(',').map(v => {
+        const trimmed = v.trim();
+        return trimmed.startsWith('"') && trimmed.endsWith('"') 
+          ? trimmed.slice(1, -1) 
+          : trimmed;
+      });
+      
+      return {
+        kind: "CREATE_POINTERS",
+        pointerIds
+      };
+    }
+
+    // Regular array creation: array [1,2,3,4]
     const valuesMatch = line.match(/^array\s+\[([^\]]+)\]/);
     const gapMatch = line.match(/gap\s+(\d+)/);
     const cellMatch = line.match(/cell\s+(\d+)/);

@@ -59,7 +59,7 @@ function makeCell(
   cellWidth: number,
   cellHeight: number,
   index: number
-): { group: Group; rect: Rect; text: TextEl; indexText: TextEl; leftPointer: any; rightPointer: any; leftLabel: TextEl; rightLabel: TextEl; leftPointerGroup: Group; rightPointerGroup: Group } {
+): { group: Group; rect: Rect; text: TextEl; indexText: TextEl } {
   const gid = randomUUID();
   const rid = randomUUID();
   const tid = randomUUID();
@@ -188,200 +188,7 @@ function makeCell(
     textStrokeWidth: 0,
   };
 
-  // Create left pointer group (positioned to align with cell rectangle in global coordinates)
-  const leftPointerGroupId = randomUUID();
-  const leftPointerId = randomUUID();
-  const leftLabelId = randomUUID();
-  
-  // Position pointer group to align with the cell rectangle in global coordinates
-  // Cell rectangle is at centerX, centerY, so pointer group should be at same X, 50px above
-  const leftPointerGroupX = centerX; // Same X as cell rectangle
-  const leftPointerGroupY = centerY - (cellHeight / 2) - 50; // 50px above the cell rectangle
-
-  const leftPointer = {
-    animations: [],
-    fill: "#FFD700", // Gold color
-    x: centerX, // Global coordinates - same X as cell rectangle
-    y: centerY - (cellHeight / 2) - 50, // Global coordinates - 50px above cell rectangle
-    id: leftPointerId,
-    name: `Triangle ${index}`,
-    type: "triangle",
-    width: 20,
-    height: 20,
-    pivotX: 10, // Center pivot
-    pivotY: 10, // Center pivot
-    radius: 50, // For triangle shape
-    stroke: "#000000",
-    zIndex: 3,
-    groupId: leftPointerGroupId,
-    opacity: 1, // Visible within group
-    visible: true,
-    rotation: Math.PI, // Pointing downward (180 degrees)
-    shadowBlur: 0,
-    shadowColor: "#000000",
-    strokeWidth: 1,
-    cornerRadius: 0,
-    shadowEnabled: false,
-    shadowOffsetX: 0,
-    shadowOffsetY: 0,
-    shadowOpacity: 0,
-    isAnimationPath: false,
-  };
-
-  // Create left pointer label
-  const leftLabelFontSize = style.typography.size * 0.5;
-  const leftLabelTextWidth = calculateTextWidth("LEFT", leftLabelFontSize, style.typography.family);
-  const leftLabelTextHeight = leftLabelFontSize * 1.2;
-
-  const leftLabel: TextEl = {
-    animations: [],
-    fill: "#000000",
-    x: centerX, // Global coordinates - same X as cell rectangle
-    y: centerY - (cellHeight / 2) - 50 - 26, // Global coordinates - 26px above triangle
-    id: leftLabelId,
-    name: `Left`,
-    text: "LEFT",
-    type: "text",
-    width: leftLabelTextWidth,
-    height: leftLabelTextHeight,
-    pivotX: leftLabelTextWidth / 2,
-    pivotY: leftLabelTextHeight / 2,
-    zIndex: 4,
-    groupId: leftPointerGroupId,
-    opacity: 1, // Visible within group
-    visible: true,
-    fontSize: leftLabelFontSize,
-    wordWrap: false,
-    fontStyle: "normal",
-    textAlign: "center",
-    fontFamily: style.typography.family,
-    fontWeight: "normal",
-    lineHeight: 1.2,
-    shadowBlur: 0,
-    shadowColor: "#000000",
-    strokeWidth: 0,
-    cornerRadius: 0,
-    letterSpacing: 0,
-    shadowEnabled: false,
-    shadowOffsetX: 0,
-    shadowOffsetY: 0,
-    shadowOpacity: 0,
-    wordWrapWidth: 0,
-    textStrokeJoin: "round",
-    isAnimationPath: false,
-    textStrokeWidth: 0,
-  };
-
-  const leftPointerGroup: Group = {
-    animations: [],
-    elementIds: [leftPointerId, leftLabelId],
-    x: leftPointerGroupX,
-    y: leftPointerGroupY,
-    id: leftPointerGroupId,
-    name: `Cell ${index} Left Pointer`,
-    type: "custom",
-    opacity: 0, // Start invisible - will be animated to 1 when needed
-    rotation: 0,
-    isDefaultGroup: false,
-  };
-
-  // Create right pointer group (positioned to align with cell rectangle in global coordinates)
-  const rightPointerGroupId = randomUUID();
-  const rightPointerId = randomUUID();
-  const rightLabelId = randomUUID();
-  
-  // Position pointer group to align with the cell rectangle in global coordinates
-  // Cell rectangle is at centerX, centerY, so pointer group should be at same X, 50px above
-  const rightPointerGroupX = centerX; // Same X as cell rectangle
-  const rightPointerGroupY = centerY - (cellHeight / 2) - 50; // 50px above the cell rectangle
-
-  const rightPointer = {
-    animations: [],
-    fill: "#FFD700", // Gold color
-    x: centerX, // Global coordinates - same X as cell rectangle
-    y: centerY - (cellHeight / 2) - 50, // Global coordinates - 50px above cell rectangle
-    id: rightPointerId,
-    name: `Triangle ${index}`,
-    type: "triangle",
-    width: 20,
-    height: 20,
-    pivotX: 10, // Center pivot
-    pivotY: 10, // Center pivot
-    radius: 50, // For triangle shape
-    stroke: "#000000",
-    zIndex: 3,
-    groupId: rightPointerGroupId,
-    opacity: 1, // Visible within group
-    visible: true,
-    rotation: Math.PI, // Pointing downward (180 degrees)
-    shadowBlur: 0,
-    shadowColor: "#000000",
-    strokeWidth: 1,
-    cornerRadius: 0,
-    shadowEnabled: false,
-    shadowOffsetX: 0,
-    shadowOffsetY: 0,
-    shadowOpacity: 0,
-    isAnimationPath: false,
-  };
-
-  // Create right pointer label
-  const rightLabelFontSize = style.typography.size * 0.5;
-  const rightLabelTextWidth = calculateTextWidth("RIGHT", rightLabelFontSize, style.typography.family);
-  const rightLabelTextHeight = rightLabelFontSize * 1.2;
-
-  const rightLabel: TextEl = {
-    animations: [],
-    fill: "#000000",
-    x: centerX, // Global coordinates - same X as cell rectangle
-    y: centerY - (cellHeight / 2) - 50 - 26, // Global coordinates - 26px above triangle
-    id: rightLabelId,
-    name: `Right`,
-    text: "RIGHT",
-    type: "text",
-    width: rightLabelTextWidth,
-    height: rightLabelTextHeight,
-    pivotX: rightLabelTextWidth / 2,
-    pivotY: rightLabelTextHeight / 2,
-    zIndex: 4,
-    groupId: rightPointerGroupId,
-    opacity: 1, // Visible within group
-    visible: true,
-    fontSize: rightLabelFontSize,
-    wordWrap: false,
-    fontStyle: "normal",
-    textAlign: "center",
-    fontFamily: style.typography.family,
-    fontWeight: "normal",
-    lineHeight: 1.2,
-    shadowBlur: 0,
-    shadowColor: "#000000",
-    strokeWidth: 0,
-    cornerRadius: 0,
-    letterSpacing: 0,
-    shadowEnabled: false,
-    shadowOffsetX: 0,
-    shadowOffsetY: 0,
-    shadowOpacity: 0,
-    wordWrapWidth: 0,
-    textStrokeJoin: "round",
-    isAnimationPath: false,
-    textStrokeWidth: 0,
-  };
-
-  const rightPointerGroup: Group = {
-    animations: [],
-    elementIds: [rightPointerId, rightLabelId],
-    x: rightPointerGroupX,
-    y: rightPointerGroupY,
-    id: rightPointerGroupId,
-    name: `Cell ${index} Right Pointer`,
-    type: "custom",
-    opacity: 0, // Start invisible - will be animated to 1 when needed
-    rotation: 0,
-    isDefaultGroup: false,
-  };
-
+ 
   const group: Group = {
     animations: [],
     elementIds: [rid, tid, iid], // Include indexText ID
@@ -395,14 +202,8 @@ function makeCell(
     isDefaultGroup: false,
   };
 
-  return { group, rect, text, indexText, leftPointer, rightPointer, leftLabel, rightLabel, leftPointerGroup, rightPointerGroup };
+  return { group, rect, text, indexText };
 }
-
-
-// Text element function removed - only arrays are processed
-
-
-
 // Executor core - Grid-based automatic positioning
 export function execute(program: ActionProgram): Scene {
   // Defaults
@@ -646,7 +447,7 @@ export function execute(program: ActionProgram): Scene {
       act.values.forEach((v, i) => {
         const centerX = centerXs[i]!;
         const centerY = arrayY;
-        const { group, rect, text, indexText, leftPointer, rightPointer, leftLabel, rightLabel, leftPointerGroup, rightPointerGroup } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight, i);
+        const { group, rect, text, indexText } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight, i);
         
         // Get timing from config
         const arrayTiming = timelineManager.getElementTiming('array');
@@ -685,11 +486,111 @@ export function execute(program: ActionProgram): Scene {
         }
         
         groups.push(group);
-        elements.push(rect, text, indexText, leftPointer, rightPointer, leftLabel, rightLabel);
-        groups.push(leftPointerGroup, rightPointerGroup);
+        elements.push(rect, text, indexText);
       });
     }
 
+    if (act.kind === "CREATE_POINTERS") {
+      // Handle create_pointer commands - create invisible pointer groups for specified IDs
+      // Pointers will be made visible later via animate pointer commands
+      
+      act.pointerIds.forEach(pointerId => {
+        const pointerGroupId = randomUUID();
+        const triangleId = randomUUID();
+        const labelId = randomUUID();
+        
+        // Create pointer triangle (using rectangle with triangle styling)
+        const triangle: Rect = {
+          animations: [],
+          fill: "#FFD700", // Gold color
+          x: 0, // Will be positioned when animated
+          y: 0, // Will be positioned when animated
+          id: triangleId,
+          name: `Pointer Triangle ${pointerId}`,
+          type: "rectangle",
+          width: 20,
+          height: 20,
+          pivotX: 10, // Center pivot
+          pivotY: 10, // Center pivot
+          stroke: "#000000",
+          zIndex: 3,
+          groupId: pointerGroupId,
+          opacity: 1, // Visible within group (group controls overall visibility)
+          visible: true,
+          shadowBlur: 0,
+          shadowColor: "#000000",
+          strokeWidth: 1,
+          cornerRadius: 0,
+          shadowEnabled: false,
+          shadowOffsetX: 0,
+          shadowOffsetY: 0,
+          shadowOpacity: 0,
+          isAnimationPath: false,
+        };
+
+        // Create pointer label
+        const labelFontSize = style.typography.size * 0.5;
+        const labelText = pointerId.toUpperCase();
+        const labelTextWidth = calculateTextWidth(labelText, labelFontSize, style.typography.family);
+        const labelTextHeight = labelFontSize * 1.2;
+
+        const label: TextEl = {
+          animations: [],
+          fill: "#000000",
+          x: 0, // Will be positioned when animated
+          y: -26, // 26px above triangle (relative to group)
+          id: labelId,
+          name: `Pointer Label ${pointerId}`,
+          text: labelText,
+          type: "text",
+          width: labelTextWidth,
+          height: labelTextHeight,
+          pivotX: labelTextWidth / 2,
+          pivotY: labelTextHeight / 2,
+          zIndex: 4,
+          groupId: pointerGroupId,
+          opacity: 1, // Visible within group
+          visible: true,
+          fontSize: labelFontSize,
+          wordWrap: false,
+          fontStyle: "normal",
+          textAlign: "center",
+          fontFamily: style.typography.family,
+          fontWeight: "normal",
+          lineHeight: 1.2,
+          shadowBlur: 0,
+          shadowColor: "#000000",
+          strokeWidth: 0,
+          cornerRadius: 0,
+          letterSpacing: 0,
+          shadowEnabled: false,
+          shadowOffsetX: 0,
+          shadowOffsetY: 0,
+          shadowOpacity: 0,
+          wordWrapWidth: 0,
+          textStrokeJoin: "round",
+          isAnimationPath: false,
+          textStrokeWidth: 0,
+        };
+
+        // Create pointer group (initially invisible)
+        const pointerGroup: Group = {
+          animations: [],
+          elementIds: [triangleId, labelId],
+          x: 0, // Will be positioned when animated
+          y: 0, // Will be positioned when animated
+          id: pointerGroupId,
+          name: `Pointer ${pointerId}`,
+          type: "custom",
+          opacity: 0, // Start invisible - will be animated to 1 when needed
+          rotation: 0,
+          isDefaultGroup: false,
+        };
+
+        groups.push(pointerGroup);
+        elements.push(triangle, label);
+      });
+    }
 
     if (act.kind === "ANIMATE") {
       // Handle animation commands - create animation timeline entries
@@ -716,36 +617,48 @@ export function execute(program: ActionProgram): Scene {
 
       // Handle pointer animations
       if (act.type === "pointer") {
-        const direction = act.elements[0] as string; // "left" or "right"
+        const pointerId = act.elements[0] as string; // "left", "right", etc.
         const cellIndex = act.elements[1] as number;
         
-        // Find the target pointer group
+        // Find the pointer group by pointerId
         const targetPointerGroup = groups.find(group => 
-          group.name === `Cell ${cellIndex} ${direction === "left" ? "Left" : "Right"} Pointer`
+          group.name === `Pointer ${pointerId}`
         );
 
         if (targetPointerGroup) {
+          // Calculate position based on array cell
+          const arrayElements = elements.filter(el => el.name?.startsWith('Rectangle '));
+          if (arrayElements[cellIndex]) {
+            const cellElement = arrayElements[cellIndex];
+            const cellX = cellElement.x;
+            const cellY = cellElement.y;
+            const cellHeight = cellElement.height || 60;
+            
+            // Position pointer above the target cell
+            targetPointerGroup.x = cellX;
+            targetPointerGroup.y = cellY - (cellHeight / 2) - 50;
+          }
+          
           // Add fade-in animation to show the pointer
           targetPointerGroup.animations.push({
             id: randomUUID(),
             type: "fade",
             startTime: animationStartTime,
-            duration: 0.5, // Quick fade-in
+            duration: 0.5,
             properties: { alpha: 1 },
             easing: "power1.inOut",
             yoyo: false,
             repeat: 0,
-            displayName: `pointer-${direction}-${cellIndex}-fade-in`,
+            displayName: `pointer-${pointerId}-${cellIndex}-show`,
             repeatDelay: 0
           });
         }
       } else if (act.type === "remove_pointer") {
-        const direction = act.elements[0] as string; // "left" or "right"
-        const cellIndex = act.elements[1] as number;
+        const pointerId = act.elements[0] as string; // "left", "right", etc.
         
-        // Find the target pointer group to remove
+        // Find the pointer group by pointerId
         const targetPointerGroup = groups.find(group => 
-          group.name === `Cell ${cellIndex} ${direction === "left" ? "Left" : "Right"} Pointer`
+          group.name === `Pointer ${pointerId}`
         );
 
         if (targetPointerGroup) {
@@ -754,12 +667,12 @@ export function execute(program: ActionProgram): Scene {
             id: randomUUID(),
             type: "fade",
             startTime: animationStartTime,
-            duration: 0.5, // Quick fade-out
+            duration: 0.5,
             properties: { alpha: 0 },
             easing: "power1.inOut",
             yoyo: false,
             repeat: 0,
-            displayName: `pointer-${direction}-${cellIndex}-fade-out`,
+            displayName: `pointer-${pointerId}-hide`,
             repeatDelay: 0
           });
         }
