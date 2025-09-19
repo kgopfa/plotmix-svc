@@ -676,6 +676,54 @@ export function execute(program: ActionProgram): Scene {
             repeatDelay: 0
           });
         }
+      } else if (act.type === "move_pointer") {
+        const pointerId = act.elements[0] as string; // "left", "right", etc.
+        const targetIndex = act.elements[1] as number;
+        
+        // Find the pointer group by pointerId
+        const targetPointerGroup = groups.find(group => 
+          group.name === `Pointer ${pointerId}`
+        );
+
+        if (targetPointerGroup) {
+          // Find the target array cell to get destination coordinates
+          const arrayElements = elements.filter(el => el.name?.startsWith('Rectangle '));
+          if (arrayElements[targetIndex]) {
+            const targetCell = arrayElements[targetIndex];
+            const targetX = targetCell.x;
+            const targetY = targetCell.y;
+            const cellHeight = targetCell.height || 60;
+            
+            // Calculate destination position (above the target cell)
+            const destinationX = targetX;
+            const destinationY = targetY - (cellHeight / 2) - 50;
+            
+            // Calculate delta from current position to destination
+            const deltaX = destinationX - targetPointerGroup.x;
+            const deltaY = destinationY - targetPointerGroup.y;
+            
+            // Add move animation with calculated delta
+            targetPointerGroup.animations.push({
+              id: randomUUID(),
+              type: "move",
+              startTime: animationStartTime,
+              duration: 1, // 1 second move duration
+              properties: { 
+                x: deltaX, 
+                y: deltaY 
+              },
+              easing: "power1.inOut",
+              yoyo: false,
+              repeat: 0,
+              displayName: `move-pointer-${pointerId}-to-${targetIndex}`,
+              repeatDelay: 0
+            });
+            
+            // Update the group's position for future calculations
+            targetPointerGroup.x = destinationX;
+            targetPointerGroup.y = destinationY;
+          }
+        }
       } else {
         // Handle other animation types (highlight, select, focus, compare)
         const animConfig = getAnimationConfig(seed, act.type);
