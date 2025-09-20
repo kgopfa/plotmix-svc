@@ -122,7 +122,7 @@ export class PromptTemplates {
       "goal": "string (what insight this demo will give students)",
       "inputs": {
         "array": [numbers],           // 6-10 elements, carefully chosen to show key behaviors
-        "target": number,             // if applicable - should be findable and demonstrate algorithm logic
+        "goal": "string",             // the objective or what we're trying to find/achieve
         "other": "relevant_params"    // only if needed
       },
       "assumptions": ["string preconditions that matter for the demo"]
@@ -159,8 +159,8 @@ export class PromptTemplates {
   }
   
   INPUT SELECTION STRATEGY:
-  - Binary Search: Array should include target, with some elements < target and some > target
-  - Linear Search: Target should be near middle/end to show multiple comparisons
+  - Binary Search: Array should include the search value, with some elements less and some greater
+  - Linear Search: Search value should be near middle/end to show multiple comparisons
   - Sorting: Include some inversions but not completely random
   - Two Pointers: Design array so pointers meet meaningfully
   - Choose inputs that demonstrate the algorithm's strength vs naive approach
@@ -172,7 +172,9 @@ export class PromptTemplates {
   - End with success/conclusion
   - Each step should advance understanding, not just mechanical progress
   
-  CRITICAL: Make each step pedagogically meaningful - students should finish understanding WHY this algorithm is clever.`
+  CRITICAL: Make each step pedagogically meaningful - students should finish understanding WHY this algorithm is clever.
+  
+  OUTPUT FORMAT: Return your response as valid JSON following the exact schema above.`
       },
       {
         role: "user",
@@ -208,8 +210,7 @@ export class PromptTemplates {
   - keyidea <order> "<text>"            # ordered high-level principles (from keyIdeas; phrasing distinct from approach)
   - pseudocode """multiline text"""     # optional, from contentPlan.pseudocode
   
-  - example "<text>"                    # explicit example with target and data structure, from contentPlan.problem.example or synthesized
-  - target <value>                      # declare search/operation target (numbers/strings/bools only)
+  - example "<text>"                    # explicit example with data structure and goal, from contentPlan.problem.example or synthesized
   
   - array [v1,v2,...]                   # 1-D array with numbers/strings/bools only
   - create_pointer [name1,name2,...]    # create named pointers/indices for array traversal (left, right, i, j, etc.)
@@ -225,7 +226,7 @@ export class PromptTemplates {
   - animate select [indices]            # highlight elements for examination (current focus)
   - animate deselect [indices]          # clear previous selection/highlighting
   - animate highlight [indices]         # permanent highlight (found/final result)
-  - animate focus [indices]             # compare element(s) against target value
+  - animate focus [indices]             # compare element(s) for evaluation
   - animate compare [i,j]               # compare two array elements directly
   - animate move_pointer <name> <index> # move named pointer to specific index
   
@@ -234,13 +235,13 @@ export class PromptTemplates {
   2) subtitle:
      - Generate 2-4 contextual subtitles that describe what's happening in each phase.
      - subtitle 1: "How [Algorithm] works" (for explanation/approach/pseudocode phase)
-     - subtitle 2: "Find target=[value] in [data structure]" (for array animations/captions phase)
+     - subtitle 2: "Find [goal] in [data structure]" (for array animations/captions phase)
      - subtitle 3: "Edge cases and limitations" (for edgecases phase, if present)
      - subtitle 4: "Summary and key takeaways" (for conclusion phase, if present)
      - Keep each subtitle short (≈6–10 words), action-oriented.
      - Optional section parameter: "intro", "demo", "edgecases", "conclusion"
   3) Demo context MUST precede animations:
-     - Emit example (describing the array problem and target/goal).
+     - Emit example (describing the array problem and objective/goal).
      - Then declare array [...] with appropriate test data.
      - For pointer-based algorithms, emit create_pointer [...] after array declaration.
      - All array indices in animations must be valid (0-based, within array bounds).
@@ -260,14 +261,14 @@ export class PromptTemplates {
      - Sorting (Bubble/Selection): Use compare for adjacent/selected elements, select for current operations.
      - Merge Sort: Use select for subarrays being merged, compare for element comparisons.
   6) Canonical section order:
-     heading → subtitle* → explanation → approach* → keyidea* → pseudocode? → example → target? → array → create_pointer? → [animate+caption]* → edgecase* → conclusion* → alternative*
+     heading → subtitle* → explanation → approach* → keyidea* → pseudocode? → example → array → create_pointer? → [animate+caption]* → edgecase* → conclusion* → alternative*
   7) 1-based ordering ONLY:
      - approach, keyidea, edgecase, caption, conclusion, alternative all use 1..N with no gaps inside their own section.
   8) Key ideas are MANDATORY when present:
      - If contentPlan.approaches.optimal.keyIdeas exists, you MUST emit BOTH:
        a) approach <order> lines (procedural mechanics), and
        b) keyidea <order> lines (principles with distinct phrasing).
-       Target 2–5 keyidea lines; avoid duplicating approach text.
+       Aim for 2–5 keyidea lines; avoid duplicating approach text.
   9) Alternatives are MANDATORY when naive exists:
      - If contentPlan.approaches.naive exists, emit at least one alternative <order> line:
        "<title> — <description> (<complexity>)".
@@ -298,8 +299,7 @@ export class PromptTemplates {
   - approach ← contentPlan.approaches.optimal.keyIdeas (rephrased as steps)
   - keyidea ← contentPlan.approaches.optimal.keyIdeas (principles, distinct phrasing)
   - pseudocode ← contentPlan.pseudocode (join as multiline)
-  - example ← contentPlan.problem.example (or synthesize concise one-liner)
-  - target ← extract from example or animationPlan
+  - example ← contentPlan.problem.example (or synthesize concise one-liner with goal/objective)
   - array/elements ← animationPlan.scenario.inputs if provided; otherwise synthesize small, valid 1-D array (6-10 elements)
   - edgecase ← contentPlan.edgeCases (de-duplicate)
   - conclusion ← complexities/use-cases (synthesize if absent)

@@ -7,7 +7,6 @@ import { randomUUID } from 'crypto';
 import { computeCenteredXPositions } from '../../../utils/grid';
 import { measureTextWidthAdvanced } from '../../../utils/text-width';
 import { TimelineManager } from './timeline-manager';
-
 // Helper function to calculate text width using Canvas API for accurate measurements
 function calculateTextWidth(text: string, fontSize: number, fontFamily: string, fontWeight: string = 'normal'): number {
   return measureTextWidthAdvanced(text, fontSize, fontFamily, fontWeight);

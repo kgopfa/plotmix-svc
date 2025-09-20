@@ -131,8 +131,12 @@ export function pickAnimationPack(seed: number): AnimationPack {
 /**
  * Get animation configuration for a specific animation type
  */
-export function getAnimationConfig(seed: number, animationType: "highlight" | "select" | "focus" | "compare") {
+export function getAnimationConfig(seed: number, animationType: "highlight" | "select" | "deselect" | "focus" | "compare") {
   const pack = pickAnimationPack(seed);
+  // For deselect, we can reuse the select animation but with different properties
+  if (animationType === "deselect") {
+    return pack["select"]; // Use select animation config for deselect
+  }
   return pack[animationType];
 }
 

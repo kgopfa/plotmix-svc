@@ -69,6 +69,8 @@ export class DslCompiler {
         return this.parseKeyidea(line);
       case 'wait':
         return this.parseWait(line);
+      case 'create_pointer':
+        return this.parseCreatePointer(line);
       /* case 'goal':
         return this.parseGoal(line); */
       default:
@@ -192,13 +194,13 @@ export class DslCompiler {
     }
 
     // Handle other animations: animate highlight [1,2,3]
-    const animateMatch = line.match(/^animate\s+(highlight|select|focus|compare)\s+\[([^\]]+)\]/);
+    const animateMatch = line.match(/^animate\s+(highlight|select|deselect|focus|compare)\s+\[([^\]]+)\]/);
     
     if (!animateMatch) {
       return null;
     }
 
-    const type = animateMatch[1] as "highlight"|"select"|"focus"|"compare";
+    const type = animateMatch[1] as "highlight"|"select"|"deselect"|"focus"|"compare";
     const elementsStr = animateMatch[2]!;
 
     const elements = elementsStr.split(',').map(v => {
@@ -444,4 +446,24 @@ export class DslCompiler {
     };
   }
   */
+
+  private static parseCreatePointer(line: string): Action | null {
+    const createPointerMatch = line.match(/^create_pointer\s+\[([^\]]+)\]/);
+    
+    if (!createPointerMatch) {
+      return null;
+    }
+    
+    const pointerIds = createPointerMatch[1]!.split(',').map(v => {
+      const trimmed = v.trim();
+      return trimmed.startsWith('"') && trimmed.endsWith('"') 
+        ? trimmed.slice(1, -1) 
+        : trimmed;
+    });
+    
+    return {
+      kind: "CREATE_POINTERS",
+      pointerIds
+    };
+  }
 }
