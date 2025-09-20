@@ -58,8 +58,9 @@ function makeCell(
   cellWidth: number,
   cellHeight: number,
   index: number
-): { group: Group; rect: Rect; text: TextEl; indexText: TextEl } {
+): { group: Group; rect: Rect; text: TextEl; indexText: TextEl; indexGroup: Group } {
   const gid = randomUUID();
+  const indexGroupId = randomUUID();
   const rid = randomUUID();
   const tid = randomUUID();
   const iid = randomUUID();
@@ -162,7 +163,7 @@ function makeCell(
     pivotX: indexTextWidth / 2,  // Center pivot
     pivotY: indexTextHeight / 2, // Center pivot
     zIndex: 5, // Higher than cell elements
-    groupId: gid, // Part of cell group
+    groupId: indexGroupId, // Part of separate index group
     opacity: 1, // Elements inherit group opacity
     visible: true,
     fontSize: indexFontSize,
@@ -190,7 +191,7 @@ function makeCell(
 
   const group: Group = {
     animations: [],
-    elementIds: [rid, tid, iid], // Include indexText ID
+    elementIds: [rid, tid], // Only rectangle and text, no index
     x: 0,
     y: 0,
     id: gid,
@@ -201,7 +202,20 @@ function makeCell(
     isDefaultGroup: false,
   };
 
-  return { group, rect, text, indexText };
+  const indexGroup: Group = {
+    animations: [],
+    elementIds: [iid], // Only the index text
+    x: 0,
+    y: 0,
+    id: indexGroupId,
+    name: `Array Index ${index}`,
+    type: "custom",
+    opacity: 0, // Start invisible for fade-in
+    rotation: 0,
+    isDefaultGroup: false,
+  };
+
+  return { group, rect, text, indexText, indexGroup };
 }
 // Executor core - Grid-based automatic positioning
 export function execute(program: ActionProgram): Scene {
@@ -446,13 +460,13 @@ export function execute(program: ActionProgram): Scene {
       act.values.forEach((v, i) => {
         const centerX = centerXs[i]!;
         const centerY = arrayY;
-        const { group, rect, text, indexText } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight, i);
+        const { group, rect, text, indexText, indexGroup } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight, i);
 
         // Get timing from config
         const arrayTiming = timelineManager.getElementTiming('array');
 
         if (arrayTiming) {
-          // Add fade-in animation
+          // Add fade-in animation for cell group
           group.animations.push({
             id: randomUUID(),
             type: "fade",
@@ -466,7 +480,7 @@ export function execute(program: ActionProgram): Scene {
             repeatDelay: 0
           });
 
-          // Add fade-out animation - array should fade out after ALL captions and animations are finished
+          // Add fade-out animation for cell group
           const mainEndTime = timelineManager.getElementTiming('array').endTime;
           const fadeOutStartTime = mainEndTime - arrayTiming.fadeOutDuration!;
 
@@ -482,9 +496,37 @@ export function execute(program: ActionProgram): Scene {
             displayName: `array-fade-out`,
             repeatDelay: 0
           });
+
+          // Add fade-in animation for index group
+          indexGroup.animations.push({
+            id: randomUUID(),
+            type: "fade",
+            startTime: arrayTiming.startTime!,
+            duration: arrayTiming.fadeInDuration!,
+            properties: { alpha: 1 },
+            easing: "power1.inOut",
+            yoyo: false,
+            repeat: 0,
+            displayName: `array-index-${i}-fade-in`,
+            repeatDelay: 0
+          });
+
+          // Add fade-out animation for index group
+          indexGroup.animations.push({
+            id: randomUUID(),
+            type: "fade",
+            startTime: fadeOutStartTime,
+            duration: arrayTiming.fadeOutDuration!,
+            properties: { alpha: 0 },
+            easing: "power1.inOut",
+            yoyo: false,
+            repeat: 0,
+            displayName: `array-index-fade-out`,
+            repeatDelay: 0
+          });
         }
 
-        groups.push(group);
+        groups.push(group, indexGroup);
         elements.push(rect, text, indexText);
       });
     }

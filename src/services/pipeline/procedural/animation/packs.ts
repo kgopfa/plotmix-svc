@@ -21,24 +21,24 @@ const ANIMATION_PACKS: AnimationPack[] = [
       repeat: 0
     },
     select: {
-      type: "scale",
-      properties: { scaleX: 1.1, scaleY: 1.1 }, // Subtle scale
+      type: "color",
+      properties: { fillColor: "#d94338" }, // Red selection color
       duration: 2.0,
       easing: "power1.inOut",
       yoyo: false,
       repeat: 0
     },
     deselect: {
-      type: "scale",
-      properties: { scaleX: 1.0, scaleY: 1.0 }, // Revert to original scale
+      type: "color",
+      properties: { fillColor: "#8a7cf4" }, // Revert to original purple
       duration: 2.0,
       easing: "power1.inOut",
       yoyo: false,
       repeat: 0
     },
     focus: {
-      type: "scale",
-      properties: { scaleX: 1.05, scaleY: 1.05 }, // Very subtle
+      type: "color",
+      properties: { fillColor: "#f4a261" }, // Orange focus color (lighter than select)
       duration: 2.0,
       easing: "power1.inOut",
       yoyo: false,
@@ -72,24 +72,24 @@ const ANIMATION_PACKS: AnimationPack[] = [
       repeat: 0
     },
     select: {
-      type: "scale",
-      properties: { scaleX: 1.1, scaleY: 1.1 }, // Subtle scale
+      type: "color",
+      properties: { fillColor: "#d94338" }, // Red selection color
       duration: 1.5,
       easing: "elastic.out",
-      yoyo: true,
-      repeat: 1
+      yoyo: false,
+      repeat: 0
     },
     deselect: {
-      type: "scale",
-      properties: { scaleX: 1.0, scaleY: 1.0 }, // Revert to original scale
+      type: "color",
+      properties: { fillColor: "#8a7cf4" }, // Revert to original purple
       duration: 1.5,
       easing: "elastic.out",
       yoyo: false,
       repeat: 0
     },
     focus: {
-      type: "scale",
-      properties: { scaleX: 1.05, scaleY: 1.05 },
+      type: "color",
+      properties: { fillColor: "#f4a261" }, // Orange focus color (lighter than select)
       duration: 1.5,
       easing: "back.out",
       yoyo: false,
@@ -123,24 +123,24 @@ const ANIMATION_PACKS: AnimationPack[] = [
       repeat: 0
     },
     select: {
-      type: "scale",
-      properties: { scaleX: 1.1, scaleY: 1.1 }, // Subtle scale
+      type: "color",
+      properties: { fillColor: "#d94338" }, // Red selection color
       duration: 1.0,
       easing: "back.out",
       yoyo: false,
       repeat: 0
     },
     deselect: {
-      type: "scale",
-      properties: { scaleX: 1.0, scaleY: 1.0 }, // Revert to original scale
+      type: "color",
+      properties: { fillColor: "#8a7cf4" }, // Revert to original purple
       duration: 1.0,
       easing: "back.out",
       yoyo: false,
       repeat: 0
     },
     focus: {
-      type: "scale",
-      properties: { scaleX: 1.05, scaleY: 1.05 },
+      type: "color",
+      properties: { fillColor: "#f4a261" }, // Orange focus color (lighter than select)
       duration: 1.0,
       easing: "power2.out",
       yoyo: false,
