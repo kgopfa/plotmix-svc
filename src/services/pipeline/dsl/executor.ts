@@ -16,10 +16,10 @@ function calculateTextWidth(text: string, fontSize: number, fontFamily: string, 
 function calculateWordWrapWidth(text: string, fontSize: number, fontFamily: string, fontWeight: string = 'normal'): number {
   return measureTextWidthAdvanced(text, fontSize, fontFamily, fontWeight);
 }
- 
+
 // Calculate optimal cell dimensions based on content
 function calculateOptimalCellDimensions(
-  values: (string | number)[], 
+  values: (string | number)[],
   style: StylePack,
   minCellSize: number = 60
 ): { width: number; height: number } {
@@ -35,25 +35,25 @@ function calculateOptimalCellDimensions(
   const isMonospace = style.typography.family.includes('monospace');
   const charWidth = isMonospace ? 0.6 : 0.7;
   const estimatedTextWidth = longestValue.length * style.typography.size * charWidth;
-  
+
   // Add padding for visual comfort (20% on each side)
   const textWidthWithPadding = estimatedTextWidth * 1.4;
-  
+
   // Ensure minimum cell size while accommodating text
   const optimalWidth = Math.max(minCellSize, Math.ceil(textWidthWithPadding));
-  
+
   // Height should accommodate font size with line height and padding
   const textHeightWithPadding = style.typography.size * 1.2 * 1.4;
   const optimalHeight = Math.max(minCellSize, Math.ceil(textHeightWithPadding));
-  
+
   return { width: optimalWidth, height: optimalHeight };
 }
 
 // Element builders (cell group) - CORRECTED to use consistent center-origin positioning
 function makeCell(
-  style: StylePack, 
-  value: string|number, 
-  centerX: number, 
+  style: StylePack,
+  value: string | number,
+  centerX: number,
   centerY: number,
   cellWidth: number,
   cellHeight: number,
@@ -68,12 +68,12 @@ function makeCell(
   const rect: Rect = {
     animations: [],
     fill: style.cell.fill,
-    x: centerX, 
+    x: centerX,
     y: centerY,
     id: rid,
     name: `Rectangle ${value}`,
     type: "rectangle",
-    width: cellWidth, 
+    width: cellWidth,
     height: cellHeight,
     pivotX: cellWidth / 2,  // Center pivot
     pivotY: cellHeight / 2, // Center pivot
@@ -187,7 +187,7 @@ function makeCell(
     textStrokeWidth: 0,
   };
 
- 
+
   const group: Group = {
     animations: [],
     elementIds: [rid, tid, iid], // Include indexText ID
@@ -208,20 +208,20 @@ export function execute(program: ActionProgram): Scene {
   // Defaults
   let seed = 0;
   let style: StylePack = STYLES[0]!;
-  
+
   const groups: Group[] = [];
-  const elements: (Rect|TextEl|CodeEditorEl)[] = [];
-  
+  const elements: (Rect | TextEl | CodeEditorEl)[] = [];
+
   // Initialize TimelineManager for section-based timing
   const timelineManager = new TimelineManager();
-  
+
   // Track caption timing to sync animations
   const captionTiming: Map<number, { startTime: number; endTime: number }> = new Map();
-  
+
   // Track animation order for synchronization
   let animationOrder = 0;
   let exampleOrder = 0;
-  
+
   // Track cumulative wait duration to affect subsequent animations
   let cumulativeWaitDuration = 0;
 
@@ -236,7 +236,7 @@ export function execute(program: ActionProgram): Scene {
   let keyideaCount = 0;
   let pseudocodeCount = 0;
   // let subtitleCount = 0; // Commented out for now
-  
+
   for (const act of program) {
     if (act.kind === "CAPTION") {
       captionCount++;
@@ -261,7 +261,7 @@ export function execute(program: ActionProgram): Scene {
       // subtitleCount++;
     }
   }
-  
+
   // Initialize timeline manager with content counts
   timelineManager.setContentCounts(
     captionCount,
@@ -280,7 +280,7 @@ export function execute(program: ActionProgram): Scene {
   let maxApproachWidth = 0;
   let maxEdgecaseWidth = 0;
   let maxAlternativeWidth = 0;
-  
+
   for (const act of program) {
     if (act.kind === "APPROACH") {
       const numberedText = `${act.order}. ${act.text}`;
@@ -299,7 +299,7 @@ export function execute(program: ActionProgram): Scene {
       maxAlternativeWidth = Math.max(maxAlternativeWidth, calculatedWidth);
     }
   }
-  
+
   // Cap the maximum widths at 1200px
   maxApproachWidth = Math.min(maxApproachWidth, 1200);
   maxEdgecaseWidth = Math.min(maxEdgecaseWidth, 1200);
@@ -322,17 +322,17 @@ export function execute(program: ActionProgram): Scene {
     if (act.kind === "CAPTION") {
       // Handle caption commands - create timed text elements with transitions
       const captionId = randomUUID();
-      
+
       // Position caption at the bottom of the canvas, near the end
       const captionY = 400; // Bottom area of 1920x1080 canvas (center is 0, so bottom is around 400-500)
       const captionX = 0; // Center horizontally
-      
+
       // Create caption text element with dynamic width based on content
       const captionFontSize = style.typography.size * 0.9; // Same as subtitle
       const calculatedCaptionWidth = calculateTextWidth(act.text, captionFontSize, style.typography.family);
       const captionWidth = Math.min(calculatedCaptionWidth, 700); // Use calculated width, max 700px
       const captionHeight = style.typography.size * 1.5;
-      
+
       const caption: TextEl = {
         animations: [],
         fill: style.palette.text,
@@ -372,12 +372,12 @@ export function execute(program: ActionProgram): Scene {
         textStrokeWidth: 0
       };
       const captionConfig = timelineManager.getElementTiming('caption');
-      
+
       if (captionConfig) {
         // Calculate staggered timing for each caption
         const totalCaptionDuration = captionConfig.fadeInDuration! + captionConfig.visibleTime! + captionConfig.fadeOutDuration!;
         const captionStartTime = captionConfig.startTime! + (act.order - 1) * totalCaptionDuration;
-        
+
         // Create fade-in animation
         caption.animations.push({
           id: randomUUID(),
@@ -391,7 +391,7 @@ export function execute(program: ActionProgram): Scene {
           displayName: `caption-${act.order}-fade-in`,
           repeatDelay: 0
         });
-        
+
         // Create fade-out animation
         caption.animations.push({
           id: randomUUID(),
@@ -431,8 +431,8 @@ export function execute(program: ActionProgram): Scene {
 
       // Calculate optimal cell dimensions based on content
       const { width: cellWidth, height: cellHeight } = calculateOptimalCellDimensions(
-        act.values, 
-        style, 
+        act.values,
+        style,
         minCellSize
       );
 
@@ -442,15 +442,15 @@ export function execute(program: ActionProgram): Scene {
       const canvasWidth = 1920;
       const marginX = 40;
       const centerXs = computeCenteredXPositions(act.values.length, stepX, canvasWidth, marginX);
-      
+
       act.values.forEach((v, i) => {
         const centerX = centerXs[i]!;
         const centerY = arrayY;
         const { group, rect, text, indexText } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight, i);
-        
+
         // Get timing from config
         const arrayTiming = timelineManager.getElementTiming('array');
-        
+
         if (arrayTiming) {
           // Add fade-in animation
           group.animations.push({
@@ -465,11 +465,11 @@ export function execute(program: ActionProgram): Scene {
             displayName: `array-${i}-fade-in`,
             repeatDelay: 0
           });
-          
+
           // Add fade-out animation - array should fade out after ALL captions and animations are finished
           const mainEndTime = timelineManager.getElementTiming('array').endTime;
           const fadeOutStartTime = mainEndTime - arrayTiming.fadeOutDuration!;
-          
+
           group.animations.push({
             id: randomUUID(),
             type: "fade",
@@ -483,111 +483,9 @@ export function execute(program: ActionProgram): Scene {
             repeatDelay: 0
           });
         }
-        
+
         groups.push(group);
         elements.push(rect, text, indexText);
-      });
-    }
-
-    if (act.kind === "CREATE_POINTERS") {
-      // Handle create_pointer commands - create invisible pointer groups for specified IDs
-      // Pointers will be made visible later via animate pointer commands
-      
-      act.pointerIds.forEach(pointerId => {
-        const pointerGroupId = randomUUID();
-        const triangleId = randomUUID();
-        const labelId = randomUUID();
-        
-        // Create pointer triangle (using rectangle with triangle styling)
-        const triangle: Rect = {
-          animations: [],
-          fill: "#FFD700", // Gold color
-          x: 0, // Will be positioned when animated
-          y: 0, // Will be positioned when animated
-          id: triangleId,
-          name: `Pointer Triangle ${pointerId}`,
-          type: "rectangle",
-          width: 20,
-          height: 20,
-          pivotX: 10, // Center pivot
-          pivotY: 10, // Center pivot
-          stroke: "#000000",
-          zIndex: 3,
-          groupId: pointerGroupId,
-          opacity: 1, // Visible within group (group controls overall visibility)
-          visible: true,
-          shadowBlur: 0,
-          shadowColor: "#000000",
-          strokeWidth: 1,
-          cornerRadius: 0,
-          shadowEnabled: false,
-          shadowOffsetX: 0,
-          shadowOffsetY: 0,
-          shadowOpacity: 0,
-          isAnimationPath: false,
-        };
-
-        // Create pointer label
-        const labelFontSize = style.typography.size * 0.5;
-        const labelText = pointerId.toUpperCase();
-        const labelTextWidth = calculateTextWidth(labelText, labelFontSize, style.typography.family);
-        const labelTextHeight = labelFontSize * 1.2;
-
-        const label: TextEl = {
-          animations: [],
-          fill: "#000000",
-          x: 0, // Will be positioned when animated
-          y: -26, // 26px above triangle (relative to group)
-          id: labelId,
-          name: `Pointer Label ${pointerId}`,
-          text: labelText,
-          type: "text",
-          width: labelTextWidth,
-          height: labelTextHeight,
-          pivotX: labelTextWidth / 2,
-          pivotY: labelTextHeight / 2,
-          zIndex: 4,
-          groupId: pointerGroupId,
-          opacity: 1, // Visible within group
-          visible: true,
-          fontSize: labelFontSize,
-          wordWrap: false,
-          fontStyle: "normal",
-          textAlign: "center",
-          fontFamily: style.typography.family,
-          fontWeight: "normal",
-          lineHeight: 1.2,
-          shadowBlur: 0,
-          shadowColor: "#000000",
-          strokeWidth: 0,
-          cornerRadius: 0,
-          letterSpacing: 0,
-          shadowEnabled: false,
-          shadowOffsetX: 0,
-          shadowOffsetY: 0,
-          shadowOpacity: 0,
-          wordWrapWidth: 0,
-          textStrokeJoin: "round",
-          isAnimationPath: false,
-          textStrokeWidth: 0,
-        };
-
-        // Create pointer group (initially invisible)
-        const pointerGroup: Group = {
-          animations: [],
-          elementIds: [triangleId, labelId],
-          x: 0, // Will be positioned when animated
-          y: 0, // Will be positioned when animated
-          id: pointerGroupId,
-          name: `Pointer ${pointerId}`,
-          type: "custom",
-          opacity: 0, // Start invisible - will be animated to 1 when needed
-          rotation: 0,
-          isDefaultGroup: false,
-        };
-
-        groups.push(pointerGroup);
-        elements.push(triangle, label);
       });
     }
 
@@ -595,10 +493,10 @@ export function execute(program: ActionProgram): Scene {
       // Handle animation commands - create animation timeline entries
       // This will be processed by the frontend to show step-by-step progression
       const animationId = randomUUID();
-      
+
       // Increment animation order for this animation
       animationOrder++;
-      
+
       // Calculate animation timing based on corresponding caption
       // Animation should start 0.5s after the caption starts (when caption becomes visible)
       const captionInfo = captionTiming.get(animationOrder);
@@ -610,222 +508,93 @@ export function execute(program: ActionProgram): Scene {
       } else {
         animationStartTime = captionInfo.startTime + 0.5;
       }
-      
+
       // Add cumulative wait duration to delay this animation
       animationStartTime += cumulativeWaitDuration;
+      // Handle other animation types (highlight, select, focus, compare)
+      const animConfig = getAnimationConfig(seed, act.type);
 
-      // Handle pointer animations
-      if (act.type === "pointer") {
-        const pointerId = act.elements[0] as string; // "left", "right", etc.
-        const cellIndex = act.elements[1] as number;
-        
-        // Find the pointer group by pointerId
-        const targetPointerGroup = groups.find(group => 
-          group.name === `Pointer ${pointerId}`
-        );
+      // Create proper animation object using procedural configuration
+      const animationEntry = {
+        id: animationId,
+        type: animConfig.type,
+        yoyo: animConfig.yoyo,
+        easing: animConfig.easing,
+        repeat: animConfig.repeat,
+        duration: 1.5, // Fixed 1.5s duration for array animations
+        startTime: animationStartTime,
+        properties: animConfig.properties,
+        displayName: `${act.type}-1`,
+        repeatDelay: 0
+      };
 
-        if (targetPointerGroup) {
-          // Calculate position based on array cell
-          const arrayElements = elements.filter(el => el.name?.startsWith('Rectangle '));
-          if (arrayElements[cellIndex]) {
-            const cellElement = arrayElements[cellIndex];
-            const cellX = cellElement.x;
-            const cellY = cellElement.y;
-            const cellHeight = cellElement.height || 60;
-            
-            // Position pointer above the target cell
-            targetPointerGroup.x = cellX;
-            targetPointerGroup.y = cellY - (cellHeight / 2) - 50;
-          }
-          
-          // Add fade-in animation to show the pointer
-          targetPointerGroup.animations.push({
-            id: randomUUID(),
-            type: "fade",
-            startTime: animationStartTime,
-            duration: 0.5,
-            properties: { alpha: 1 },
-            easing: "power1.inOut",
-            yoyo: false,
-            repeat: 0,
-            displayName: `pointer-${pointerId}-${cellIndex}-show`,
-            repeatDelay: 0
-          });
-        }
-      } else if (act.type === "remove_pointer") {
-        const pointerId = act.elements[0] as string; // "left", "right", etc.
-        
-        // Find the pointer group by pointerId
-        const targetPointerGroup = groups.find(group => 
-          group.name === `Pointer ${pointerId}`
-        );
-
-        if (targetPointerGroup) {
-          // Add fade-out animation to hide the pointer
-          targetPointerGroup.animations.push({
-            id: randomUUID(),
-            type: "fade",
-            startTime: animationStartTime,
-            duration: 0.5,
-            properties: { alpha: 0 },
-            easing: "power1.inOut",
-            yoyo: false,
-            repeat: 0,
-            displayName: `pointer-${pointerId}-hide`,
-            repeatDelay: 0
-          });
-        }
-      } else if (act.type === "move_pointer") {
-        const pointerId = act.elements[0] as string; // "left", "right", etc.
-        const targetIndex = act.elements[1] as number;
-        
-        // Find the pointer group by pointerId
-        const targetPointerGroup = groups.find(group => 
-          group.name === `Pointer ${pointerId}`
-        );
-
-        if (targetPointerGroup) {
-          // Find the target array cell to get destination coordinates
-          const arrayElements = elements.filter(el => el.name?.startsWith('Rectangle '));
-          if (arrayElements[targetIndex]) {
-            const targetCell = arrayElements[targetIndex];
-            const targetX = targetCell.x;
-            const targetY = targetCell.y;
-            const cellHeight = targetCell.height || 60;
-            
-            // Calculate destination position (above the target cell)
-            const destinationX = targetX;
-            const destinationY = targetY - (cellHeight / 2) - 50;
-            
-            // Calculate delta from current position to destination
-            const deltaX = destinationX - targetPointerGroup.x;
-            const deltaY = destinationY - targetPointerGroup.y;
-            
-            // Add fade-in animation if pointer is currently invisible
-            if (targetPointerGroup.opacity === 0) {
-              targetPointerGroup.animations.push({
-                id: randomUUID(),
-                type: "fade",
-                startTime: animationStartTime,
-                duration: 0.5, // 0.5 second fade-in
-                properties: { alpha: 1 },
-                easing: "power1.inOut",
-                yoyo: false,
-                repeat: 0,
-                displayName: `fade-in-pointer-${pointerId}`,
-                repeatDelay: 0
+      // Find the target elements that match the animation indices
+      const targetElements = elements.filter(el => {
+        if (el.type === "rectangle") {
+          // For rectangles, we need to find the group and check if it matches the target index
+          const group = groups.find(g => g.id === el.groupId);
+          if (group) {
+            // Extract the index from the group name (e.g., "Array Cell 4" -> index 4)
+            const indexMatch = group.name.match(/Array Cell (\d+)/);
+            if (indexMatch) {
+              const groupIndex = parseInt(indexMatch[1]!);
+              // Check if this group's index matches any of the target indices
+              const matches = act.elements.some(target => {
+                if (typeof target === 'number') {
+                  return target === groupIndex;
+                } else {
+                  // If target is a string, try to parse it as a number
+                  const targetNum = parseInt(target);
+                  return !isNaN(targetNum) && targetNum === groupIndex;
+                }
               });
+
+              return matches;
             }
-            
-            // Add move animation with calculated delta
-            targetPointerGroup.animations.push({
-              id: randomUUID(),
-              type: "move",
-              startTime: animationStartTime + (targetPointerGroup.opacity === 0 ? 0.5 : 0), // Start move after fade-in if needed
-              duration: 1, // 1 second move duration
-              properties: { 
-                x: deltaX, 
-                y: deltaY 
-              },
-              easing: "power1.inOut",
-              yoyo: false,
-              repeat: 0,
-              displayName: `move-pointer-${pointerId}-to-${targetIndex}`,
-              repeatDelay: 0
-            });
-            
-            // Update the group's opacity and position for future calculations
-            targetPointerGroup.opacity = 1;
-            targetPointerGroup.x = destinationX;
-            targetPointerGroup.y = destinationY;
           }
         }
-      } else {
-        // Handle other animation types (highlight, select, focus, compare)
-        const animConfig = getAnimationConfig(seed, act.type);
+        return false;
+      });
 
-        // Create proper animation object using procedural configuration
-        const animationEntry = {
-          id: animationId,
-          type: animConfig.type,
-          yoyo: animConfig.yoyo,
-          easing: animConfig.easing,
-          repeat: animConfig.repeat,
-          duration: 1.5, // Fixed 1.5s duration for array animations
-          startTime: animationStartTime,
-          properties: animConfig.properties,
-          displayName: `${act.type}-1`,
-          repeatDelay: 0
-        };
-
-        // Find the target elements that match the animation indices
-        const targetElements = elements.filter(el => {
-          if (el.type === "rectangle") {
-            // For rectangles, we need to find the group and check if it matches the target index
-            const group = groups.find(g => g.id === el.groupId);
-            if (group) {
-              // Extract the index from the group name (e.g., "Array Cell 4" -> index 4)
-              const indexMatch = group.name.match(/Array Cell (\d+)/);
-              if (indexMatch) {
-                const groupIndex = parseInt(indexMatch[1]!);
-                // Check if this group's index matches any of the target indices
-                const matches = act.elements.some(target => {
-                  if (typeof target === 'number') {
-                    return target === groupIndex;
-                  } else {
-                    // If target is a string, try to parse it as a number
-                    const targetNum = parseInt(target);
-                    return !isNaN(targetNum) && targetNum === groupIndex;
-                  }
-                });
-                
-                return matches;
-              }
-            }
-          }
-          return false;
+      // Apply animations based on type
+      if (animConfig.type === "color") {
+        // Color animations go to individual rectangle elements (background)
+        targetElements.forEach(element => {
+          element.animations.push(animationEntry);
         });
-
-        // Apply animations based on type
-        if (animConfig.type === "color") {
-          // Color animations go to individual rectangle elements (background)
-          targetElements.forEach(element => {
-            element.animations.push(animationEntry);
-          });
-        } else if (animConfig.type === "scale") {
-          // Scale animations go to the group (affects entire cell)
-          targetElements.forEach(element => {
-            const group = groups.find(g => g.id === element.groupId);
-            if (group) {
-              group.animations.push(animationEntry);
-            }
-          });
-        } else {
-          // Default: add to group
-          targetElements.forEach(element => {
-            const group = groups.find(g => g.id === element.groupId);
-            if (group) {
-              group.animations.push(animationEntry);
-            }
-          });
-        }
+      } else if (animConfig.type === "scale") {
+        // Scale animations go to the group (affects entire cell)
+        targetElements.forEach(element => {
+          const group = groups.find(g => g.id === element.groupId);
+          if (group) {
+            group.animations.push(animationEntry);
+          }
+        });
+      } else {
+        // Default: add to group
+        targetElements.forEach(element => {
+          const group = groups.find(g => g.id === element.groupId);
+          if (group) {
+            group.animations.push(animationEntry);
+          }
+        });
       }
     }
 
     if (act.kind === "HEADING") {
       // Handle heading commands - create static text element at top of canvas
       const headingId = randomUUID();
-      
+
       // Position heading at the top of the canvas, same distance from center as captions
       const headingY = -400; // Top area of 1920x1080 canvas (center is 0, so top is around -400)
       const headingX = 0; // Center horizontally
-      
+
       // Create heading text element
       const headingFontSize = style.typography.size * 1.5;
       const headingTextWidth = calculateTextWidth(act.text, headingFontSize, style.typography.family, 'bold');
       const headingWordWrapWidth = calculateWordWrapWidth(act.text, headingFontSize, style.typography.family, 'bold');
       const headingHeight = style.typography.size * 2;
-      
+
       const heading: TextEl = {
         animations: [],
         fill: style.palette.text,
@@ -867,7 +636,7 @@ export function execute(program: ActionProgram): Scene {
 
       // Get timing from config
       const headingTiming = timelineManager.getElementTiming('heading');
-      
+
       if (headingTiming) {
         // Add fade-in animation for heading
         heading.animations.push({
@@ -976,23 +745,23 @@ export function execute(program: ActionProgram): Scene {
 
       elements.push(subtitle);
       */
-     continue;
+      continue;
     }
 
     if (act.kind === "EXPLANATION") {
       // Handle explanation commands - create static text element where array appears
       const explanationId = randomUUID();
-      
+
       // Position explanation where array appears (y = 0)
       const explanationY = 0; // Same position as array
       const explanationX = 0; // Center horizontally
-      
+
       // Create explanation text element with procedural styling
       const explanationFontSize = style.typography.size * 0.85;
       const calculatedExplanationWidth = calculateTextWidth(act.text, explanationFontSize, style.typography.family);
       const explanationWidth = Math.min(calculatedExplanationWidth, 1200); // Use calculated width, max 1200px
       const explanationHeight = style.typography.size * 1.3;
-      
+
       const explanation: TextEl = {
         animations: [],
         fill: style.palette.text,
@@ -1034,12 +803,12 @@ export function execute(program: ActionProgram): Scene {
 
       // Get timing from config - explanations should appear sequentially like captions
       const explanationTiming = timelineManager.getElementTiming('explanation');
-      
+
       if (explanationTiming) {
         // Calculate sequential timing for each explanation step (same pattern as captions)
         const totalExplanationDuration = explanationTiming.fadeInDuration! + explanationTiming.visibleTime! + explanationTiming.fadeOutDuration!;
         const explanationStartTime = explanationTiming.startTime! + (act.order - 1) * totalExplanationDuration;
-        
+
         // Add fade-in animation for explanation step
         explanation.animations.push({
           id: randomUUID(),
@@ -1075,38 +844,38 @@ export function execute(program: ActionProgram): Scene {
     if (act.kind === "APPROACH") {
       // Handle approach commands - show 8 approaches at a time in vertical layout
       const approachId = randomUUID();
-      
+
       // Add numbering to the approach text
       const numberedText = `${act.order}. ${act.text}`;
-      
+
       // Create approach text element with procedural styling
       const approachFontSize = style.typography.size * 0.8;
       const approachWidth = maxApproachWidth; // Use maximum width for alignment
       const approachHeight = style.typography.size * 1.2;
-      
+
       // Get timing from config - approach steps should appear sequentially like captions
       const approachTiming = timelineManager.getElementTiming('approach');
-      
+
       if (!approachTiming) {
         throw new Error('Approach timing not configured');
       }
-      
+
       // Calculate sequential timing for each approach step (same pattern as captions)
       const totalApproachDuration = approachTiming.fadeInDuration! + approachTiming.visibleTime! + approachTiming.fadeOutDuration!;
       const approachStartTime = approachTiming.startTime! + (act.order - 1) * totalApproachDuration;
-      
+
       // Calculate group-based fade-out timing
       // All approaches in a group of 8 fade out together at the end of the group
       const groupIndex = Math.floor((act.order - 1) / 8);
       const lastApproachInGroup = Math.min(8, approachCount - (groupIndex * 8));
       const groupFadeOutStartTime = approachTiming.startTime! + (groupIndex * 8 + lastApproachInGroup - 1) * totalApproachDuration + approachTiming.fadeInDuration! + approachTiming.visibleTime!;
-      
+
       // Position approaches - within each group of 8, approaches appear one under the other
       // But each group appears in the same positions (since previous groups fade out)
       const positionInGroup = (act.order - 1) % 8; // 0, 1, 2, 3, 4, 5, 6, 7 for positions within group
       const approachY = -210 + (positionInGroup * 60); // Start at -210, then -150, -90, -30, 30, 90, 150, 210
       const approachX = 0; // Center horizontally
-      
+
       const approach: TextEl = {
         animations: [],
         fill: style.palette.text,
@@ -1180,17 +949,17 @@ export function execute(program: ActionProgram): Scene {
     if (act.kind === "EXAMPLE") {
       // Handle example commands - create static text element below subtitle
       const exampleId = randomUUID();
-      
+
       // Position example below the subtitle, between subtitle and array
       const exampleY = 0; // Same position as explanation and array
       const exampleX = 0; // Center horizontally
-      
+
       // Create example text element
       const exampleFontSize = style.typography.size * 0.8;
       const calculatedExampleWidth = calculateTextWidth(act.text, exampleFontSize, style.typography.family);
       const exampleWidth = Math.min(calculatedExampleWidth, 1200); // Use calculated width, max 1200px
       const exampleHeight = style.typography.size * 1.2;
-      
+
       const example: TextEl = {
         animations: [],
         fill: style.palette.text,
@@ -1233,7 +1002,7 @@ export function execute(program: ActionProgram): Scene {
       // Get timing from config
       exampleOrder++;
       const exampleTiming = timelineManager.getElementTiming('example');
-      
+
       if (exampleTiming) {
         // Add fade-in animation for example
         example.animations.push({
@@ -1272,16 +1041,16 @@ export function execute(program: ActionProgram): Scene {
       const conclusionId = randomUUID();
       const calculatedConclusionWidth = calculateTextWidth(act.text, 40, style.typography.family);
       const conclusionWidth = Math.min(calculatedConclusionWidth, 1200); // Use calculated width, max 1200px
-      
+
       // Calculate proper conclusion timing using timeline manager
       const conclusionTiming = timelineManager.calculateConclusionTiming(act.order);
       const conclusionStartTime = conclusionTiming.startTime;
-      
+
       // Position conclusions - within each group, conclusions appear one under the other
       // But each group appears in the same positions (since previous groups fade out)
       const isFirstInGroup = (act.order - 1) % 2 === 0; // Even orders (1,3,5...) are first in their group
       const conclusionY = isFirstInGroup ? -60 : 60; // First conclusion at -60, second at 60
-      
+
       const conclusion: TextEl = {
         animations: [],
         fill: style.palette.text,
@@ -1355,21 +1124,21 @@ export function execute(program: ActionProgram): Scene {
     if (act.kind === "EDGECASE") {
       // Handle edgecase commands - create static text elements with numbering and alignment
       const edgecaseId = randomUUID();
-      
+
       // Add numbering to the edgecase text
       const numberedText = `${act.order}. ${act.text}`;
-      
+
       // Position edgecases - within each group of 8, edgecases appear one under the other
       // Use different Y range to avoid overlap with conclusions
       const positionInGroup = (act.order - 1) % 8; // 0, 1, 2, 3, 4, 5, 6, 7 for positions within group
       const edgecaseY = -280 + (positionInGroup * 60); // Start at -280, then -220, -160, -100, -40, 20, 80, 140
       const edgecaseX = 0; // Center horizontally
-      
+
       // Create edgecase text element
       const edgecaseFontSize = style.typography.size * 0.8; // Match approach font size
       const edgecaseWidth = maxEdgecaseWidth; // Use maximum width for alignment
       const edgecaseHeight = style.typography.size * 1.2; // Match approach height
-      
+
       const edgecase: TextEl = {
         animations: [],
         fill: style.palette.text,
@@ -1411,18 +1180,18 @@ export function execute(program: ActionProgram): Scene {
 
       // Get timing from config
       const edgecaseTiming = timelineManager.getElementTiming('edgecase');
-      
+
       if (edgecaseTiming) {
         // Calculate sequential timing for each edgecase step (same pattern as approaches)
         const totalEdgecaseDuration = edgecaseTiming.fadeInDuration! + edgecaseTiming.visibleTime! + edgecaseTiming.fadeOutDuration!;
         const edgecaseStartTime = edgecaseTiming.startTime! + (act.order - 1) * totalEdgecaseDuration;
-        
+
         // Calculate group-based fade-out timing
         // All edgecases in a group of 8 fade out together at the end of the group
         const groupIndex = Math.floor((act.order - 1) / 8);
         const lastEdgecaseInGroup = Math.min(8, edgecaseCount - (groupIndex * 8));
         const groupFadeOutStartTime = edgecaseTiming.startTime! + (groupIndex * 8 + lastEdgecaseInGroup - 1) * totalEdgecaseDuration + edgecaseTiming.fadeInDuration! + edgecaseTiming.visibleTime!;
-        
+
         // Add fade-in animation for edgecase
         edgecase.animations.push({
           id: randomUUID(),
@@ -1458,21 +1227,21 @@ export function execute(program: ActionProgram): Scene {
     if (act.kind === "ALTERNATIVE") {
       // Handle alternative commands - create static text elements with numbering and alignment
       const alternativeId = randomUUID();
-      
+
       // Add numbering to the alternative text
       const numberedText = `${act.order}. ${act.text}`;
-      
+
       // Position alternatives - within each group of 8, alternatives appear one under the other
       // Use same Y coordinates as edgecases
       const positionInGroup = (act.order - 1) % 8; // 0, 1, 2, 3, 4, 5, 6, 7 for positions within group
       const alternativeY = -280 + (positionInGroup * 60); // Start at -280, then -220, -160, -100, -40, 20, 80, 140 (same as edgecases)
       const alternativeX = 0; // Center horizontally
-      
+
       // Create alternative text element
       const alternativeFontSize = style.typography.size * 0.8; // Match approach font size
       const alternativeWidth = maxAlternativeWidth; // Use maximum width for alignment
       const alternativeHeight = style.typography.size * 1.2; // Match approach height
-      
+
       const alternative: TextEl = {
         animations: [],
         fill: style.palette.text,
@@ -1514,18 +1283,18 @@ export function execute(program: ActionProgram): Scene {
 
       // Get timing from config
       const alternativeTiming = timelineManager.getElementTiming('alternative');
-      
+
       if (alternativeTiming) {
         // Calculate sequential timing for each alternative step (same pattern as approaches)
         const totalAlternativeDuration = alternativeTiming.fadeInDuration! + alternativeTiming.visibleTime! + alternativeTiming.fadeOutDuration!;
         const alternativeStartTime = alternativeTiming.startTime! + (act.order - 1) * totalAlternativeDuration;
-        
+
         // Calculate group-based fade-out timing
         // All alternatives in a group of 8 fade out together at the end of the group
         const groupIndex = Math.floor((act.order - 1) / 8);
         const lastAlternativeInGroup = Math.min(8, alternativeCount - (groupIndex * 8));
         const groupFadeOutStartTime = alternativeTiming.startTime! + (groupIndex * 8 + lastAlternativeInGroup - 1) * totalAlternativeDuration + alternativeTiming.fadeInDuration! + alternativeTiming.visibleTime!;
-        
+
         // Add fade-in animation for alternative
         alternative.animations.push({
           id: randomUUID(),
@@ -1563,32 +1332,32 @@ export function execute(program: ActionProgram): Scene {
       const groupId = `group-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const rectangleId = randomUUID();
       const codeId = randomUUID();
-      
+
       // Position pseudocode at center with slight offset
       const pseudocodeY = 30; // Slightly below center
       const pseudocodeX = 0; // Center horizontally
-      
+
       // Calculate code block dimensions based on content
       const codeLines = act.text.split('\n');
       const codeBlockPadding = 40; // 40px padding around the code editor
       const lineHeight = 1.5;
       const fontSize = 26;
-      
+
       // Calculate width: find longest line (including indentation)
       let maxLineWidth = 0;
       for (const line of codeLines) {
         const lineWidth = calculateTextWidth(line, fontSize, 'Monaco, Consolas, "Courier New", monospace');
         maxLineWidth = Math.max(maxLineWidth, lineWidth);
       }
-      
+
       // Calculate code editor dimensions (inner)
       const codeEditorWidth = Math.max(maxLineWidth, 300);
       const codeEditorHeight = Math.max(codeLines.length * lineHeight * fontSize, 200);
-      
+
       // Calculate rectangle dimensions (outer) with 40px padding
       const codeBlockWidth = codeEditorWidth + (codeBlockPadding * 2); // 40px on each side
       const codeBlockHeight = codeEditorHeight + (codeBlockPadding * 2); // 40px top and bottom
-      
+
       // Create background rectangle
       const rectangle: Rect = {
         animations: [],
@@ -1617,7 +1386,7 @@ export function execute(program: ActionProgram): Scene {
         shadowOpacity: 0.5,
         isAnimationPath: false
       };
-      
+
       // Create code text element
       const codeText: CodeEditorEl = {
         animations: [],
@@ -1662,7 +1431,7 @@ export function execute(program: ActionProgram): Scene {
         showLineNumbers: false,
         showLineHighlight: true
       };
-      
+
       // Create group for code block
       const codeGroup: Group = {
         animations: [],
@@ -1679,7 +1448,7 @@ export function execute(program: ActionProgram): Scene {
 
       // Get timing from config
       const pseudocodeTiming = timelineManager.getElementTiming('pseudocode');
-      
+
       if (pseudocodeTiming) {
         // Add fade-in animation to the group (like array does)
         codeGroup.animations.push({
@@ -1719,17 +1488,17 @@ export function execute(program: ActionProgram): Scene {
     if (act.kind === "KEYIDEA") {
       // Handle keyidea commands - create static text elements
       const keyideaId = randomUUID();
-      
+
       // Position keyideas to the left of the array
       const keyideaY = 0; // Same level as array
       const keyideaX = -600; // To the left of array
-      
+
       // Create keyidea text element
       const keyideaFontSize = style.typography.size * 0.75;
       const calculatedKeyideaWidth = calculateTextWidth(act.text, keyideaFontSize, style.typography.family);
       const keyideaWidth = Math.min(calculatedKeyideaWidth, 500);
       const keyideaHeight = style.typography.size * 1.2;
-      
+
       const keyidea: TextEl = {
         animations: [],
         fill: style.palette.text,
@@ -1771,7 +1540,7 @@ export function execute(program: ActionProgram): Scene {
 
       // Get timing from config
       const keyideaTiming = timelineManager.getElementTiming('keyidea');
-      
+
       if (keyideaTiming) {
         // Add fade-in animation for keyidea
         keyidea.animations.push({

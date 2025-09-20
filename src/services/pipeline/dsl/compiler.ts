@@ -146,53 +146,7 @@ export class DslCompiler {
     };
   }
 
-  // Text commands removed - only arrays and captions supported
-
   private static parseAnimate(line: string): Action | null {
-    // Handle move_pointer animations: animate move_pointer "left" 0
-    const movePointerMatch = line.match(/^animate\s+move_pointer\s+"([^"]+)"\s+(\d+)/);
-    if (movePointerMatch) {
-      const pointerId = movePointerMatch[1]!;
-      const cellIndex = parseInt(movePointerMatch[2]!);
-      
-      return {
-        kind: "ANIMATE",
-        type: "move_pointer",
-        elements: [pointerId, cellIndex],
-        startTime: 0, // Will be calculated automatically by executor
-        duration: 1 // Default duration
-      };
-    }
-
-    // Handle remove_pointer animations: animate remove_pointer "left"
-    const removePointerMatch = line.match(/^animate\s+remove_pointer\s+"([^"]+)"/);
-    if (removePointerMatch) {
-      const pointerId = removePointerMatch[1]!;
-      
-      return {
-        kind: "ANIMATE",
-        type: "remove_pointer",
-        elements: [pointerId],
-        startTime: 0, // Will be calculated automatically by executor
-        duration: 1 // Default duration
-      };
-    }
-
-    // Handle pointer animations: animate pointer left 1 or animate pointer right 1
-    const pointerMatch = line.match(/^animate\s+pointer\s+(left|right)\s+(\d+)/);
-    if (pointerMatch) {
-      const direction = pointerMatch[1] as "left"|"right";
-      const cellIndex = parseInt(pointerMatch[2]!);
-      
-      return {
-        kind: "ANIMATE",
-        type: "pointer",
-        elements: [direction, cellIndex],
-        startTime: 0, // Will be calculated automatically by executor
-        duration: 1 // Default duration
-      };
-    }
-
     // Handle other animations: animate highlight [1,2,3]
     const animateMatch = line.match(/^animate\s+(highlight|select|deselect|focus|compare)\s+\[([^\]]+)\]/);
     
