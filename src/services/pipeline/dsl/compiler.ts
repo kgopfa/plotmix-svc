@@ -69,10 +69,6 @@ export class DslCompiler {
         return this.parseKeyidea(line);
       case 'wait':
         return this.parseWait(line);
-      case 'create_pointer':
-        return this.parseCreatePointer(line);
-      /* case 'goal':
-        return this.parseGoal(line); */
       default:
         logger.error(`Unknown DSL command: ${command}`);
         throw new Error(`Unknown DSL command: ${command}`);
@@ -103,22 +99,6 @@ export class DslCompiler {
   }
 
   private static parseArray(line: string): Action | null {
-    // Check for create_pointer command: array create_pointer ["left", "right"]
-    const createPointerMatch = line.match(/^array\s+create_pointer\s+\[([^\]]+)\]/);
-    if (createPointerMatch) {
-      const pointerIds = createPointerMatch[1]!.split(',').map(v => {
-        const trimmed = v.trim();
-        return trimmed.startsWith('"') && trimmed.endsWith('"') 
-          ? trimmed.slice(1, -1) 
-          : trimmed;
-      });
-      
-      return {
-        kind: "CREATE_POINTERS",
-        pointerIds
-      };
-    }
-
     // Regular array creation: array [1,2,3,4]
     const valuesMatch = line.match(/^array\s+\[([^\]]+)\]/);
     const gapMatch = line.match(/gap\s+(\d+)/);
@@ -380,44 +360,6 @@ export class DslCompiler {
     return {
       kind: "WAIT",
       duration
-    };
-  }
-
-  /*
-  private static parseGoal(line: string): Action | null {
-    // Parse: goal "Demonstrate how binary search efficiently finds a target in a sorted array."
-    const goalMatch = line.match(/^goal\s+"([^"]+)"/);
-    if (!goalMatch) {
-      return null;
-    }
-    
-    const text = goalMatch[1]!;
-    
-    // For now, treat goal as an example since it's similar content
-    return {
-      kind: "EXAMPLE",
-      text
-    };
-  }
-  */
-
-  private static parseCreatePointer(line: string): Action | null {
-    const createPointerMatch = line.match(/^create_pointer\s+\[([^\]]+)\]/);
-    
-    if (!createPointerMatch) {
-      return null;
-    }
-    
-    const pointerIds = createPointerMatch[1]!.split(',').map(v => {
-      const trimmed = v.trim();
-      return trimmed.startsWith('"') && trimmed.endsWith('"') 
-        ? trimmed.slice(1, -1) 
-        : trimmed;
-    });
-    
-    return {
-      kind: "CREATE_POINTERS",
-      pointerIds
     };
   }
 }

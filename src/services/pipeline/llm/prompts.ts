@@ -213,7 +213,6 @@ export class PromptTemplates {
   - example "<text>"                    # explicit example with data structure and goal, from contentPlan.problem.example or synthesized
   
   - array [v1,v2,...]                   # 1-D array with numbers/strings/bools only
-  - create_pointer [name1,name2,...]    # create named pointers/indices for array traversal (left, right, i, j, etc.)
   
   - animate <type> <params>             # animation commands (see types below)
   - caption <order> "<text>"            # MUST immediately follow its animate line
@@ -228,7 +227,6 @@ export class PromptTemplates {
   - animate highlight [indices]         # permanent highlight (found/final result)
   - animate focus [indices]             # compare element(s) for evaluation
   - animate compare [i,j]               # compare two array elements directly
-  - animate move_pointer <name> <index> # move named pointer to specific index
   
   STRICT RULES
   1) No coordinates, layout, styling, or timing — the runtime handles those.
@@ -243,7 +241,6 @@ export class PromptTemplates {
   3) Demo context MUST precede animations:
      - Emit example (describing the array problem and objective/goal).
      - Then declare array [...] with appropriate test data.
-     - For pointer-based algorithms, emit create_pointer [...] after array declaration.
      - All array indices in animations must be valid (0-based, within array bounds).
   4) Animations:
      - Use 0-based indices that exist in the most recent array/elements.
@@ -254,14 +251,10 @@ export class PromptTemplates {
      - animate deselect [i] clears previous selections before new step.
      - Every caption <n> MUST immediately follow exactly one animate; caption numbers are sequential with no gaps.
   5) Algorithm-specific patterns for 1-D arrays:
-     - Binary Search: Use create_pointer ["left", "right"], move_pointer for boundaries, select for midpoint, highlight when found.
-     - Linear Search: Use single pointer/index, select to examine each element, highlight when found.
-     - Two Pointers: Use create_pointer ["left", "right"] or ["slow", "fast"], move both as needed.
-     - Sliding Window: Use create_pointer ["start", "end"], expand/contract window with move_pointer.
      - Sorting (Bubble/Selection): Use compare for adjacent/selected elements, select for current operations.
      - Merge Sort: Use select for subarrays being merged, compare for element comparisons.
   6) Canonical section order:
-     heading → subtitle* → explanation → approach* → keyidea* → pseudocode? → example → array → create_pointer? → [animate+caption]* → edgecase* → conclusion* → alternative*
+     heading → subtitle* → explanation → approach* → keyidea* → pseudocode? → example → array → [animate+caption]* → edgecase* → conclusion* → alternative*
   7) 1-based ordering ONLY:
      - approach, keyidea, edgecase, caption, conclusion, alternative all use 1..N with no gaps inside their own section.
   8) Key ideas are MANDATORY when present:
