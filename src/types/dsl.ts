@@ -1,7 +1,7 @@
 export type Action =
   | { kind: "SETUP"; seed: number; style: "auto"|string }
   | { kind: "DRAW_ARRAY"; values: (number|string)[]; gap?: number; cell?: number }
-  | { kind: "ANIMATE"; type: "highlight"|"select"|"deselect"|"focus"|"compare"; elements: (number|string)[]; startTime: number; duration: number }
+  | { kind: "ANIMATE"; type: "highlight"|"unhighlight"|"select"|"deselect"|"focus"|"compare"; elements: (number|string)[]; startTime: number; duration: number }
   | { kind: "CAPTION"; order: number; text: string }
   | { kind: "HEADING"; text: string }
   | { kind: "SUBTITLE"; order: number; text: string; section?: string } 
@@ -53,7 +53,23 @@ export type AnimationPack = {
     yoyo: boolean;
     repeat: number;
   };
+  unhighlight: {
+    type: string;
+    properties: Record<string, any>;
+    duration: number;
+    easing: string;
+    yoyo: boolean;
+    repeat: number;
+  };
   select: {
+    type: string;
+    properties: Record<string, any>;
+    duration: number;
+    easing: string;
+    yoyo: boolean;
+    repeat: number;
+  };
+  deselect: {
     type: string;
     properties: Record<string, any>;
     duration: number;
@@ -83,7 +99,7 @@ export interface AnimationStep {
   id: string;
   description: string;
   targetElements: (number | string)[];
-  animationType: "highlight" | "select" | "focus" | "compare";
+  animationType: "highlight" | "unhighlight" | "select" | "deselect" | "focus" | "compare";
   startTime: number;
   duration: number;
   explanation: string;

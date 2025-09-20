@@ -128,13 +128,13 @@ export class DslCompiler {
 
   private static parseAnimate(line: string): Action | null {
     // Handle other animations: animate highlight [1,2,3]
-    const animateMatch = line.match(/^animate\s+(highlight|select|deselect|focus|compare)\s+\[([^\]]+)\]/);
+    const animateMatch = line.match(/^animate\s+(highlight|unhighlight|select|deselect|focus|compare)\s+\[([^\]]+)\]/);
     
     if (!animateMatch) {
       return null;
     }
 
-    const type = animateMatch[1] as "highlight"|"select"|"deselect"|"focus"|"compare";
+    const type = animateMatch[1] as "highlight"|"unhighlight"|"select"|"deselect"|"focus"|"compare";
     const elementsStr = animateMatch[2]!;
 
     const elements = elementsStr.split(',').map(v => {
@@ -152,7 +152,6 @@ export class DslCompiler {
       duration: 2 // Default duration
     };
   }
-
 
   private static parseCaption(line: string): Action | null {
     const captionMatch = line.match(/^caption\s+(\d+)\s+"([^"]+)"/);

@@ -46,11 +46,7 @@ export class Orchestrator {
         return { success: false, error: 'No valid actions found in DSL' };
       }
 
-      logger.info(`Compiled program: ${program}`);
-
       const scene = execute(program);
-
-      logger.info(`Executed program: ${scene}`);
 
       // Validate elements using schema validation
       const validationResult = validateElementsArray(scene.elements);
@@ -58,29 +54,6 @@ export class Orchestrator {
         logger.error('Element validation failed:', { errors: validationResult.errors });
         throw new Error(`Element validation failed: ${validationResult.errors.join('; ')}`);
       }
-      
-      // TEMPORARY DEBUG LOG - log the generated scene after validation
-      logger.info('🔍 DEBUG: Generated scene after validation:', {
-        elementsCount: scene.elements.length,
-        groupsCount: scene.groups.length,
-        elements: scene.elements.map(el => ({
-          id: el.id,
-          type: el.type,
-          name: el.name,
-          x: el.x,
-          y: el.y,
-          width: el.width,
-          height: el.height,
-          fontFamily: el.type === 'text' ? (el as any).fontFamily : undefined,
-          fontWeight: el.type === 'text' ? (el as any).fontWeight : undefined
-        })),
-        groups: scene.groups.map(g => ({
-          id: g.id,
-          name: g.name,
-          elementIds: g.elementIds,
-          elementCount: g.elementIds.length
-        }))
-      });
       
       return { success: true, mainState: scene, summary: this.generateSummary(program, scene) };
     } catch (error) {

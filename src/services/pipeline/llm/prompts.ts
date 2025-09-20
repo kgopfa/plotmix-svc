@@ -174,7 +174,19 @@ export class PromptTemplates {
   
   CRITICAL: Make each step pedagogically meaningful - students should finish understanding WHY this algorithm is clever.
   
-  OUTPUT FORMAT: Return your response as valid JSON following the exact schema above.`
+  OUTPUT FORMAT REQUIREMENTS:
+  - You MUST return ONLY valid JSON following the exact schema above
+  - Do NOT include any explanatory text, markdown formatting, or code blocks
+  - Do NOT start with phrases like "I'll design" or "Here's the animation"
+  - Your response must begin with "{" and end with "}"
+  - The JSON must be parseable by JSON.parse() without any preprocessing
+  
+  EXAMPLE RESPONSE START:
+  {
+    "title": "Binary Search Algorithm",
+    "scenario": {
+      "goal": "Show how binary search eliminates half the search space with each comparison"
+      ...`
       },
       {
         role: "user",
@@ -185,132 +197,92 @@ export class PromptTemplates {
     ];
   }
 
-
   /**
-   * DSL Emitter (LLM #3) - turns Content Plan + Animation Plan into DSL program
-   */
+ * DSL Emitter (LLM #3) - turns Content Plan + Animation Plan into DSL program
+ */
   static dslEmitter(contentPlan: any, animationPlan?: any): LlmMessage[] {
     return [
       {
         role: 'system',
-        content: `You are a DSL Emitter that converts a Content Plan (+ optional Animation Plan) into a compact DSL.
+        content: `You are a precise DSL code generator. Your task is to convert structured educational content into a specific DSL format with exact animation sequences.
+  
+  CRITICAL: You must generate cleanup animations between every state transition. This is not optional.
   
   RESPONSE FORMAT
   - Output ONLY one \`\`\`dsl fenced block. No prose before/after.
   
   ALLOWED COMMANDS (line-oriented)
-  - seed <int>
-  - style <auto|Minimal|Monospace|...>
-  
   - heading "<text>"                    # required, from contentPlan.problem.title
-  - subtitle <order> [section] "<text>" # contextual subtitles for different phases
+  - subtitle <order> "<text>"           # numbered subtitles for different phases
   - explanation <order> "<text>"        # general explanation, from contentPlan.algorithmExplanation
   
   - approach <order> "<text>"           # ordered breakdown (from approaches.optimal.keyIdeas; rephrase as procedural steps)
   - keyidea <order> "<text>"            # ordered high-level principles (from keyIdeas; phrasing distinct from approach)
   - pseudocode """multiline text"""     # optional, from contentPlan.pseudocode
   
-  - example "<text>"                    # explicit example with data structure and goal, from contentPlan.problem.example or synthesized
+  - example "<text>"                    # explicit example with target and data structure
+  - target <value>                      # declare search/operation target
+  - array [v1,v2,...]                   # numbers/strings/bools only
   
-  - array [v1,v2,...]                   # 1-D array with numbers/strings/bools only
-  
-  - animate <type> <params>             # animation commands (see types below)
+  - animate <type> [indices]            # types: select|deselect|highlight|unhighlight|focus|compare
   - caption <order> "<text>"            # MUST immediately follow its animate line
   
   - edgecase <order> "<text>"           # pitfalls (from contentPlan.edgeCases), ordered
   - conclusion <order> "<text>"         # complexities/use-cases, ordered
   - alternative <order> "<text>"        # naive/other approaches, ordered (from approaches.naive)
+  - reference <order> "<text>"          # additional references or related concepts
   
-  ANIMATION TYPES
-  - animate select [indices]            # highlight elements for examination (current focus)
-  - animate deselect [indices]          # clear previous selection/highlighting
-  - animate highlight [indices]         # permanent highlight (found/final result)
-  - animate focus [indices]             # compare element(s) for evaluation
-  - animate compare [i,j]               # compare two array elements directly
+  MANDATORY ANIMATION SEQUENCE FOR BINARY SEARCH:
+  You must follow this exact pattern for each iteration (no exceptions):
   
-  STRICT RULES
-  1) No coordinates, layout, styling, or timing — the runtime handles those.
-  2) subtitle:
-     - Generate 2-4 contextual subtitles that describe what's happening in each phase.
-     - subtitle 1: "How [Algorithm] works" (for explanation/approach/pseudocode phase)
-     - subtitle 2: "Find [goal] in [data structure]" (for array animations/captions phase)
-     - subtitle 3: "Edge cases and limitations" (for edgecases phase, if present)
-     - subtitle 4: "Summary and key takeaways" (for conclusion phase, if present)
-     - Keep each subtitle short (≈6–10 words), action-oriented.
-     - Optional section parameter: "intro", "demo", "edgecases", "conclusion"
-  3) Demo context MUST precede animations:
-     - Emit example (describing the array problem and objective/goal).
-     - Then declare array [...] with appropriate test data.
-     - All array indices in animations must be valid (0-based, within array bounds).
-  4) Animations:
-     - Use 0-based indices that exist in the most recent array/elements.
-     - animate compare [i,j] is ONLY for comparing two array elements directly.
-     - animate focus [i] compares array[i] against the declared target value.
-     - animate select [i] highlights current examination point.
-     - animate highlight [i] shows final result/found element.
-     - animate deselect [i] clears previous selections before new step.
-     - Every caption <n> MUST immediately follow exactly one animate; caption numbers are sequential with no gaps.
-  5) Algorithm-specific patterns for 1-D arrays:
-     - Sorting (Bubble/Selection): Use compare for adjacent/selected elements, select for current operations.
-     - Merge Sort: Use select for subarrays being merged, compare for element comparisons.
-  6) Canonical section order:
-     heading → subtitle* → explanation → approach* → keyidea* → pseudocode? → example → array → [animate+caption]* → edgecase* → conclusion* → alternative*
-  7) 1-based ordering ONLY:
-     - approach, keyidea, edgecase, caption, conclusion, alternative all use 1..N with no gaps inside their own section.
-  8) Key ideas are MANDATORY when present:
-     - If contentPlan.approaches.optimal.keyIdeas exists, you MUST emit BOTH:
-       a) approach <order> lines (procedural mechanics), and
-       b) keyidea <order> lines (principles with distinct phrasing).
-       Aim for 2–5 keyidea lines; avoid duplicating approach text.
-  9) Alternatives are MANDATORY when naive exists:
-     - If contentPlan.approaches.naive exists, emit at least one alternative <order> line:
-       "<title> — <description> (<complexity>)".
-  10) Edge cases placement:
-     - Emit edgecase lines AFTER the animation section and BEFORE conclusions.
-  11) Allowed commands ONLY:
-     - Do NOT output unsupported commands or invent new syntax.
-  12) explanation lines (mini-narrative, not fragments):
-    - Use explanation <order> "<text>".
-    - explanation 1 = lead-in definition. One full sentence (≈12–20 words) that states what the concept is and why it's used, with no arrays/indices/timing.
-    - explanation 2..N = mechanics. 1–3 short sentences total that describe how it works at a high level (still no arrays/indices/timing).
-    - Keep each line self-contained but naturally flowing if read together. Avoid repetition across lines.
-    - Total lines: 1–4. Never omit the lead-in.
-  13) IMPORTANT: example MUST be explicit for 1-D array problems:
-    - Always mention the array and the operation/target, e.g.:
-      "Search for target 9 in array [1,3,4,5,8,9,11,17]"
-      "Sort the array [64,34,25,12,22,11,90] in ascending order"
-      "Find two numbers that sum to 9 in array [2,7,11,15]"
-  14) Captions must explain algorithmic reasoning (what changed & why), not generic descriptions.
-     - Good: "The midpoint value (5) is less than target (9), so we search the right half"
-     - Bad: "We select the middle element"
-  15) Keep all lines compact and educational; avoid duplication across lines.
+  FIRST iteration:
+  1. animate highlight [start,end] + caption "Set initial boundaries"
+  2. animate select [mid] + caption "Check midpoint value vs target"
   
-  MAPPING SOURCES
-  - heading ← contentPlan.problem.title
-  - subtitle ← contextual descriptions for each phase (generated based on content)
-  - explanation ← contentPlan.algorithmExplanation
-  - approach ← contentPlan.approaches.optimal.keyIdeas (rephrased as steps)
-  - keyidea ← contentPlan.approaches.optimal.keyIdeas (principles, distinct phrasing)
-  - pseudocode ← contentPlan.pseudocode (join as multiline)
-  - example ← contentPlan.problem.example (or synthesize concise one-liner with goal/objective)
-  - array/elements ← animationPlan.scenario.inputs if provided; otherwise synthesize small, valid 1-D array (6-10 elements)
-  - edgecase ← contentPlan.edgeCases (de-duplicate)
-  - conclusion ← complexities/use-cases (synthesize if absent)
-  - alternative ← contentPlan.approaches.naive (title + description + complexity)
+  SUBSEQUENT iterations (repeat this pattern):
+  3. animate deselect [previous_mid] + caption "Clear previous midpoint selection"
+  4. animate unhighlight [old_start,old_end] + caption "Clear old search boundaries"  
+  5. animate highlight [new_start,new_end] + caption "Set new search boundaries"
+  6. animate select [new_mid] + caption "Check new midpoint value vs target"
   
-  OUTPUT ONLY:
-  \`\`\`dsl
-  ...your DSL...
-  \`\`\``
+  FINAL step:
+  7. animate highlight [found_index] + caption "Target found at index X"
+  
+  STRICT FORMATTING RULES
+  1) Every animate command MUST be immediately followed by exactly one caption
+  2) Caption numbers are sequential: 1, 2, 3, 4, 5... (no gaps)
+  3) You must include deselect and unhighlight commands - they are required for proper visualization
+  4) Never skip the cleanup animations - they are pedagogically essential
+  5) Use 0-based array indices only
+  6) Each caption should explain what the animation shows and why
+  
+  SECTION ORDER (mandatory):
+  heading → subtitle* → explanation* → approach* → keyidea* → pseudocode? → example → target → array → [animate+caption sequences] → edgecase* → conclusion* → alternative* → reference*
+  
+  NUMBERING (all 1-based):
+  - subtitle, explanation, approach, keyidea, edgecase, caption, conclusion, alternative, reference
+  
+  KEY REQUIREMENTS:
+  - Split algorithmExplanation into 1-2 numbered explanation lines
+  - Generate 2-4 approach lines from keyIdeas (rephrased as procedural steps)
+  - Generate 2-4 keyidea lines from keyIdeas (principles, different phrasing than approach)
+  - Include target command with specific value
+  - Animation sequence must show complete state transitions with cleanup
+  - Generate 3-5 edgecase lines
+  - Generate 2-3 conclusion lines about complexity/applications
+  - Include alternative from naive approach if present
+  - Add 1-2 reference lines about related concepts
+  
+  Remember: The cleanup animations (deselect/unhighlight) are not redundant - they are essential for students to understand when the algorithm moves from one state to another.`
       },
       {
         role: 'user',
-        content: `Emit DSL for the following inputs.
-
+        content: `Convert this data to DSL format with proper animation cleanup sequences:
+  
   Content Plan:
   ${JSON.stringify(contentPlan, null, 2)}
-
-  ${animationPlan ? `Animation Plan:\n${JSON.stringify(animationPlan, null, 2)}` : 'No Animation Plan provided (derive a minimal but clear demo).'}`
+  
+  ${animationPlan ? `Animation Plan:\n${JSON.stringify(animationPlan, null, 2)}` : 'Animation Plan: Not provided - generate a clear binary search demo with proper state transitions'}`
       }
     ];
   }

@@ -12,9 +12,25 @@ const ANIMATION_PACKS: AnimationPack[] = [
       yoyo: false,
       repeat: 0
     },
+    unhighlight: {
+      type: "color",
+      properties: { fillColor: "#ffffff" }, // Revert to white (original)
+      duration: 2.0,
+      easing: "power1.inOut",
+      yoyo: false,
+      repeat: 0
+    },
     select: {
       type: "scale",
       properties: { scaleX: 1.2, scaleY: 1.2 }, // Subtle scale
+      duration: 2.0,
+      easing: "power1.inOut",
+      yoyo: false,
+      repeat: 0
+    },
+    deselect: {
+      type: "scale",
+      properties: { scaleX: 1.0, scaleY: 1.0 }, // Revert to original scale
       duration: 2.0,
       easing: "power1.inOut",
       yoyo: false,
@@ -47,6 +63,14 @@ const ANIMATION_PACKS: AnimationPack[] = [
       yoyo: true,
       repeat: 1
     },
+    unhighlight: {
+      type: "color",
+      properties: { fillColor: "#ffffff" }, // Revert to white (original)
+      duration: 1.5,
+      easing: "back.out",
+      yoyo: false,
+      repeat: 0
+    },
     select: {
       type: "scale",
       properties: { scaleX: 1.4, scaleY: 1.4 }, // More dramatic
@@ -54,6 +78,14 @@ const ANIMATION_PACKS: AnimationPack[] = [
       easing: "elastic.out",
       yoyo: true,
       repeat: 1
+    },
+    deselect: {
+      type: "scale",
+      properties: { scaleX: 1.0, scaleY: 1.0 }, // Revert to original scale
+      duration: 1.5,
+      easing: "elastic.out",
+      yoyo: false,
+      repeat: 0
     },
     focus: {
       type: "scale",
@@ -82,9 +114,25 @@ const ANIMATION_PACKS: AnimationPack[] = [
       yoyo: false,
       repeat: 0
     },
+    unhighlight: {
+      type: "color",
+      properties: { fillColor: "#ffffff" }, // Revert to white (original)
+      duration: 1.0,
+      easing: "power3.out",
+      yoyo: false,
+      repeat: 0
+    },
     select: {
       type: "scale",
       properties: { scaleX: 1.5, scaleY: 1.5 }, // Large scale
+      duration: 1.0,
+      easing: "back.out",
+      yoyo: false,
+      repeat: 0
+    },
+    deselect: {
+      type: "scale",
+      properties: { scaleX: 1.0, scaleY: 1.0 }, // Revert to original scale
       duration: 1.0,
       easing: "back.out",
       yoyo: false,
@@ -131,12 +179,8 @@ export function pickAnimationPack(seed: number): AnimationPack {
 /**
  * Get animation configuration for a specific animation type
  */
-export function getAnimationConfig(seed: number, animationType: "highlight" | "select" | "deselect" | "focus" | "compare") {
+export function getAnimationConfig(seed: number, animationType: "highlight" | "unhighlight" | "select" | "deselect" | "focus" | "compare") {
   const pack = pickAnimationPack(seed);
-  // For deselect, we can reuse the select animation but with different properties
-  if (animationType === "deselect") {
-    return pack["select"]; // Use select animation config for deselect
-  }
   return pack[animationType];
 }
 

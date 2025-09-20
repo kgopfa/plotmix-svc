@@ -75,8 +75,6 @@ export class ChainedCaller {
         };
       }
 
-      logger.info('llm-pipeline:dsl_emitter result: ', dslResult);
-
       const dsl = dslResult.content as string;
       logger.info('llm-pipeline:dsl_generated', { dslLength: dsl.length });
 
