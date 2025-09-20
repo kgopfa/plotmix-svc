@@ -42,7 +42,7 @@ export class ChainedCaller {
       const contentPlan = contentPlanResult.content as ContentPlan;
       logger.info('llm-pipeline:content_planned', { 
         problemTitle: contentPlan.problem.title,
-        edgeCasesCount: contentPlan.approaches.edgeCases.length 
+        edgeCasesCount: contentPlan.edgeCases.length 
       });
 
       // Stage 2: Animation Planner
