@@ -701,11 +701,27 @@ export function execute(program: ActionProgram): Scene {
             const deltaX = destinationX - targetPointerGroup.x;
             const deltaY = destinationY - targetPointerGroup.y;
             
+            // Add fade-in animation if pointer is currently invisible
+            if (targetPointerGroup.opacity === 0) {
+              targetPointerGroup.animations.push({
+                id: randomUUID(),
+                type: "fade",
+                startTime: animationStartTime,
+                duration: 0.5, // 0.5 second fade-in
+                properties: { alpha: 1 },
+                easing: "power1.inOut",
+                yoyo: false,
+                repeat: 0,
+                displayName: `fade-in-pointer-${pointerId}`,
+                repeatDelay: 0
+              });
+            }
+            
             // Add move animation with calculated delta
             targetPointerGroup.animations.push({
               id: randomUUID(),
               type: "move",
-              startTime: animationStartTime,
+              startTime: animationStartTime + (targetPointerGroup.opacity === 0 ? 0.5 : 0), // Start move after fade-in if needed
               duration: 1, // 1 second move duration
               properties: { 
                 x: deltaX, 
@@ -718,7 +734,8 @@ export function execute(program: ActionProgram): Scene {
               repeatDelay: 0
             });
             
-            // Update the group's position for future calculations
+            // Update the group's opacity and position for future calculations
+            targetPointerGroup.opacity = 1;
             targetPointerGroup.x = destinationX;
             targetPointerGroup.y = destinationY;
           }
