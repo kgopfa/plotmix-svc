@@ -205,86 +205,82 @@ export class PromptTemplates {
       {
         role: 'system',
         content: `You are a precise DSL code generator. Your task is to convert structured educational content into a specific DSL format with exact animation sequences.
-  
-  CRITICAL: You must generate cleanup animations between every state transition. This is not optional.
-  
-  RESPONSE FORMAT
-  - Output ONLY one \`\`\`dsl fenced block. No prose before/after.
-  
-  ALLOWED COMMANDS (line-oriented)
-  - heading "<text>"                    # required, from contentPlan.problem.title
-  - subtitle <order> "<text>"           # numbered subtitles for different phases
-  - explanation <order> "<text>"        # general explanation, from contentPlan.algorithmExplanation
-  
-  - approach <order> "<text>"           # ordered breakdown (from approaches.optimal.keyIdeas; rephrase as procedural steps)
-  - keyidea <order> "<text>"            # ordered high-level principles (from keyIdeas; phrasing distinct from approach)
-  - pseudocode """multiline text"""     # optional, from contentPlan.pseudocode
-  
-  - example "<text>"                    # explicit example with target and data structure
-  - target <value>                      # declare search/operation target
-  - array [v1,v2,...]                   # numbers/strings/bools only
-  
-  - animate <type> [indices]            # types: select|deselect|highlight|unhighlight|focus|compare
-  - caption <order> "<text>"            # MUST immediately follow its animate line
-  
-  - edgecase <order> "<text>"           # pitfalls (from contentPlan.edgeCases), ordered
-  - conclusion <order> "<text>"         # complexities/use-cases, ordered
-  - alternative <order> "<text>"        # naive/other approaches, ordered (from approaches.naive)
-  - reference <order> "<text>"          # additional references or related concepts
-  
-  MANDATORY ANIMATION SEQUENCE FOR BINARY SEARCH:
-  You must follow this exact pattern for each iteration (no exceptions):
-  
-  FIRST iteration:
-  1. animate highlight [start,end] + caption "Set initial boundaries"
-  2. animate select [mid] + caption "Check midpoint value vs target"
-  
-  SUBSEQUENT iterations (repeat this pattern):
-  3. animate deselect [previous_mid] + caption "Clear previous midpoint selection"
-  4. animate unhighlight [old_start,old_end] + caption "Clear old search boundaries"  
-  5. animate highlight [new_start,new_end] + caption "Set new search boundaries"
-  6. animate select [new_mid] + caption "Check new midpoint value vs target"
-  
-  FINAL step:
-  7. animate highlight [found_index] + caption "Target found at index X"
-  
-  STRICT FORMATTING RULES
-  1) Every animate command MUST be immediately followed by exactly one caption
-  2) Caption numbers are sequential: 1, 2, 3, 4, 5... (no gaps)
-  3) You must include deselect and unhighlight commands - they are required for proper visualization
-  4) Never skip the cleanup animations - they are pedagogically essential
-  5) Use 0-based array indices only
-  6) Each caption should explain what the animation shows and why
-  
-  SECTION ORDER (mandatory):
-  heading → subtitle* → explanation* → approach* → keyidea* → pseudocode? → example → target → array → [animate+caption sequences] → edgecase* → conclusion* → alternative* → reference*
-  
-  NUMBERING (all 1-based):
-  - subtitle, explanation, approach, keyidea, edgecase, caption, conclusion, alternative, reference
-  
-  KEY REQUIREMENTS:
-  - Split algorithmExplanation into 1-2 numbered explanation lines
-  - Generate 2-4 approach lines from keyIdeas (rephrased as procedural steps)
-  - Generate 2-4 keyidea lines from keyIdeas (principles, different phrasing than approach)
-  - Include target command with specific value
-  - Animation sequence must show complete state transitions with cleanup
-  - Generate 3-5 edgecase lines
-  - Generate 2-3 conclusion lines about complexity/applications
-  - Include alternative from naive approach if present
-  - Add 1-2 reference lines about related concepts
-  
-  Remember: The cleanup animations (deselect/unhighlight) are not redundant - they are essential for students to understand when the algorithm moves from one state to another.`
+
+CRITICAL: You must generate cleanup animations between every state transition. This is not optional.
+
+RESPONSE FORMAT
+- Output ONLY one \`\`\`dsl fenced block. No prose before/after.
+
+ALLOWED COMMANDS (line-oriented)
+- heading "<text>"                    # required, from contentPlan.problem.title
+- subtitle <order> "<text>"           # numbered subtitles for different phases
+- explanation <order> "<text>"        # general explanation, from contentPlan.algorithmExplanation
+
+- approach <order> "<text>"           # ordered breakdown (from approaches.optimal.keyIdeas; rephrase as procedural steps)
+- keyidea <order> "<text>"            # ordered high-level principles (from keyIdeas; phrasing distinct from approach)
+- pseudocode """multiline text"""     # optional, from contentPlan.pseudocode
+
+- example "<text>"                    # explicit example with target mentioned in text
+- array [v1,v2,...]                   # numbers/strings/bools only
+
+- animate <type> [indices]            # types: select|deselect|highlight|unhighlight|focus|compare
+- caption <order> "<text>"            # MUST immediately follow its animate line
+
+- edgecase <order> "<text>"           # pitfalls (from contentPlan.edgeCases), ordered
+- conclusion <order> "<text>"         # complexities/use-cases, ordered
+- alternative <order> "<text>"        # naive/other approaches, ordered (from approaches.naive)
+
+MANDATORY ANIMATION SEQUENCE FOR BINARY SEARCH:
+You must follow this exact pattern for each iteration (no exceptions):
+
+FIRST iteration:
+1. animate highlight [start,end] + caption "Set initial boundaries"
+2. animate select [mid] + caption "Check midpoint value vs target"
+
+SUBSEQUENT iterations (repeat this pattern):
+3. animate deselect [previous_mid] + caption "Clear previous midpoint selection"
+4. animate unhighlight [old_start,old_end] + caption "Clear old search boundaries"  
+5. animate highlight [new_start,new_end] + caption "Set new search boundaries"
+6. animate select [new_mid] + caption "Check new midpoint value vs target"
+
+FINAL step:
+7. animate highlight [found_index] + caption "Target found at index X"
+
+STRICT FORMATTING RULES
+1) Every animate command MUST be immediately followed by exactly one caption
+2) Caption numbers are sequential: 1, 2, 3, 4, 5... (no gaps)
+3) You must include deselect and unhighlight commands - they are required for proper visualization
+4) Never skip the cleanup animations - they are pedagogically essential
+5) Use 0-based array indices only
+6) Each caption should explain what the animation shows and why
+
+SECTION ORDER (mandatory):
+heading → subtitle* → explanation* → approach* → keyidea* → pseudocode? → example → array → [animate+caption sequences] → edgecase* → conclusion* → alternative*
+
+NUMBERING (all 1-based):
+- subtitle, explanation, approach, keyidea, edgecase, caption, conclusion, alternative
+
+KEY REQUIREMENTS:
+- Split algorithmExplanation into 1-2 numbered explanation lines
+- Generate 2-4 approach lines from keyIdeas (rephrased as procedural steps)
+- Generate 2-4 keyidea lines from keyIdeas (principles, different phrasing than approach)
+- Include target value in the example text (e.g., "Find target 9 in array [1,2,3,4,5]")
+- Animation sequence must show complete state transitions with cleanup
+- Generate 3-5 edgecase lines
+- Generate 2-3 conclusion lines about complexity/applications
+- Include alternative from naive approach if present
+
+Remember: The cleanup animations (deselect/unhighlight) are not redundant - they are essential for students to understand when the algorithm moves from one state to another.`
       },
       {
         role: 'user',
         content: `Convert this data to DSL format with proper animation cleanup sequences:
-  
-  Content Plan:
-  ${JSON.stringify(contentPlan, null, 2)}
-  
-  ${animationPlan ? `Animation Plan:\n${JSON.stringify(animationPlan, null, 2)}` : 'Animation Plan: Not provided - generate a clear binary search demo with proper state transitions'}`
+
+Content Plan:
+${JSON.stringify(contentPlan, null, 2)}
+
+${animationPlan ? `Animation Plan:\n${JSON.stringify(animationPlan, null, 2)}` : 'Animation Plan: Not provided - generate a clear binary search demo with proper state transitions'}`
       }
     ];
   }
-
 }
