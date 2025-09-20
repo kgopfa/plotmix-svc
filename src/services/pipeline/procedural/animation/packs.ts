@@ -14,7 +14,7 @@ const ANIMATION_PACKS: AnimationPack[] = [
     },
     unhighlight: {
       type: "color",
-      properties: { fillColor: "#ffffff" }, // Revert to white (original)
+      properties: { fillColor: "#8a7cf4" }, // Revert to original purple
       duration: 2.0,
       easing: "power1.inOut",
       yoyo: false,
@@ -22,7 +22,7 @@ const ANIMATION_PACKS: AnimationPack[] = [
     },
     select: {
       type: "scale",
-      properties: { scaleX: 1.2, scaleY: 1.2 }, // Subtle scale
+      properties: { scaleX: 1.1, scaleY: 1.1 }, // Subtle scale
       duration: 2.0,
       easing: "power1.inOut",
       yoyo: false,
@@ -38,7 +38,7 @@ const ANIMATION_PACKS: AnimationPack[] = [
     },
     focus: {
       type: "scale",
-      properties: { scaleX: 1.15, scaleY: 1.15 }, // Very subtle
+      properties: { scaleX: 1.05, scaleY: 1.05 }, // Very subtle
       duration: 2.0,
       easing: "power1.inOut",
       yoyo: false,
@@ -65,7 +65,7 @@ const ANIMATION_PACKS: AnimationPack[] = [
     },
     unhighlight: {
       type: "color",
-      properties: { fillColor: "#ffffff" }, // Revert to white (original)
+      properties: { fillColor: "#8a7cf4" }, // Revert to original purple
       duration: 1.5,
       easing: "back.out",
       yoyo: false,
@@ -73,7 +73,7 @@ const ANIMATION_PACKS: AnimationPack[] = [
     },
     select: {
       type: "scale",
-      properties: { scaleX: 1.4, scaleY: 1.4 }, // More dramatic
+      properties: { scaleX: 1.1, scaleY: 1.1 }, // Subtle scale
       duration: 1.5,
       easing: "elastic.out",
       yoyo: true,
@@ -89,7 +89,7 @@ const ANIMATION_PACKS: AnimationPack[] = [
     },
     focus: {
       type: "scale",
-      properties: { scaleX: 1.25, scaleY: 1.25 },
+      properties: { scaleX: 1.05, scaleY: 1.05 },
       duration: 1.5,
       easing: "back.out",
       yoyo: false,
@@ -116,7 +116,7 @@ const ANIMATION_PACKS: AnimationPack[] = [
     },
     unhighlight: {
       type: "color",
-      properties: { fillColor: "#ffffff" }, // Revert to white (original)
+      properties: { fillColor: "#8a7cf4" }, // Revert to original purple
       duration: 1.0,
       easing: "power3.out",
       yoyo: false,
@@ -124,7 +124,7 @@ const ANIMATION_PACKS: AnimationPack[] = [
     },
     select: {
       type: "scale",
-      properties: { scaleX: 1.5, scaleY: 1.5 }, // Large scale
+      properties: { scaleX: 1.1, scaleY: 1.1 }, // Subtle scale
       duration: 1.0,
       easing: "back.out",
       yoyo: false,
@@ -140,7 +140,7 @@ const ANIMATION_PACKS: AnimationPack[] = [
     },
     focus: {
       type: "scale",
-      properties: { scaleX: 1.3, scaleY: 1.3 },
+      properties: { scaleX: 1.05, scaleY: 1.05 },
       duration: 1.0,
       easing: "power2.out",
       yoyo: false,
