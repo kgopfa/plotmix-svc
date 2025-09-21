@@ -104,27 +104,7 @@ export class ProjectService {
       }
     }
     
-    // Reject flat structure modifications - only scene-based diffs allowed
-    if (diff.elements && diff.elements._t === 'a') {
-      logger.error('Rejected flat structure diff - elements must be within scenes', {
-        diffKeys: Object.keys(diff || {})
-      });
-      throw new Error('Cannot apply flat structure diff to elements. All changes must be made within the scene-based structure.');
-    }
-    
-    if (diff.groups && diff.groups._t === 'a') {
-      logger.error('Rejected flat structure diff - groups must be within scenes', {
-        diffKeys: Object.keys(diff || {})
-      });
-      throw new Error('Cannot apply flat structure diff to groups. All changes must be made within the scene-based structure.');
-    }
-    
-    if (diff.timeline) {
-      logger.error('Rejected flat structure diff - timeline must be within scenes', {
-        diffKeys: Object.keys(diff || {})
-      });
-      throw new Error('Cannot apply flat structure diff to timeline. All changes must be made within the scene-based structure.');
-    }
+    // Note: Flat structure diffs will be transformed to scene-based diffs in applyProjectChange
     
     // Ensure dimensions exist
     if (!safeState.dimensions) {
@@ -228,7 +208,144 @@ export class ProjectService {
       },
     }) as unknown as ProjectWithRelations | null;
 
+    if (project && project.mainState) {
+      // Transform scene-based structure to flat structure for frontend compatibility
+      project.mainState = this.transformSceneBasedToFlat(project.mainState as any);
+    }
+
     return project;
+  }
+
+  /**
+   * Transform scene-based mainState to flat structure for frontend compatibility
+   * This maintains strict mode internally while providing flat structure to frontend
+   */
+  private static transformSceneBasedToFlat(sceneBasedMainState: any): any {
+    // Validate that we have the expected scene-based structure
+    if (!sceneBasedMainState.scenes || !Array.isArray(sceneBasedMainState.scenes)) {
+      logger.error('Cannot transform non-scene-based structure to flat', {
+        hasScenes: !!(sceneBasedMainState.scenes),
+        scenesIsArray: Array.isArray(sceneBasedMainState.scenes)
+      });
+      throw new Error('Cannot transform non-scene-based structure to flat format');
+    }
+
+    if (sceneBasedMainState.scenes.length === 0) {
+      logger.warn('No scenes found in scene-based structure, returning empty flat structure');
+      return {
+        elements: [],
+        groups: [],
+        timeline: {
+          scale: 1,
+          duration: 10,
+          currentTime: 0,
+          animationStates: {}
+        },
+        dimensions: sceneBasedMainState.dimensions || { width: 1920, height: 1080 }
+      };
+    }
+
+    // For now, use the first scene (we can enhance this later for multi-scene support)
+    const firstScene = sceneBasedMainState.scenes[0];
+    if (!firstScene || !firstScene.sceneCanvas) {
+      logger.error('First scene is missing or invalid', {
+        sceneExists: !!firstScene,
+        sceneCanvasExists: !!(firstScene?.sceneCanvas)
+      });
+      throw new Error('First scene is missing or invalid sceneCanvas');
+    }
+
+    const flatStructure = {
+      elements: firstScene.sceneCanvas.elements || [],
+      groups: firstScene.sceneCanvas.groups || [],
+      timeline: firstScene.sceneCanvas.timeline || {
+        scale: 1,
+        duration: 10,
+        currentTime: 0,
+        animationStates: {}
+      },
+      dimensions: sceneBasedMainState.dimensions || { width: 1920, height: 1080 }
+    };
+
+    logger.info('Transformed scene-based to flat structure for frontend', {
+      elementsCount: flatStructure.elements.length,
+      groupsCount: flatStructure.groups.length,
+      dimensions: flatStructure.dimensions
+    });
+
+    return flatStructure;
+  }
+
+  /**
+   * Transform flat structure diffs to scene-based diffs for internal processing
+   * This allows frontend to send flat diffs while maintaining scene-based structure internally
+   */
+  private static transformFlatDiffToSceneBasedDiff(diff: any, _currentState: any): any {
+    // If diff already has scenes, it's already scene-based
+    if (diff.scenes) {
+      return diff;
+    }
+
+    // If no flat structure changes, return as-is
+    if (!diff.elements && !diff.groups && !diff.timeline) {
+      return diff;
+    }
+
+    // Transform flat diffs to scene-based diffs
+    const transformedDiff = { ...diff };
+
+    // Remove flat structure properties
+    delete transformedDiff.elements;
+    delete transformedDiff.groups;
+    delete transformedDiff.timeline;
+
+    // Ensure we have scenes structure
+    if (!transformedDiff.scenes) {
+      transformedDiff.scenes = { _t: 'a' };
+    }
+
+    // Transform elements diff to scene-based
+    if (diff.elements) {
+      transformedDiff.scenes['0'] = {
+        _t: 'a',
+        sceneCanvas: {
+          _t: 'a',
+          elements: diff.elements
+        }
+      };
+    }
+
+    // Transform groups diff to scene-based
+    if (diff.groups) {
+      if (!transformedDiff.scenes['0']) {
+        transformedDiff.scenes['0'] = { _t: 'a' };
+      }
+      if (!transformedDiff.scenes['0'].sceneCanvas) {
+        transformedDiff.scenes['0'].sceneCanvas = { _t: 'a' };
+      }
+      transformedDiff.scenes['0'].sceneCanvas.groups = diff.groups;
+    }
+
+    // Transform timeline diff to scene-based
+    if (diff.timeline) {
+      if (!transformedDiff.scenes['0']) {
+        transformedDiff.scenes['0'] = { _t: 'a' };
+      }
+      if (!transformedDiff.scenes['0'].sceneCanvas) {
+        transformedDiff.scenes['0'].sceneCanvas = { _t: 'a' };
+      }
+      transformedDiff.scenes['0'].sceneCanvas.timeline = diff.timeline;
+    }
+
+    logger.info('Transformed flat diff to scene-based diff', {
+      originalDiffKeys: Object.keys(diff || {}),
+      transformedDiffKeys: Object.keys(transformedDiff || {}),
+      hasElementsTransform: !!(diff.elements),
+      hasGroupsTransform: !!(diff.groups),
+      hasTimelineTransform: !!(diff.timeline)
+    });
+
+    return transformedDiff;
   }
 
   static async getUserProjects(
@@ -486,10 +603,13 @@ export class ProjectService {
     // Apply diff directly to the normalized state
     let baseState = { ...normalizedState };
     
+    // Transform any flat structure diffs to scene-based diffs before applying
+    const transformedDiff = this.transformFlatDiffToSceneBasedDiff(safeDiff, baseState);
+    
     let newState: any;
     
     try {
-      newState = this.safeDiffPatch(baseState, safeDiff, diffPatcher);
+      newState = this.safeDiffPatch(baseState, transformedDiff, diffPatcher);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       logger.error('Diff patch failed for mainState content', {
