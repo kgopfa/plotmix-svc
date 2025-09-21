@@ -1,4 +1,4 @@
-import type { ActionProgram, Scene, Group, Rect, TextEl, CodeEditorEl } from '../../../types';
+import type { ActionProgram, DslScene, Group, Rect, TextEl, CodeEditorEl } from '../../../types';
 import type { StylePack } from '../../../types';
 import { pickStyle } from '../procedural/seed';
 import STYLES from '../procedural/layout/styles';
@@ -218,7 +218,7 @@ function makeCell(
   return { group, rect, text, indexText, indexGroup };
 }
 // Executor core - Grid-based automatic positioning
-export function execute(program: ActionProgram): Scene {
+export function execute(program: ActionProgram): DslScene {
   // Defaults
   let seed = 0;
   let style: StylePack = STYLES[0]!;

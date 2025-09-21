@@ -255,14 +255,63 @@ ${historyContext}
     // Clone so downstream validators cannot mutate the original root
     const cloned: any = this.deepClone(root);
     const ms = cloned.mainState;
-    if (!ms || typeof ms !== 'object') errors.push('mainState must be an object');
+    if (!ms || typeof ms !== 'object') {
+      errors.push('mainState must be an object');
+      return { valid: false, errors, patchHints: [] };
+    }
 
-    const elements = Array.isArray(ms?.elements) ? ms.elements : [];
-    const groups = Array.isArray(ms?.groups) ? ms.groups : [];
-    const timeline = ms?.timeline;
+    // Validate scene-based structure only
+    if (!ms.scenes || !Array.isArray(ms.scenes)) {
+      errors.push('mainState must have a "scenes" array - flat structure not supported');
+      return { valid: false, errors, patchHints: [] };
+    }
+
+    if (ms.scenes.length === 0) {
+      errors.push('mainState must have at least one scene');
+      return { valid: false, errors, patchHints: [] };
+    }
+
+    // Validate each scene
+    const allElements: any[] = [];
+    const allGroups: any[] = [];
+    
+    for (let i = 0; i < ms.scenes.length; i++) {
+      const scene = ms.scenes[i];
+      if (!scene.sceneId || !scene.sceneName || !scene.sceneCanvas) {
+        errors.push(`Scene ${i} must have sceneId, sceneName, and sceneCanvas`);
+        continue;
+      }
+      
+      if (!Array.isArray(scene.sceneCanvas.elements)) {
+        errors.push(`Scene ${i}.sceneCanvas must have an elements array`);
+      } else {
+        allElements.push(...scene.sceneCanvas.elements);
+      }
+      
+      if (!Array.isArray(scene.sceneCanvas.groups)) {
+        errors.push(`Scene ${i}.sceneCanvas must have a groups array`);
+      } else {
+        allGroups.push(...scene.sceneCanvas.groups);
+      }
+      
+      if (!scene.sceneCanvas.timeline || typeof scene.sceneCanvas.timeline !== 'object') {
+        errors.push(`Scene ${i}.sceneCanvas must have a timeline object`);
+      }
+    }
+
+    // Reject any flat structure properties
+    if (ms.elements) {
+      errors.push('mainState must not have flat "elements" property - use scene-based structure');
+    }
+    if (ms.groups) {
+      errors.push('mainState must not have flat "groups" property - use scene-based structure');
+    }
+    if (ms.timeline) {
+      errors.push('mainState must not have flat "timeline" property - use scene-based structure');
+    }
 
     // Elements validation
-    const elemRes = validateElementsArray(elements);
+    const elemRes = validateElementsArray(allElements);
     if (!elemRes.valid) errors.push(...elemRes.errors);
 
     // Animation naming enforcement per element
@@ -285,13 +334,10 @@ ${historyContext}
     const fontAllow = Array.isArray(specFacts?.fontAllowlist) && specFacts.fontAllowlist.length
       ? specFacts.fontAllowlist
       : ['Inter','Roboto','Open Sans','Lato','Arial'];
-    const groupTypeAllow = Array.isArray(specFacts?.groupTypeAllowlist) && specFacts.groupTypeAllowlist.length
-      ? specFacts.groupTypeAllowlist
-      : ['text','custom','polygon'];
 
-    if (Array.isArray(elements)) {
-      for (let i = 0; i < elements.length; i++) {
-        const anims = elements[i]?.animations || [];
+    if (Array.isArray(allElements)) {
+      for (let i = 0; i < allElements.length; i++) {
+        const anims = allElements[i]?.animations || [];
         const res = validateAnimationArrayWithNaming(anims);
         if (!res.valid) {
           errors.push(...res.errors.map((e) => `elements[${i}]: ${e}`));
@@ -306,8 +352,8 @@ ${historyContext}
           }
         }
         // Font allowlist for text elements
-        if (elements[i]?.type === 'text' && elements[i]?.fontFamily) {
-          if (!fontAllow.includes(elements[i].fontFamily)) {
+        if (allElements[i]?.type === 'text' && allElements[i]?.fontFamily) {
+          if (!fontAllow.includes(allElements[i].fontFamily)) {
             errors.push(`elements[${i}].fontFamily not in allowlist`);
             hints.push('Use a font from allowlist; default to "Inter"');
           }
@@ -316,61 +362,65 @@ ${historyContext}
     }
 
     // Groups validation (lightweight)
-    if (!Array.isArray(groups)) errors.push('mainState.groups must be an array');
-    if (Array.isArray(groups)) {
-      const elementsById = new Map<string, any>((elements || []).map((e: any) => [e.id, e]));
-      const suggestGroupType = (g: any): 'text'|'custom'|'polygon' => {
-        const els = (g.elementIds || []).map((id: string) => elementsById.get(id)).filter(Boolean);
-        const allText = els.length > 0 && els.every((e: any) => e.type === 'text');
-        if (allText) return 'text';
-        return 'custom';
-      };
-      for (let i = 0; i < groups.length; i++) {
-        const g = groups[i] || {};
-        if (typeof g.id !== 'string' || !g.id) errors.push(`groups[${i}].id required`);
-        if (typeof g.name !== 'string') errors.push(`groups[${i}].name must be a string`);
-        if (!Array.isArray(g.elementIds)) errors.push(`groups[${i}].elementIds must be an array`);
-        if (typeof g.x !== 'number' || typeof g.y !== 'number') errors.push(`groups[${i}].x/y must be numbers`);
-        if (!groupTypeAllow.includes(String(g.type))) {
-          errors.push(`groups[${i}].type invalid`);
-          const suggested = suggestGroupType(g);
-          hints.push(`Set groups[${i}].type to "${suggested}" (allowed: "text","custom","polygon")`);
-        }
-        if (typeof g.isDefaultGroup !== 'boolean') errors.push(`groups[${i}].isDefaultGroup must be boolean`);
-        const res = validateAnimationArrayWithNaming(g.animations || []);
-        if (!res.valid) errors.push(...res.errors.map((e) => `groups[${i}]: ${e}`));
+    const elementsById = new Map<string, any>(allElements.map((e: any) => [e.id, e]));
+    const groupTypeAllow = ['text', 'custom', 'polygon'];
+    const suggestGroupType = (g: any): 'text'|'custom'|'polygon' => {
+      const els = (g.elementIds || []).map((id: string) => elementsById.get(id)).filter(Boolean);
+      const allText = els.length > 0 && els.every((e: any) => e.type === 'text');
+      if (allText) return 'text';
+      return 'custom';
+    };
+    
+    for (let i = 0; i < allGroups.length; i++) {
+      const g = allGroups[i] || {};
+      if (typeof g.id !== 'string' || !g.id) errors.push(`groups[${i}].id required`);
+      if (typeof g.name !== 'string') errors.push(`groups[${i}].name must be a string`);
+      if (!Array.isArray(g.elementIds)) errors.push(`groups[${i}].elementIds must be an array`);
+      if (typeof g.x !== 'number' || typeof g.y !== 'number') errors.push(`groups[${i}].x/y must be numbers`);
+      if (!groupTypeAllow.includes(String(g.type))) {
+        errors.push(`groups[${i}].type invalid`);
+        const suggested = suggestGroupType(g);
+        hints.push(`Set groups[${i}].type to "${suggested}" (allowed: "text","custom","polygon")`);
       }
+      if (typeof g.isDefaultGroup !== 'boolean') errors.push(`groups[${i}].isDefaultGroup must be boolean`);
+      const res = validateAnimationArrayWithNaming(g.animations || []);
+      if (!res.valid) errors.push(...res.errors.map((e) => `groups[${i}]: ${e}`));
     }
 
-    // Timeline validation
-    if (!timeline || typeof timeline !== 'object') {
-      errors.push('mainState.timeline must be an object');
-    } else {
-      if (typeof timeline.scale !== 'number') errors.push('timeline.scale must be a number');
-      if (typeof timeline.duration !== 'number' || timeline.duration < 0) errors.push('timeline.duration must be a non-negative number');
-      if (typeof timeline.currentTime !== 'number' || timeline.currentTime < 0) errors.push('timeline.currentTime must be a non-negative number');
-      if (timeline.animationStates && typeof timeline.animationStates !== 'object') errors.push('timeline.animationStates must be an object');
-      // Duration should cover the latest animation end
+    // Timeline validation for each scene
+    for (let i = 0; i < ms.scenes.length; i++) {
+      const scene = ms.scenes[i];
+      const timeline = scene.sceneCanvas?.timeline;
+      if (!timeline || typeof timeline !== 'object') {
+        errors.push(`Scene ${i}.sceneCanvas.timeline must be an object`);
+        continue;
+      }
+      
+      if (typeof timeline.scale !== 'number') errors.push(`Scene ${i}.timeline.scale must be a number`);
+      if (typeof timeline.duration !== 'number' || timeline.duration < 0) errors.push(`Scene ${i}.timeline.duration must be a non-negative number`);
+      if (typeof timeline.currentTime !== 'number' || timeline.currentTime < 0) errors.push(`Scene ${i}.timeline.currentTime must be a non-negative number`);
+      if (timeline.animationStates && typeof timeline.animationStates !== 'object') errors.push(`Scene ${i}.timeline.animationStates must be an object`);
+      
+      // Duration should cover the latest animation end in this scene
       let latestEnd = 0;
-      if (Array.isArray(elements)) {
-        for (const el of elements) {
-          for (const a of (el?.animations || [])) {
-            const end = (Number(a?.startTime) || 0) + (Number(a?.duration) || 0);
-            if (end > latestEnd) latestEnd = end;
-          }
+      const sceneElements = scene.sceneCanvas?.elements || [];
+      const sceneGroups = scene.sceneCanvas?.groups || [];
+      
+      for (const el of sceneElements) {
+        for (const a of (el?.animations || [])) {
+          const end = (Number(a?.startTime) || 0) + (Number(a?.duration) || 0);
+          if (end > latestEnd) latestEnd = end;
         }
       }
-      if (Array.isArray(groups)) {
-        for (const g of groups) {
-          for (const a of (g?.animations || [])) {
-            const end = (Number(a?.startTime) || 0) + (Number(a?.duration) || 0);
-            if (end > latestEnd) latestEnd = end;
-          }
+      for (const g of sceneGroups) {
+        for (const a of (g?.animations || [])) {
+          const end = (Number(a?.startTime) || 0) + (Number(a?.duration) || 0);
+          if (end > latestEnd) latestEnd = end;
         }
       }
       if (timeline.duration + 1e-6 < latestEnd) {
-        errors.push(`timeline.duration too short (latest animation end ${latestEnd})`);
-        hints.push('Increase timeline.duration to cover the latest animation end');
+        errors.push(`Scene ${i}.timeline.duration too short (latest animation end ${latestEnd})`);
+        hints.push(`Increase Scene ${i}.timeline.duration to cover the latest animation end`);
       }
     }
 
@@ -437,12 +487,26 @@ ${historyContext}
     return out;
   }
 
+  // Helper method to ensure scene-based structure only
+  private static validateSceneBasedStructure(currentMainState: any): any {
+    // Validate that currentMainState has the required scene-based structure
+    if (!currentMainState || !currentMainState.scenes || !Array.isArray(currentMainState.scenes)) {
+      throw new Error('Current mainState must use the new scene-based structure with a "scenes" array. Found legacy flat structure.');
+    }
+    
+    // Return the existing scene-based structure
+    return {
+      dimensions: currentMainState.dimensions || { width: 1920, height: 1080 },
+      scenes: currentMainState.scenes
+    };
+  }
+
   // Main public entry for the chained pipeline
   static async generateScene(userBrief: string): Promise<{
     name: string;
     title: string;
     description: string;
-    mainState: { elements: any[]; groups: any[]; timeline: any };
+    mainState: { dimensions: { width: number; height: number }; scenes: any[] };
   }> {
     const engineSpec = this.getAuthoritativeEngineSpec();
     // Helper to wrap a stage with minimal diagnostics
@@ -491,15 +555,22 @@ ${historyContext}
     // Freeze: preserve ids and geometry exactly as produced by Elements step
     const freezedElements = this.freezeGeometry(elementsOnly.elements, composed.elements || []);
 
-    // 4) Assemble full doc
+    // 4) Assemble full doc with scene-based structure
     let doc = {
       name: outline.name ?? 'scene',
       title: outline.title ?? 'Scene',
       description: outline.description ?? 'A short conceptual flow.',
       mainState: {
-        elements: freezedElements,
-        groups: composed.groups ?? [],
-        timeline: composed.timeline ?? { scale: 1, duration: 3, currentTime: 0, animationStates: {} },
+        dimensions: { width: 1920, height: 1080 },
+        scenes: [{
+          sceneId: 'default-scene',
+          sceneName: 'Default Scene',
+          sceneCanvas: {
+            elements: freezedElements,
+            groups: composed.groups ?? [],
+            timeline: composed.timeline ?? { scale: 1, duration: 3, currentTime: 0, animationStates: {} },
+          }
+        }]
       },
     };
     // Sanitize move arrays -> single values before validation
@@ -519,7 +590,9 @@ ${historyContext}
       }
       // Coerce numeric strings and re-freeze geometry to element snapshot
       this.coerceNumbersInPlace(doc);
-      doc.mainState.elements = this.freezeGeometry(elementsOnly.elements, doc.mainState.elements || []);
+      if (doc.mainState.scenes && doc.mainState.scenes.length > 0 && doc.mainState.scenes[0]) {
+        doc.mainState.scenes[0].sceneCanvas.elements = this.freezeGeometry(elementsOnly.elements, doc.mainState.scenes[0].sceneCanvas.elements || []);
+      }
       // Sanitize move arrays again after fixer
       sanitizeMovePropertiesInPlace(doc);
     }
@@ -534,7 +607,7 @@ ${historyContext}
   }
 
   // Public: apply an edit instruction to an existing mainState and return an updated, validated mainState
-  static async applyEditToMainState(userPrompt: string, currentMainState: any, historyContext?: string): Promise<{ elements: any[]; groups: any[]; timeline: any }>
+  static async applyEditToMainState(userPrompt: string, currentMainState: any, historyContext?: string): Promise<{ dimensions: { width: number; height: number }; scenes: any[] }>
   {
     const engineSpec = this.getAuthoritativeEngineSpec();
     const specFacts = await this.getSpecFacts(engineSpec);
@@ -550,13 +623,7 @@ ${historyContext}
       name: 'edit',
       title: 'Edit',
       description: 'AI edit to existing mainState',
-      mainState: {
-        elements: Array.isArray(edited?.elements) ? edited.elements : Array.isArray((currentMainState || {}).elements) ? (currentMainState as any).elements : [],
-        groups: Array.isArray(edited?.groups) ? edited.groups : Array.isArray((currentMainState || {}).groups) ? (currentMainState as any).groups : [],
-        timeline: edited?.timeline && typeof edited.timeline === 'object'
-          ? edited.timeline
-          : ((currentMainState || {}).timeline || { scale: 1, duration: 3, currentTime: 0, animationStates: {} }),
-      },
+      mainState: this.validateSceneBasedStructure(currentMainState),
     } as any;
 
     // Ensure move properties are sanitized pre-validate
@@ -585,7 +652,7 @@ ${historyContext}
     userPrompt: string,
     currentMainState: any,
     historyContext?: string
-  ): Promise<{ mainState: { elements: any[]; groups: any[]; timeline: any }, summary: string | null }>
+  ): Promise<{ mainState: { dimensions: { width: number; height: number }; scenes: any[] }, summary: string | null }>
   {
     const engineSpec = this.getAuthoritativeEngineSpec();
     const specFacts = await this.getSpecFacts(engineSpec);
@@ -601,13 +668,7 @@ ${historyContext}
       name: 'edit',
       title: 'Edit',
       description: 'AI edit to existing mainState',
-      mainState: {
-        elements: Array.isArray(edited?.elements) ? edited.elements : Array.isArray((currentMainState || {}).elements) ? (currentMainState as any).elements : [],
-        groups: Array.isArray(edited?.groups) ? edited.groups : Array.isArray((currentMainState || {}).groups) ? (currentMainState as any).groups : [],
-        timeline: edited?.timeline && typeof edited.timeline === 'object'
-          ? edited.timeline
-          : ((currentMainState || {}).timeline || { scale: 1, duration: 3, currentTime: 0, animationStates: {} }),
-      },
+      mainState: this.validateSceneBasedStructure(currentMainState),
     } as any;
 
     // Ensure move properties are sanitized pre-validate

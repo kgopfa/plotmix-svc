@@ -19,14 +19,19 @@ async function main() {
     console.time('pipeline.run');
     const { mainState, summary } = await Orchestrator.generateFromPrompt(prompt);
     console.timeEnd('pipeline.run');
-    const elements = Array.isArray(mainState?.elements) ? mainState.elements.length : 0;
-    const groups = Array.isArray(mainState?.groups) ? mainState.groups.length : 0;
-    const duration = Number(mainState?.timeline?.duration) || 0;
+    
+    const scenes = mainState?.scenes || [];
+    const totalElements = scenes.reduce((sum, scene) => sum + scene.sceneCanvas.elements.length, 0);
+    const totalGroups = scenes.reduce((sum, scene) => sum + scene.sceneCanvas.groups.length, 0);
+    const duration = scenes.length > 0 && scenes[0] ? Number(scenes[0].sceneCanvas.timeline?.duration) || 0 : 0;
+    
     console.log('✅ Pipeline completed');
     console.log('Summary:', summary);
-    console.log('Result:', { elements, groups, duration });
+    console.log('Result:', { scenes: scenes.length, elements: totalElements, groups: totalGroups, duration });
+    
     // Print first few element ids for sanity
-    const ids = (mainState?.elements || []).slice(0, 5).map((e: any) => e.id);
+    const allElements = scenes.flatMap(scene => scene.sceneCanvas.elements);
+    const ids = allElements.slice(0, 5).map((e: any) => e.id);
     console.log('Preview element ids:', ids);
     console.timeEnd('pipeline.total');
   } catch (err) {

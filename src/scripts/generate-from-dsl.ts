@@ -204,11 +204,15 @@ async function generateProjectFromDsl(dslInput?: string) {
     }
     
     // Log the results
+    const totalElements = result.mainState.scenes.reduce((sum, scene) => sum + scene.sceneCanvas.elements.length, 0);
+    const totalGroups = result.mainState.scenes.reduce((sum, scene) => sum + scene.sceneCanvas.groups.length, 0);
+    
     logger.info('🎉 DSL Project Generation Complete!', {
       projectId: project.id,
       conversationId,
-      elementsCount: result.mainState.elements.length,
-      groupsCount: result.mainState.groups.length,
+      scenesCount: result.mainState.scenes.length,
+      totalElementsCount: totalElements,
+      totalGroupsCount: totalGroups,
       summary: result.summary
     });
     
@@ -216,8 +220,9 @@ async function generateProjectFromDsl(dslInput?: string) {
     console.log('\n📋 Generated Project Details:');
     console.log(`Project ID: ${project.id}`);
     console.log(`Conversation ID: ${conversationId}`);
-    console.log(`Elements: ${result.mainState.elements.length}`);
-    console.log(`Groups: ${result.mainState.groups.length}`);
+    console.log(`Scenes: ${result.mainState.scenes.length}`);
+    console.log(`Elements: ${totalElements}`);
+    console.log(`Groups: ${totalGroups}`);
     console.log(`Summary: ${result.summary}`);
     
     return { project, conversationId, mainState: result.mainState };

@@ -1,25 +1,20 @@
 // Project data structure types for the separated mainState and configuration approach
 // Import canvas types to avoid duplication and conflicts
 import { 
-  CanvasElement, 
-  CanvasGroup, 
-  Timeline
+  CanvasElement,
+  Scene
 } from './canvas';
 
-// Flat schema structure - single scene with elements, groups, and timeline
+// Multi-scene schema structure - array of scenes with elements, groups, and timeline
 export interface ProjectMainState {
-  // Canvas elements and groups
-  elements: CanvasElement[];
-  groups: CanvasGroup[];
-  
-  // Timeline and animation data
-  timeline: Timeline;
-  
-  // Canvas dimensions
+  // Project-level canvas dimensions
   dimensions: {
     width: number;
     height: number;
   };
+  
+  // Array of scenes
+  scenes: Scene[];
 }
 
 export interface ProjectConfiguration {
@@ -86,7 +81,9 @@ export interface ProjectConfiguration {
 export type { 
   CanvasElement, 
   CanvasGroup, 
-  Timeline
+  Timeline,
+  Scene,
+  SceneCanvas
 } from './canvas';
 
 // Legacy type alias for backward compatibility

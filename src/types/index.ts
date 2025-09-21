@@ -248,7 +248,19 @@ export interface ProjectHistory {
 export * from './project'; 
 
 // DSL types
-export * from './dsl';
+export type { 
+  Action, 
+  ActionProgram, 
+  Group, 
+  Rect, 
+  TextEl, 
+  CodeEditorEl, 
+  Scene as DslScene,
+  VideoTimelineConfig,
+  CaptionConfig,
+  AnimationPack,
+  AnimationPlan
+} from './dsl';
 
 // Procedural types
 export * from './procedural';

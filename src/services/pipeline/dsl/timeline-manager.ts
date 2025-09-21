@@ -554,7 +554,7 @@ export class TimelineManager {
    */
   getElementSection(elementType: string): string | null {
     for (const [sectionName, elements] of Object.entries(this.config.elementSections)) {
-      if (elements.includes(elementType)) {
+      if ((elements as string[]).includes(elementType)) {
         return sectionName;
       }
     }

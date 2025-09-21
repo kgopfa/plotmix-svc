@@ -1,13 +1,24 @@
 import { DslCompiler } from './dsl/compiler';
 import { execute } from './dsl/executor';
 import { LlmPipeline } from './llm';
-import type { ActionProgram, Scene } from '../../types';
+import type { ActionProgram, DslScene } from '../../types';
 import { validateElementsArray } from '../../schema/elements';
 import { logger } from '../../utils/logger';
 
 export interface PipelineResult {
   success: boolean;
-  mainState?: Scene;
+  mainState?: {
+    dimensions: { width: number; height: number };
+    scenes: Array<{
+      sceneId: string;
+      sceneName: string;
+      sceneCanvas: {
+        elements: any[];
+        groups: any[];
+        timeline: any;
+      };
+    }>;
+  };
   error?: string;
   summary?: string;
 }
@@ -46,16 +57,30 @@ export class Orchestrator {
         return { success: false, error: 'No valid actions found in DSL' };
       }
 
-      const scene = execute(program);
+      const dslScene = execute(program) as unknown as DslScene;
 
       // Validate elements using schema validation
-      const validationResult = validateElementsArray(scene.elements);
+      const validationResult = validateElementsArray(dslScene.elements);
       if (!validationResult.valid) {
         logger.error('Element validation failed:', { errors: validationResult.errors });
         throw new Error(`Element validation failed: ${validationResult.errors.join('; ')}`);
       }
       
-      return { success: true, mainState: scene, summary: this.generateSummary(program, scene) };
+      // Convert flat DSL scene structure to scene-based mainState
+      const mainState = {
+        dimensions: { width: 1920, height: 1080 },
+        scenes: [{
+          sceneId: 'default-scene',
+          sceneName: 'Default Scene',
+          sceneCanvas: {
+            elements: dslScene.elements,
+            groups: dslScene.groups,
+            timeline: dslScene.timeline
+          }
+        }]
+      };
+      
+      return { success: true, mainState, summary: this.generateSummary(program, dslScene) };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
@@ -64,12 +89,12 @@ export class Orchestrator {
   /**
    * Human-readable summary (presentation-only)
    */
-  private static generateSummary(program: ActionProgram, scene: Scene): string {
+  private static generateSummary(program: ActionProgram, dslScene: DslScene): string {
     const setup = program.find(a => a.kind === 'SETUP');
     const seed = setup && setup.kind === 'SETUP' ? setup.seed : 0;
 
-    const arrayElements = scene.elements.filter(el => el.type === 'rectangle').length;
-    const textElements = scene.elements.filter(el => el.type === 'text').length;
+    const arrayElements = dslScene.elements.filter((el: any) => el.type === 'rectangle').length;
+    const textElements = dslScene.elements.filter((el: any) => el.type === 'text').length;
 
     return `Generated visualization with ${arrayElements} array elements and ${textElements} text elements using seed ${seed}.`;
   }
@@ -77,17 +102,17 @@ export class Orchestrator {
   /**
    * Basic structural validation of the resulting scene
    */
-  static validateScene(scene: Scene): { valid: boolean; errors: string[] } {
+  static validateScene(dslScene: DslScene): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
 
-    if (!scene.groups || scene.groups.length === 0) errors.push('Scene must contain at least one group');
-    if (!scene.elements || scene.elements.length === 0) errors.push('Scene must contain at least one element');
-    if (!scene.timeline) errors.push('Scene must have a timeline');
+    if (!dslScene.groups || dslScene.groups.length === 0) errors.push('Scene must contain at least one group');
+    if (!dslScene.elements || dslScene.elements.length === 0) errors.push('Scene must contain at least one element');
+    if (!dslScene.timeline) errors.push('Scene must have a timeline');
 
-    for (const group of scene.groups) {
+    for (const group of dslScene.groups) {
       if (!group.elementIds || group.elementIds.length === 0) errors.push(`Group ${group.id} has no elements`);
       for (const elementId of group.elementIds) {
-        if (!scene.elements.find(el => el.id === elementId)) errors.push(`Group ${group.id} references non-existent element ${elementId}`);
+        if (!dslScene.elements.find((el: any) => el.id === elementId)) errors.push(`Group ${group.id} references non-existent element ${elementId}`);
       }
     }
 
