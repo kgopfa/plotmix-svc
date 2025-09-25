@@ -226,6 +226,10 @@ export class ProjectController {
       const project = await ProjectService.getProjectById(projectId, req.user.userId);
 
       if (!project) {
+        logger.warn('Project not found or access denied', {
+          projectId,
+          userId: req.user.userId,
+        });
         res.status(404).json({
           success: false,
           message: 'Project not found or access denied',

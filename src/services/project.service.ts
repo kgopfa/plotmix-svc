@@ -208,73 +208,9 @@ export class ProjectService {
       },
     }) as unknown as ProjectWithRelations | null;
 
-    if (project && project.mainState) {
-      // Transform scene-based structure to flat structure for frontend compatibility
-      project.mainState = this.transformSceneBasedToFlat(project.mainState as any);
-    }
-
     return project;
   }
 
-  /**
-   * Transform scene-based mainState to flat structure for frontend compatibility
-   * This maintains strict mode internally while providing flat structure to frontend
-   */
-  private static transformSceneBasedToFlat(sceneBasedMainState: any): any {
-    // Validate that we have the expected scene-based structure
-    if (!sceneBasedMainState.scenes || !Array.isArray(sceneBasedMainState.scenes)) {
-      logger.error('Cannot transform non-scene-based structure to flat', {
-        hasScenes: !!(sceneBasedMainState.scenes),
-        scenesIsArray: Array.isArray(sceneBasedMainState.scenes)
-      });
-      throw new Error('Cannot transform non-scene-based structure to flat format');
-    }
-
-    if (sceneBasedMainState.scenes.length === 0) {
-      logger.warn('No scenes found in scene-based structure, returning empty flat structure');
-      return {
-        elements: [],
-        groups: [],
-        timeline: {
-          scale: 1,
-          duration: 10,
-          currentTime: 0,
-          animationStates: {}
-        },
-        dimensions: sceneBasedMainState.dimensions || { width: 1920, height: 1080 }
-      };
-    }
-
-    // For now, use the first scene (we can enhance this later for multi-scene support)
-    const firstScene = sceneBasedMainState.scenes[0];
-    if (!firstScene || !firstScene.sceneCanvas) {
-      logger.error('First scene is missing or invalid', {
-        sceneExists: !!firstScene,
-        sceneCanvasExists: !!(firstScene?.sceneCanvas)
-      });
-      throw new Error('First scene is missing or invalid sceneCanvas');
-    }
-
-    const flatStructure = {
-      elements: firstScene.sceneCanvas.elements || [],
-      groups: firstScene.sceneCanvas.groups || [],
-      timeline: firstScene.sceneCanvas.timeline || {
-        scale: 1,
-        duration: 10,
-        currentTime: 0,
-        animationStates: {}
-      },
-      dimensions: sceneBasedMainState.dimensions || { width: 1920, height: 1080 }
-    };
-
-    logger.info('Transformed scene-based to flat structure for frontend', {
-      elementsCount: flatStructure.elements.length,
-      groupsCount: flatStructure.groups.length,
-      dimensions: flatStructure.dimensions
-    });
-
-    return flatStructure;
-  }
 
   /**
    * Transform flat structure diffs to scene-based diffs for internal processing
