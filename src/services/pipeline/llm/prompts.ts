@@ -212,6 +212,9 @@ RESPONSE FORMAT
 - Output ONLY one \`\`\`dsl fenced block. No prose before/after.
 
 ALLOWED COMMANDS (line-oriented)
+- scene "<id>" "<name>"               # begins a scene (id: kebab_case; name: human-friendly)
+- endscene                            # ends the current scene
+
 - heading "<text>"                    # required, from contentPlan.problem.title
 - subtitle <order> "<text>"           # numbered subtitles for different phases
 - explanation <order> "<text>"        # general explanation, from contentPlan.algorithmExplanation
@@ -254,13 +257,22 @@ STRICT FORMATTING RULES
 5) Use 0-based array indices only
 6) Each caption should explain what the animation shows and why
 
+MANDATORY SCENE OUTLINE (default for algorithms; create 3–5 scenes)
+1) scene "intro" "Introduction and Mental Model"
+2) scene "setup" "Setup and Invariants"  
+3) scene "demo" "Iteration Walkthrough" with cleanup (see below)
+4) scene "edges" "Edge Cases"
+5) scene "wrap" "Conclusion and Alternatives"
+
 SECTION ORDER (mandatory):
-heading → subtitle* → explanation* → approach* → keyidea* → pseudocode? → example → array → [animate+caption sequences] → edgecase* → conclusion* → alternative*
+heading → [scene blocks with content] → endscene
 
 NUMBERING (all 1-based):
 - subtitle, explanation, approach, keyidea, edgecase, caption, conclusion, alternative
 
 KEY REQUIREMENTS:
+- Organize content into 3-5 scenes following the mandatory scene outline
+- Each scene must start with scene directive and end with endscene
 - Split algorithmExplanation into 1-2 numbered explanation lines
 - Generate 2-4 approach lines from keyIdeas (rephrased as procedural steps)
 - Generate 2-4 keyidea lines from keyIdeas (principles, different phrasing than approach)
