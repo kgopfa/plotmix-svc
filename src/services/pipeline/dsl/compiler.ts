@@ -9,13 +9,55 @@ export class DslCompiler {
     // Preprocess pseudocode to escape newlines within triple quotes
     const processedDsl = this.preprocessPseudocode(cleanDsl);
     
-    const lines = processedDsl.trim().split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    const lines = processedDsl.trim().split('\n');
     const program: Action[] = [];
 
-    for (const line of lines) {
-      const action = this.parseLine(line);
-      if (action) {
-        program.push(action);
+    // Track current scene context
+    let currentScene: { id: string; name: string } | null = null;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!;
+      const trimmedLine = line.trim();
+      
+      if (trimmedLine.length === 0) continue;
+
+      // Check for scene start
+      if (trimmedLine.startsWith('scene ')) {
+        const action = this.parseLine(trimmedLine);
+        if (action && action.kind === "SCENE") {
+          program.push(action);
+          currentScene = { id: action.id, name: action.name };
+        }
+        continue;
+      }
+
+      // Check for scene end
+      if (trimmedLine === 'endscene') {
+        const action = this.parseLine(trimmedLine);
+        if (action && action.kind === "ENDSCENE") {
+          program.push(action);
+          currentScene = null;
+        }
+        continue;
+      }
+
+      // Check if line is indented (part of current scene)
+      const isIndented = line.startsWith('  ') || line.startsWith('\t');
+      
+      if (currentScene && isIndented) {
+        // This is content within a scene
+        const action = this.parseLine(trimmedLine);
+        if (action) {
+          // Add scene context to the action
+          (action as any).sceneId = currentScene.id;
+          program.push(action);
+        }
+      } else if (!currentScene) {
+        // This is content outside any scene
+        const action = this.parseLine(trimmedLine);
+        if (action) {
+          program.push(action);
+        }
       }
     }
 
@@ -41,6 +83,10 @@ export class DslCompiler {
         return this.parseSeed(parts);
       case 'style':
         return this.parseStyle(parts);
+      case 'scene':
+        return this.parseScene(line);
+      case 'endscene':
+        return this.parseEndscene();
       case 'array':
         return this.parseArray(line);
       case 'animate':
@@ -359,6 +405,30 @@ export class DslCompiler {
     return {
       kind: "WAIT",
       duration
+    };
+  }
+
+  private static parseScene(line: string): Action | null {
+    // Parse: scene "intro" "Introduction and Mental Model"
+    const sceneMatch = line.match(/^scene\s+"([^"]+)"\s+"([^"]+)"/);
+    if (!sceneMatch) {
+      return null;
+    }
+    
+    const id = sceneMatch[1]!;
+    const name = sceneMatch[2]!;
+    
+    return {
+      kind: "SCENE",
+      id,
+      name
+    };
+  }
+
+  private static parseEndscene(): Action | null {
+    // Parse: endscene
+    return {
+      kind: "ENDSCENE"
     };
   }
 }

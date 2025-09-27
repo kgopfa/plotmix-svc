@@ -1,19 +1,21 @@
 export type Action =
-  | { kind: "SETUP"; seed: number; style: "auto"|string }
-  | { kind: "DRAW_ARRAY"; values: (number|string)[]; gap?: number; cell?: number }
-  | { kind: "ANIMATE"; type: "highlight"|"unhighlight"|"select"|"deselect"|"focus"|"compare"; elements: (number|string)[]; startTime: number; duration: number }
-  | { kind: "CAPTION"; order: number; text: string }
-  | { kind: "HEADING"; text: string }
-  | { kind: "SUBTITLE"; order: number; text: string; section?: string } 
-  | { kind: "EXPLANATION"; order: number; text: string }
-  | { kind: "APPROACH"; order: number; text: string }
-  | { kind: "EXAMPLE"; text: string }
-  | { kind: "CONCLUSION"; order: number; text: string }
-  | { kind: "EDGECASE"; order: number; text: string }
-  | { kind: "ALTERNATIVE"; order: number; text: string }
-  | { kind: "PSEUDOCODE"; text: string }
-  | { kind: "KEYIDEA"; order: number; text: string }
-  | { kind: "WAIT"; duration: number };
+  | { kind: "SETUP"; seed: number; style: "auto"|string; sceneId?: string }
+  | { kind: "SCENE"; id: string; name: string }
+  | { kind: "ENDSCENE" }
+  | { kind: "DRAW_ARRAY"; values: (number|string)[]; gap?: number; cell?: number; sceneId?: string }
+  | { kind: "ANIMATE"; type: "highlight"|"unhighlight"|"select"|"deselect"|"focus"|"compare"; elements: (number|string)[]; startTime: number; duration: number; sceneId?: string }
+  | { kind: "CAPTION"; order: number; text: string; sceneId?: string }
+  | { kind: "HEADING"; text: string; sceneId?: string }
+  | { kind: "SUBTITLE"; order: number; text: string; section?: string; sceneId?: string } 
+  | { kind: "EXPLANATION"; order: number; text: string; sceneId?: string }
+  | { kind: "APPROACH"; order: number; text: string; sceneId?: string }
+  | { kind: "EXAMPLE"; text: string; sceneId?: string }
+  | { kind: "CONCLUSION"; order: number; text: string; sceneId?: string }
+  | { kind: "EDGECASE"; order: number; text: string; sceneId?: string }
+  | { kind: "ALTERNATIVE"; order: number; text: string; sceneId?: string }
+  | { kind: "PSEUDOCODE"; text: string; sceneId?: string }
+  | { kind: "KEYIDEA"; order: number; text: string; sceneId?: string }
+  | { kind: "WAIT"; duration: number; sceneId?: string };
 
 // Central configuration for video timing and section organization
 export interface VideoTimelineConfig {
@@ -169,4 +171,5 @@ export type Scene = {
   groups: Group[];
   elements: (Rect|TextEl|CodeEditorEl)[];
   timeline: { scale: number; duration: number; currentTime: number; animationStates: Record<string, unknown> };
+  scenes?: Array<{ id: string; name: string; startTime: number; endTime?: number }>;
 };

@@ -1,4 +1,4 @@
-import type { ActionProgram, DslScene, Group, Rect, TextEl, CodeEditorEl } from '../../../types';
+import type { Action, ActionProgram, DslScene, Group, Rect, TextEl, CodeEditorEl } from '../../../types';
 import type { StylePack } from '../../../types';
 import { pickStyle } from '../procedural/seed';
 import STYLES from '../procedural/layout/styles';
@@ -229,6 +229,15 @@ export function execute(program: ActionProgram): DslScene {
   // Initialize TimelineManager for section-based timing
   const timelineManager = new TimelineManager();
 
+  // Scene tracking
+  let currentScene: { id: string; name: string } | null = null;
+  const scenes: Array<{ id: string; name: string; startTime: number; endTime?: number }> = [];
+  let sceneStartTime = 0;
+  
+  // Scene-based content tracking
+  const sceneContent: Map<string, Action[]> = new Map();
+  let currentSceneActions: Action[] = [];
+
   // Track caption timing to sync animations
   const captionTiming: Map<number, { startTime: number; endTime: number }> = new Map();
 
@@ -435,6 +444,54 @@ export function execute(program: ActionProgram): DslScene {
   for (const act of program) {
     if (act.kind === "SETUP" || act.kind === "CAPTION") {
       // Skip these as they were processed in first pass
+      continue;
+    }
+
+    if (act.kind === "SCENE") {
+      // Handle scene start
+      if (currentScene) {
+        // End previous scene if one was active
+        const lastScene = scenes[scenes.length - 1];
+        if (lastScene) {
+          lastScene.endTime = sceneStartTime;
+        }
+        // Store the previous scene's content
+        if (currentSceneActions.length > 0) {
+          sceneContent.set(currentScene.id, [...currentSceneActions]);
+        }
+      }
+      
+      currentScene = { id: act.id, name: act.name };
+      sceneStartTime = timelineManager.getCurrentTime();
+      scenes.push({ id: act.id, name: act.name, startTime: sceneStartTime });
+      currentSceneActions = [];
+      continue;
+    }
+
+    if (act.kind === "ENDSCENE") {
+      // Handle scene end
+      if (currentScene) {
+        const lastScene = scenes[scenes.length - 1];
+        if (lastScene) {
+          lastScene.endTime = timelineManager.getCurrentTime();
+        }
+        // Store the current scene's content
+        if (currentSceneActions.length > 0) {
+          sceneContent.set(currentScene.id, [...currentSceneActions]);
+        }
+        currentScene = null;
+        currentSceneActions = [];
+      }
+      continue;
+    }
+
+    // Check if this action belongs to a scene
+    if (act.sceneId && currentScene && act.sceneId === currentScene.id) {
+      // This action is part of the current scene - process it normally
+      currentSceneActions.push(act);
+      // Continue processing the action normally
+    } else if (act.sceneId && !currentScene) {
+      // This action has a sceneId but no current scene - skip it
       continue;
     }
 
@@ -1628,9 +1685,22 @@ export function execute(program: ActionProgram): DslScene {
     // (future) DRAW_STACK, DRAW_QUEUE, DRAW_LINKED_LIST, DRAW_TREE...
   }
 
+  // Close any open scene
+  if (currentScene) {
+    const lastScene = scenes[scenes.length - 1];
+    if (lastScene) {
+      lastScene.endTime = timelineManager.getTotalDuration();
+    }
+    // Store the final scene's content
+    if (currentSceneActions.length > 0) {
+      sceneContent.set(currentScene.id, [...currentSceneActions]);
+    }
+  }
+
   return {
     groups,
     elements,
     timeline: { scale: 100, duration: 1, currentTime: 0, animationStates: {} },
+    scenes, // Include scene information
   };
 }

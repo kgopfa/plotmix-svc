@@ -703,6 +703,15 @@ export class TimelineManager {
 
 
   /**
+   * Get current time in the timeline
+   */
+  getCurrentTime(): number {
+    // For now, return the total duration as current time
+    // This could be enhanced to track actual current position
+    return this.getTotalDuration();
+  }
+
+  /**
    * Get total video duration
    */
   getTotalDuration(): number {
