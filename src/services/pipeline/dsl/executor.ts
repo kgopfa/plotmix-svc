@@ -1697,10 +1697,164 @@ export function execute(program: ActionProgram): DslScene {
     }
   }
 
+  // Process each scene's content to create separate scene objects
+  const processedScenes: Array<{
+    id: string;
+    name: string;
+    startTime: number;
+    endTime?: number;
+    groups: Group[];
+    elements: (Rect | TextEl | CodeEditorEl)[];
+    timeline: { scale: number; duration: number; currentTime: number; animationStates: Record<string, unknown> };
+  }> = [];
+
+  for (const scene of scenes) {
+    const sceneActions = sceneContent.get(scene.id);
+    if (sceneActions) {
+      // Process this scene's actions to create its own elements and groups
+      const sceneGroups: Group[] = [];
+      const sceneElements: (Rect | TextEl | CodeEditorEl)[] = [];
+      
+      // Create a new timeline manager for this scene
+      const sceneTimelineManager = new TimelineManager();
+      
+      // Process each action in the scene
+      for (const action of sceneActions) {
+        processActionInScene(action, sceneGroups, sceneElements, sceneTimelineManager, style, seed);
+      }
+      
+      processedScenes.push({
+        id: scene.id,
+        name: scene.name,
+        startTime: scene.startTime,
+        endTime: scene.endTime ?? timelineManager.getTotalDuration(),
+        groups: sceneGroups,
+        elements: sceneElements,
+        timeline: { scale: 100, duration: 1, currentTime: 0, animationStates: {} }
+      });
+    }
+  }
+
+  // Ensure at least one scene was processed
+  if (processedScenes.length === 0) {
+    throw new Error('No scenes were processed from DSL. DSL must contain at least one scene block.');
+  }
+
+  // Return the first scene as the main scene, but include all scenes in metadata
+  const mainScene = processedScenes[0]!;
   return {
-    groups,
-    elements,
-    timeline: { scale: 100, duration: 1, currentTime: 0, animationStates: {} },
-    scenes, // Include scene information
+    groups: mainScene.groups,
+    elements: mainScene.elements,
+    timeline: mainScene.timeline,
+    scenes: processedScenes.map(s => ({ id: s.id, name: s.name, startTime: s.startTime, endTime: s.endTime ?? timelineManager.getTotalDuration() }))
   };
+}
+
+// Helper function to process actions within a scene context
+function processActionInScene(
+  action: Action,
+  sceneGroups: Group[],
+  sceneElements: (Rect | TextEl | CodeEditorEl)[],
+  timelineManager: TimelineManager,
+  style: StylePack,
+  _seed: number
+): void {
+  // Process each action type within a scene context
+  // This mirrors the main action processing logic but for scene-specific collections
+  
+  if (action.kind === "DRAW_ARRAY") {
+    // Center-origin positioning for arrays aligned to center-start grid lines
+    const minCellSize = action.cell ?? style.cell.w;
+    const gap = 80;
+
+    // Calculate optimal cell dimensions based on content
+    const { width: cellWidth, height: cellHeight } = calculateOptimalCellDimensions(
+      action.values,
+      style,
+      minCellSize
+    );
+
+    // Place middle item at x=0 using symmetric spacing (gap + cell width as step)
+    const stepX = cellWidth + gap;
+    const arrayY = 0; // center row per requirement
+    const canvasWidth = 1920;
+    const marginX = 40;
+    const centerXs = computeCenteredXPositions(action.values.length, stepX, canvasWidth, marginX);
+
+    action.values.forEach((v, i) => {
+      const centerX = centerXs[i]!;
+      const centerY = arrayY;
+      const { group, rect, text, indexText, indexGroup } = makeCell(style, v, centerX, centerY, cellWidth, cellHeight, i);
+
+      // Get timing from config
+      const arrayTiming = timelineManager.getElementTiming('array');
+
+      if (arrayTiming) {
+        // Add fade-in animation for cell group
+        group.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: arrayTiming.startTime!,
+          duration: arrayTiming.fadeInDuration!,
+          properties: { alpha: 1 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `array-${i}-fade-in`,
+          repeatDelay: 0
+        });
+
+        // Add fade-out animation for cell group
+        const mainEndTime = timelineManager.getElementTiming('array').endTime;
+        const fadeOutStartTime = mainEndTime - arrayTiming.fadeOutDuration!;
+
+        group.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: fadeOutStartTime,
+          duration: arrayTiming.fadeOutDuration!,
+          properties: { alpha: 0 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `array-fade-out`,
+          repeatDelay: 0
+        });
+
+        // Add fade-in animation for index group
+        indexGroup.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: arrayTiming.startTime!,
+          duration: arrayTiming.fadeInDuration!,
+          properties: { alpha: 1 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `array-index-${i}-fade-in`,
+          repeatDelay: 0
+        });
+
+        // Add fade-out animation for index group
+        indexGroup.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: fadeOutStartTime,
+          duration: arrayTiming.fadeOutDuration!,
+          properties: { alpha: 0 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `array-index-fade-out`,
+          repeatDelay: 0
+        });
+      }
+
+      sceneGroups.push(group, indexGroup);
+      sceneElements.push(rect, text, indexText);
+    });
+  }
+
+  // Add other action types as needed (HEADING, EXPLANATION, etc.)
+  // For now, focusing on the core array functionality
 }

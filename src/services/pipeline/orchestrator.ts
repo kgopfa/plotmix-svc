@@ -66,18 +66,22 @@ export class Orchestrator {
         throw new Error(`Element validation failed: ${validationResult.errors.join('; ')}`);
       }
       
-      // Convert flat DSL scene structure to scene-based mainState
+      // Convert DSL scene structure to scene-based mainState
+      if (!dslScene.scenes || dslScene.scenes.length === 0) {
+        throw new Error('No scenes found in DSL output. DSL must contain at least one scene.');
+      }
+
       const mainState = {
         dimensions: { width: 1920, height: 1080 },
-        scenes: [{
-          sceneId: 'default-scene',
-          sceneName: 'Default Scene',
+        scenes: dslScene.scenes.map(scene => ({
+          sceneId: scene.id,
+          sceneName: scene.name,
           sceneCanvas: {
-            elements: dslScene.elements,
-            groups: dslScene.groups,
+            elements: dslScene.elements, // For now, use the main scene elements
+            groups: dslScene.groups,     // For now, use the main scene groups
             timeline: dslScene.timeline
           }
-        }]
+        }))
       };
       
       return { success: true, mainState, summary: this.generateSummary(program, dslScene) };
