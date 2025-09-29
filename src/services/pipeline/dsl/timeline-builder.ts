@@ -15,6 +15,23 @@ export interface ListTimelineItem extends TimelineItem {
   itemType: 'explanation' | 'approach' | 'keyidea' | 'edgecase' | 'alternative';
 }
 
+export interface DemoStep {
+  id: string;
+  order: number;
+  animationStartTime: number;
+  animationDuration: number;
+  captionStartTime: number;
+  captionFadeInDuration: number;
+  captionVisibleTime: number;
+  captionFadeOutDuration: number;
+  captionEndTime: number;
+}
+
+export interface DemoTimelineItem extends TimelineItem {
+  type: 'demo';
+  steps: DemoStep[];
+}
+
 export class TimelineBuilder {
   private items: TimelineItem[] = [];
   private currentTime: number = 0;
@@ -171,5 +188,103 @@ export class TimelineBuilder {
    */
   getAllListItems(): ListTimelineItem[] {
     return this.items.filter(item => 'type' in item && item.type === 'list') as ListTimelineItem[];
+  }
+
+  /**
+   * Add a demo with animate + caption sequences
+   * @param stepCount Number of animate + caption steps in the demo
+   * @param animationDuration Duration for each animation (seconds)
+   * @param captionFadeInDuration Duration for caption fade-in (seconds)
+   * @param captionVisibleTime Duration caption stays visible (seconds)
+   * @param captionFadeOutDuration Duration for caption fade-out (seconds)
+   * @param animationOffset Delay between animation start and caption start (seconds)
+   * @param stepGap Duration between steps (seconds)
+   * @returns The created demo timeline item
+   */
+  addDemo(
+    stepCount: number,
+    animationDuration: number = 1.5,
+    captionFadeInDuration: number = 0.5,
+    captionVisibleTime: number = 3.0,
+    captionFadeOutDuration: number = 0.5,
+    animationOffset: number = 0.5,
+    stepGap: number = 0.0
+  ): DemoTimelineItem {
+    const demoId = `demo-${this.items.length}`;
+    const demoStartTime = this.currentTime;
+    
+    // Create individual steps within the demo
+    const steps: DemoStep[] = [];
+    let stepCurrentTime = demoStartTime;
+    
+    for (let i = 0; i < stepCount; i++) {
+      const stepOrder = i + 1;
+      const animationStartTime = stepCurrentTime;
+      const captionStartTime = animationStartTime + animationOffset;
+      const captionEndTime = captionStartTime + captionFadeInDuration + captionVisibleTime + captionFadeOutDuration;
+      const stepEndTime = Math.max(animationStartTime + animationDuration, captionEndTime);
+      
+      const step: DemoStep = {
+        id: `demo-step-${stepOrder}`,
+        order: stepOrder,
+        animationStartTime,
+        animationDuration,
+        captionStartTime,
+        captionFadeInDuration,
+        captionVisibleTime,
+        captionFadeOutDuration,
+        captionEndTime
+      };
+      
+      steps.push(step);
+      stepCurrentTime = stepEndTime + stepGap;
+    }
+    
+    // Calculate total demo duration
+    const totalDemoDuration = steps.length > 0 ? steps[steps.length - 1]!.captionEndTime - demoStartTime : 0;
+    const demoEndTime = demoStartTime + totalDemoDuration;
+    
+    const demoItem: DemoTimelineItem = {
+      id: demoId,
+      type: 'demo',
+      fadeInDuration: 0, // Demos don't have container fade-in
+      visibleTime: totalDemoDuration,
+      fadeOutDuration: 0, // Demos don't have container fade-out
+      startTime: demoStartTime,
+      fadeInEnd: demoStartTime,
+      visibleEnd: demoEndTime,
+      endTime: demoEndTime,
+      steps
+    };
+
+    this.items.push(demoItem);
+    
+    // Move current time to the end of this demo
+    this.currentTime = demoItem.endTime;
+
+    return demoItem;
+  }
+
+  /**
+   * Get a demo timeline item by ID
+   */
+  getDemoItem(id: string): DemoTimelineItem | undefined {
+    const item = this.items.find(item => item.id === id);
+    return item && 'type' in item && item.type === 'demo' ? item as DemoTimelineItem : undefined;
+  }
+
+  /**
+   * Get all demo timeline items
+   */
+  getAllDemoItems(): DemoTimelineItem[] {
+    return this.items.filter(item => 'type' in item && item.type === 'demo') as DemoTimelineItem[];
+  }
+
+  /**
+   * Get a specific demo step by demo ID and step order
+   */
+  getDemoStep(demoId: string, stepOrder: number): DemoStep | undefined {
+    const demo = this.getDemoItem(demoId);
+    return demo?.steps.find(step => step.order === stepOrder);
   }
 }
