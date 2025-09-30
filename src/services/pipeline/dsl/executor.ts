@@ -294,6 +294,12 @@ export function execute(program: ActionProgram): DslScene {
       elements.push(subtitle);
     }
 
+    if (act.kind === "DRAW_LIST") {
+      // Handle list commands - create simple text elements for each list item
+      const listElements = ElementFactory.createList(act, style);
+      elements.push(...listElements);
+    }
+
     // Only process arrays for now - text elements are ignored
 
     // (future) DRAW_STACK, DRAW_QUEUE, DRAW_LINKED_LIST, DRAW_TREE...

@@ -9,6 +9,13 @@ export type AnimationStep = {
   repeat?: number; // Optional, defaults to procedural setting
 };
 
+// Generic list item for any type of list content
+export type ListItem = {
+  type: "list";
+  data: string[];
+  title?: string; // Optional title for the list
+};
+
 export type JsonAnimationProgram = {
   steps: AnimationStep[];
   setup?: {
@@ -22,6 +29,7 @@ export type JsonAnimationProgram = {
     heading?: string;
     subtitle?: string;
   };
+  lists?: ListItem[]; // Optional lists to display
 };
 
 // Internal Action types for the executor (converted from JSON)
@@ -31,7 +39,8 @@ export type Action =
   | { kind: "ANIMATE"; type: "highlight"|"unhighlight"|"select"|"deselect"|"focus"|"compare"; elements: (number|string)[]; startTime: number; duration: number }
   | { kind: "CAPTION"; order: number; text: string }
   | { kind: "HEADING"; text: string }
-  | { kind: "SUBTITLE"; order: number; text: string };
+  | { kind: "SUBTITLE"; order: number; text: string }
+  | { kind: "DRAW_LIST"; data: string[]; title?: string };
 
 // Central configuration for video timing and section organization
 export interface VideoTimelineConfig {

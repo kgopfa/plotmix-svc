@@ -262,7 +262,8 @@ export type {
   AnimationPlan,
   // JSON-based types
   AnimationStep,
-  JsonAnimationProgram
+  JsonAnimationProgram,
+  ListItem
 } from './dsl';
 
 // Procedural types

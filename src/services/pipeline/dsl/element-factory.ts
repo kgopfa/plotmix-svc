@@ -398,4 +398,113 @@ export class ElementFactory {
 
     return heading;
   }
+
+  static createList(
+    action: Action & { kind: "DRAW_LIST" },
+    style: StylePack
+  ): TextEl[] {
+    const elements: TextEl[] = [];
+    
+    // Position lists in the same place as other text elements (right side of canvas)
+    const startX = 600; // Right side of canvas
+    const startY = -300; // Start above the array
+    const itemSpacing = 50; // Vertical spacing between items
+    
+    // Add title if present
+    if (action.title) {
+      const titleId = randomUUID();
+      const titleFontSize = style.typography.size * 0.9;
+      
+      const title: TextEl = {
+        animations: [],
+        fill: style.palette.text,
+        x: startX,
+        y: startY - 40, // Above the list items
+        id: titleId,
+        name: "List Title",
+        text: action.title,
+        type: "text",
+        width: 800, // Max width for list titles
+        height: style.typography.size * 1.2,
+        fontFamily: style.typography.family,
+        fontSize: titleFontSize,
+        fontWeight: "bold",
+        textAlign: "left",
+        pivotX: 0, // Left-aligned
+        pivotY: (style.typography.size * 1.2) / 2,
+        zIndex: 5,
+        opacity: 1,
+        visible: true,
+        groupId: "",
+        wordWrap: true,
+        fontStyle: "normal",
+        lineHeight: 1.2,
+        shadowBlur: 0,
+        shadowColor: "#000000",
+        strokeWidth: 0,
+        cornerRadius: 0,
+        letterSpacing: 0,
+        shadowEnabled: false,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowOpacity: 0,
+        wordWrapWidth: 800,
+        textStrokeJoin: "round",
+        isAnimationPath: false,
+        textStrokeWidth: 0
+      };
+      
+      elements.push(title);
+    }
+    
+    // Add list items
+    action.data.forEach((item, index) => {
+      const itemId = randomUUID();
+      const itemFontSize = style.typography.size * 0.8;
+      const itemY = startY + (index * itemSpacing);
+      
+      const listItem: TextEl = {
+        animations: [],
+        fill: style.palette.text,
+        x: startX,
+        y: itemY,
+        id: itemId,
+        name: `List Item ${index}`,
+        text: `• ${item}`, // Add bullet point
+        type: "text",
+        width: 800, // Max width for list items
+        height: style.typography.size * 1.1,
+        fontFamily: style.typography.family,
+        fontSize: itemFontSize,
+        fontWeight: "normal",
+        textAlign: "left",
+        pivotX: 0, // Left-aligned
+        pivotY: (style.typography.size * 1.1) / 2,
+        zIndex: 5,
+        opacity: 1,
+        visible: true,
+        groupId: "",
+        wordWrap: true,
+        fontStyle: "normal",
+        lineHeight: 1.2,
+        shadowBlur: 0,
+        shadowColor: "#000000",
+        strokeWidth: 0,
+        cornerRadius: 0,
+        letterSpacing: 0,
+        shadowEnabled: false,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowOpacity: 0,
+        wordWrapWidth: 800,
+        textStrokeJoin: "round",
+        isAnimationPath: false,
+        textStrokeWidth: 0
+      };
+      
+      elements.push(listItem);
+    });
+    
+    return elements;
+  }
 }

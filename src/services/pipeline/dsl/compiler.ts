@@ -56,6 +56,20 @@ export class DslCompiler {
         }
       }
 
+      // Handle lists if present
+      if (jsonProgram.lists) {
+        jsonProgram.lists.forEach(list => {
+          const listAction: any = {
+            kind: "DRAW_LIST",
+            data: list.data
+          };
+          if (list.title !== undefined) {
+            listAction.title = list.title;
+          }
+          program.push(listAction);
+        });
+      }
+
       // Convert each step to corresponding actions
       jsonProgram.steps.forEach((step, index) => {
         // Add caption action
