@@ -259,7 +259,10 @@ export type {
   VideoTimelineConfig,
   CaptionConfig,
   AnimationPack,
-  AnimationPlan
+  AnimationPlan,
+  // JSON-based types
+  AnimationStep,
+  JsonAnimationProgram
 } from './dsl';
 
 // Procedural types

@@ -1,21 +1,37 @@
+// JSON-based animation step format
+export type AnimationStep = {
+  action: "highlight" | "unhighlight" | "select" | "deselect" | "focus" | "compare";
+  indices: number[];
+  caption: string;
+  duration?: number; // Optional, defaults to 1.5s
+  easing?: string; // Optional, defaults to procedural easing
+  yoyo?: boolean; // Optional, defaults to procedural setting
+  repeat?: number; // Optional, defaults to procedural setting
+};
+
+export type JsonAnimationProgram = {
+  steps: AnimationStep[];
+  setup?: {
+    seed?: number;
+    style?: string;
+    array?: {
+      values: (number | string)[];
+      gap?: number;
+      cell?: number;
+    };
+    heading?: string;
+    subtitle?: string;
+  };
+};
+
+// Internal Action types for the executor (converted from JSON)
 export type Action =
-  | { kind: "SETUP"; seed: number; style: "auto"|string; sceneId?: string }
-  | { kind: "SCENE"; id: string; name: string }
-  | { kind: "ENDSCENE" }
-  | { kind: "DRAW_ARRAY"; values: (number|string)[]; gap?: number; cell?: number; sceneId?: string }
-  | { kind: "ANIMATE"; type: "highlight"|"unhighlight"|"select"|"deselect"|"focus"|"compare"; elements: (number|string)[]; startTime: number; duration: number; sceneId?: string }
-  | { kind: "CAPTION"; order: number; text: string; sceneId?: string }
-  | { kind: "HEADING"; text: string; sceneId?: string }
-  | { kind: "SUBTITLE"; order: number; text: string; section?: string; sceneId?: string } 
-  | { kind: "EXPLANATION"; order: number; text: string; sceneId?: string }
-  | { kind: "APPROACH"; order: number; text: string; sceneId?: string }
-  | { kind: "EXAMPLE"; text: string; sceneId?: string }
-  | { kind: "CONCLUSION"; order: number; text: string; sceneId?: string }
-  | { kind: "EDGECASE"; order: number; text: string; sceneId?: string }
-  | { kind: "ALTERNATIVE"; order: number; text: string; sceneId?: string }
-  | { kind: "PSEUDOCODE"; text: string; sceneId?: string }
-  | { kind: "KEYIDEA"; order: number; text: string; sceneId?: string }
-  | { kind: "WAIT"; duration: number; sceneId?: string };
+  | { kind: "SETUP"; seed: number; style: "auto"|string }
+  | { kind: "DRAW_ARRAY"; values: (number|string)[]; gap?: number; cell?: number }
+  | { kind: "ANIMATE"; type: "highlight"|"unhighlight"|"select"|"deselect"|"focus"|"compare"; elements: (number|string)[]; startTime: number; duration: number }
+  | { kind: "CAPTION"; order: number; text: string }
+  | { kind: "HEADING"; text: string }
+  | { kind: "SUBTITLE"; order: number; text: string };
 
 // Central configuration for video timing and section organization
 export interface VideoTimelineConfig {
@@ -97,15 +113,6 @@ export type AnimationPack = {
   };
 };
 
-export interface AnimationStep {
-  id: string;
-  description: string;
-  targetElements: (number | string)[];
-  animationType: "highlight" | "unhighlight" | "select" | "deselect" | "focus" | "compare";
-  startTime: number;
-  duration: number;
-  explanation: string;
-}
 
 export interface AnimationPlan {
   title: string;
