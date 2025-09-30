@@ -1,22 +1,10 @@
-// JSON-based animation step format (legacy)
-export type AnimationStep = {
-  action: "highlight" | "unhighlight" | "select" | "deselect" | "focus" | "compare";
-  indices: number[];
-  caption: string;
-  duration?: number; // Optional, defaults to 1.5s
-  easing?: string; // Optional, defaults to procedural easing
-  yoyo?: boolean; // Optional, defaults to procedural setting
-  repeat?: number; // Optional, defaults to procedural setting
-};
+// Content types for the unified format
+export type ContentItem = 
+  | { type: "heading"; data: string[] }
+  | { type: "list"; data: string[]; title?: string }
+  | { type: "codeblock"; data: string[]; title?: string }
+  | { type: "demo"; dataStructure: DataStructure; steps: DemoStep[] };
 
-// Generic list item for any type of list content
-export type ListItem = {
-  type: "list";
-  data: string[];
-  title?: string; // Optional title for the list
-};
-
-// New demo section types
 export type DataStructure = {
   type: "array";
   data: (number | string)[];
@@ -34,29 +22,30 @@ export type DemoStep = {
   actions?: DemoAction[]; // Optional actions for this step
 };
 
+export type JsonAnimationProgram = {
+  content: ContentItem[];
+};
+
+// Legacy types (kept for backward compatibility)
+export type AnimationStep = {
+  action: "highlight" | "unhighlight" | "select" | "deselect" | "focus" | "compare";
+  indices: number[];
+  caption: string;
+  duration?: number;
+  easing?: string;
+  yoyo?: boolean;
+  repeat?: number;
+};
+
+export type ListItem = {
+  type: "list";
+  data: string[];
+  title?: string;
+};
+
 export type DemoSection = {
   dataStructure: DataStructure;
   steps: DemoStep[];
-};
-
-export type JsonAnimationProgram = {
-  // Legacy format support
-  steps?: AnimationStep[];
-  setup?: {
-    seed?: number;
-    style?: string;
-    array?: {
-      values: (number | string)[];
-      gap?: number;
-      cell?: number;
-    };
-    heading?: string;
-    subtitle?: string;
-  };
-  lists?: ListItem[]; // Optional lists to display
-  
-  // New demo format
-  demo?: DemoSection;
 };
 
 // Internal Action types for the executor (converted from JSON)
@@ -67,7 +56,8 @@ export type Action =
   | { kind: "CAPTION"; order: number; text: string }
   | { kind: "HEADING"; text: string }
   | { kind: "SUBTITLE"; order: number; text: string }
-  | { kind: "DRAW_LIST"; data: string[]; title?: string };
+  | { kind: "DRAW_LIST"; data: string[]; title?: string }
+  | { kind: "DRAW_CODEBLOCK"; data: string[]; title?: string };
 
 // Central configuration for video timing and section organization
 export interface VideoTimelineConfig {

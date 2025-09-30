@@ -507,4 +507,113 @@ export class ElementFactory {
     
     return elements;
   }
+
+  static createCodeblock(
+    action: Action & { kind: "DRAW_CODEBLOCK" },
+    style: StylePack
+  ): TextEl[] {
+    const elements: TextEl[] = [];
+    
+    // Position codeblocks in the same place as other text elements (right side of canvas)
+    const startX = 600; // Right side of canvas
+    const startY = -300; // Start above the array
+    const lineSpacing = 25; // Vertical spacing between code lines
+    
+    // Add title if present
+    if (action.title) {
+      const titleId = randomUUID();
+      const titleFontSize = style.typography.size * 0.9;
+      
+      const title: TextEl = {
+        animations: [],
+        fill: style.palette.text,
+        x: startX,
+        y: startY - 40, // Above the code
+        id: titleId,
+        name: "Codeblock Title",
+        text: action.title,
+        type: "text",
+        width: 800, // Max width for codeblock titles
+        height: style.typography.size * 1.2,
+        fontFamily: style.typography.family,
+        fontSize: titleFontSize,
+        fontWeight: "bold",
+        textAlign: "left",
+        pivotX: 0, // Left-aligned
+        pivotY: (style.typography.size * 1.2) / 2,
+        zIndex: 5,
+        opacity: 1,
+        visible: true,
+        groupId: "",
+        wordWrap: true,
+        fontStyle: "normal",
+        lineHeight: 1.2,
+        shadowBlur: 0,
+        shadowColor: "#000000",
+        strokeWidth: 0,
+        cornerRadius: 0,
+        letterSpacing: 0,
+        shadowEnabled: false,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowOpacity: 0,
+        wordWrapWidth: 800,
+        textStrokeJoin: "round",
+        isAnimationPath: false,
+        textStrokeWidth: 0
+      };
+      
+      elements.push(title);
+    }
+    
+    // Add code lines
+    action.data.forEach((line, index) => {
+      const lineId = randomUUID();
+      const lineFontSize = style.typography.size * 0.7; // Smaller font for code
+      const lineY = startY + (index * lineSpacing);
+      
+      const codeLine: TextEl = {
+        animations: [],
+        fill: style.palette.text,
+        x: startX,
+        y: lineY,
+        id: lineId,
+        name: `Code Line ${index}`,
+        text: line,
+        type: "text",
+        width: 800, // Max width for code lines
+        height: style.typography.size * 1.0,
+        fontFamily: style.typography.family,
+        fontSize: lineFontSize,
+        fontWeight: "normal",
+        textAlign: "left",
+        pivotX: 0, // Left-aligned
+        pivotY: (style.typography.size * 1.0) / 2,
+        zIndex: 5,
+        opacity: 1,
+        visible: true,
+        groupId: "",
+        wordWrap: true,
+        fontStyle: "normal",
+        lineHeight: 1.0,
+        shadowBlur: 0,
+        shadowColor: "#000000",
+        strokeWidth: 0,
+        cornerRadius: 0,
+        letterSpacing: 0,
+        shadowEnabled: false,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowOpacity: 0,
+        wordWrapWidth: 800,
+        textStrokeJoin: "round",
+        isAnimationPath: false,
+        textStrokeWidth: 0
+      };
+      
+      elements.push(codeLine);
+    });
+    
+    return elements;
+  }
 }

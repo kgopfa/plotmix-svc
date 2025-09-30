@@ -326,6 +326,12 @@ export function execute(program: ActionProgram): DslScene {
       elements.push(...listElements);
     }
 
+    if (act.kind === "DRAW_CODEBLOCK") {
+      // Handle codeblock commands - create code elements
+      const codeblockElements = ElementFactory.createCodeblock(act, style);
+      elements.push(...codeblockElements);
+    }
+
     // Only process arrays for now - text elements are ignored
 
     // (future) DRAW_STACK, DRAW_QUEUE, DRAW_LINKED_LIST, DRAW_TREE...

@@ -268,7 +268,9 @@ export type {
   DataStructure,
   DemoAction,
   DemoStep,
-  DemoSection
+  DemoSection,
+  // Content types
+  ContentItem
 } from './dsl';
 
 // Procedural types
