@@ -1,4 +1,4 @@
-// JSON-based animation step format
+// JSON-based animation step format (legacy)
 export type AnimationStep = {
   action: "highlight" | "unhighlight" | "select" | "deselect" | "focus" | "compare";
   indices: number[];
@@ -16,8 +16,32 @@ export type ListItem = {
   title?: string; // Optional title for the list
 };
 
+// New demo section types
+export type DataStructure = {
+  type: "array";
+  data: (number | string)[];
+};
+
+export type DemoAction = {
+  type: "highlight" | "unhighlight" | "select" | "deselect" | "focus" | "compare" | "pointer";
+  indices?: number[]; // For highlight/select actions
+  name?: string; // For pointer actions (e.g., "left", "right")
+  index?: number; // For pointer actions
+};
+
+export type DemoStep = {
+  caption: string;
+  actions?: DemoAction[]; // Optional actions for this step
+};
+
+export type DemoSection = {
+  dataStructure: DataStructure;
+  steps: DemoStep[];
+};
+
 export type JsonAnimationProgram = {
-  steps: AnimationStep[];
+  // Legacy format support
+  steps?: AnimationStep[];
   setup?: {
     seed?: number;
     style?: string;
@@ -30,13 +54,16 @@ export type JsonAnimationProgram = {
     subtitle?: string;
   };
   lists?: ListItem[]; // Optional lists to display
+  
+  // New demo format
+  demo?: DemoSection;
 };
 
 // Internal Action types for the executor (converted from JSON)
 export type Action =
   | { kind: "SETUP"; seed: number; style: "auto"|string }
   | { kind: "DRAW_ARRAY"; values: (number|string)[]; gap?: number; cell?: number }
-  | { kind: "ANIMATE"; type: "highlight"|"unhighlight"|"select"|"deselect"|"focus"|"compare"; elements: (number|string)[]; startTime: number; duration: number }
+  | { kind: "ANIMATE"; type: "highlight"|"unhighlight"|"select"|"deselect"|"focus"|"compare"|"pointer"; elements: (number|string)[]; startTime: number; duration: number; pointerName?: string }
   | { kind: "CAPTION"; order: number; text: string }
   | { kind: "HEADING"; text: string }
   | { kind: "SUBTITLE"; order: number; text: string }

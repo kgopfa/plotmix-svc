@@ -70,24 +70,70 @@ export class DslCompiler {
         });
       }
 
-      // Convert each step to corresponding actions
-      jsonProgram.steps.forEach((step, index) => {
-        // Add caption action
+      // Handle demo section if present (new format)
+      if (jsonProgram.demo) {
+        // Add array from demo data structure
         program.push({
-          kind: "CAPTION",
-          order: index + 1,
-          text: step.caption
+          kind: "DRAW_ARRAY",
+          values: jsonProgram.demo.dataStructure.data
         });
 
-        // Add animation action
-        program.push({
-          kind: "ANIMATE",
-          type: step.action,
-          elements: step.indices,
-          startTime: 0, // Will be calculated by executor
-          duration: step.duration || 1.5
+        // Convert demo steps to actions
+        jsonProgram.demo.steps.forEach((step, index) => {
+          // Add caption action
+          program.push({
+            kind: "CAPTION",
+            order: index + 1,
+            text: step.caption
+          });
+
+          // Add actions for this step
+          if (step.actions) {
+            step.actions.forEach(action => {
+              if (action.type === "pointer") {
+                const pointerAction: any = {
+                  kind: "ANIMATE",
+                  type: "pointer",
+                  elements: [action.index!],
+                  startTime: 0, // Will be calculated by executor
+                  duration: 1.5
+                };
+                if (action.name !== undefined) {
+                  pointerAction.pointerName = action.name;
+                }
+                program.push(pointerAction);
+              } else if (action.indices) {
+                program.push({
+                  kind: "ANIMATE",
+                  type: action.type as "highlight" | "unhighlight" | "select" | "deselect" | "focus" | "compare",
+                  elements: action.indices,
+                  startTime: 0, // Will be calculated by executor
+                  duration: 1.5
+                });
+              }
+            });
+          }
         });
-      });
+      } else if (jsonProgram.steps) {
+        // Handle legacy steps format
+        jsonProgram.steps.forEach((step, index) => {
+          // Add caption action
+          program.push({
+            kind: "CAPTION",
+            order: index + 1,
+            text: step.caption
+          });
+
+          // Add animation action
+          program.push({
+            kind: "ANIMATE",
+            type: step.action,
+            elements: step.indices,
+            startTime: 0, // Will be calculated by executor
+            duration: step.duration || 1.5
+          });
+        });
+      }
 
       return program;
     } catch (error) {

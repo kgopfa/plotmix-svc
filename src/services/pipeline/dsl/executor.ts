@@ -131,8 +131,23 @@ export function execute(program: ActionProgram): DslScene {
 
       // Add cumulative wait duration to delay this animation
       animationStartTime += cumulativeWaitDuration;
-      // Handle other animation types (highlight, select, focus, compare)
-      const animConfig = getAnimationConfig(seed, act.type);
+      
+      // Get animation config for non-pointer animations
+      let animConfig;
+      if (act.type === "pointer") {
+        // Pointer animations use a simple highlight-style config
+        animConfig = {
+          type: "color",
+          properties: { fill: "#ff6b6b" }, // Red color for pointers
+          duration: 1.5,
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0
+        };
+      } else {
+        // Handle other animation types (highlight, select, focus, compare)
+        animConfig = getAnimationConfig(seed, act.type);
+      }
 
       // Create proper animation object using procedural configuration
       const animationEntry = {
@@ -177,7 +192,18 @@ export function execute(program: ActionProgram): DslScene {
       });
 
       // Apply animations based on type
-      if (animConfig.type === "color") {
+      if (act.type === "pointer") {
+        // Pointer animations are special - they create visual pointers/labels
+        // For now, we'll treat them as highlight animations but with special naming
+        const pointerAnimationEntry = {
+          ...animationEntry,
+          displayName: `${act.type}-${act.pointerName}-${animationOrder}`
+        };
+        
+        targetElements.forEach(element => {
+          element.animations.push(pointerAnimationEntry);
+        });
+      } else if (animConfig.type === "color") {
         // Color animations go to individual rectangle elements (background)
         targetElements.forEach(element => {
           element.animations.push(animationEntry);
