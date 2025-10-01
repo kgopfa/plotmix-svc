@@ -1,4 +1,4 @@
-import type { ActionProgram, DslScene, Group, Rect, TextEl, CodeEditorEl } from '../../../types';
+import type { ActionProgram, Group, Rect, TextEl, CodeEditorEl, CanvasElement } from '../../../types';
 import type { StylePack } from '../../../types';
 import { pickStyle } from '../procedural/seed';
 import STYLES from '../procedural/layout/styles';
@@ -6,9 +6,10 @@ import { getAnimationConfig } from '../procedural/animation';
 import { randomUUID } from 'crypto';
 import { TimelineManager } from './timeline-manager';
 import { ElementFactory } from './element-factory';
+import { Scene } from '../../../types';
 
 // Executor core - Grid-based automatic positioning
-export function execute(program: ActionProgram): DslScene {
+export function execute(program: ActionProgram): Scene {
   // Defaults
   let seed = 0;
   let style: StylePack = STYLES[0]!;
@@ -78,13 +79,13 @@ export function execute(program: ActionProgram): DslScene {
     if (act.kind === "CAPTION") {
       // Handle caption commands - create timed text elements with transitions
       const caption = ElementFactory.createCaption(act, style, timelineManager);
-      
+
       // Store caption timing for animation synchronization
       const captionConfig = timelineManager.getElementTiming('caption');
       if (captionConfig) {
         const totalCaptionDuration = captionConfig.fadeInDuration! + captionConfig.visibleTime! + captionConfig.fadeOutDuration!;
         const captionStartTime = captionConfig.startTime! + (act.order - 1) * totalCaptionDuration;
-        
+
         captionTiming.set(act.order, {
           startTime: captionStartTime,
           endTime: captionStartTime + captionConfig.fadeInDuration! + captionConfig.visibleTime!
@@ -131,7 +132,7 @@ export function execute(program: ActionProgram): DslScene {
 
       // Add cumulative wait duration to delay this animation
       animationStartTime += cumulativeWaitDuration;
-      
+
       // Get animation config for non-pointer animations
       let animConfig;
       if (act.type === "pointer") {
@@ -199,7 +200,7 @@ export function execute(program: ActionProgram): DslScene {
           ...animationEntry,
           displayName: `${act.type}-${act.pointerName}-${animationOrder}`
         };
-        
+
         targetElements.forEach(element => {
           element.animations.push(pointerAnimationEntry);
         });
@@ -236,15 +237,15 @@ export function execute(program: ActionProgram): DslScene {
     if (act.kind === "SUBTITLE") {
       // Handle subtitle commands - create dynamic subtitle with transitions
       const subtitleId = randomUUID();
-      
+
       // Position subtitle below the heading, same distance from center as captions
       const subtitleY = -320; // Below heading, positioned between heading and array
       const subtitleX = 0; // Center horizontally
-      
+
       // Create subtitle text element
       const subtitleFontSize = style.typography.size * 0.9;
       const subtitleHeight = style.typography.size * 1.5;
-      
+
       const subtitle: TextEl = {
         animations: [],
         fill: style.palette.text,
@@ -286,7 +287,7 @@ export function execute(program: ActionProgram): DslScene {
 
       // Get timing for this specific subtitle order
       const subtitleTiming = timelineManager.getSubtitleTiming(act.order);
-      
+
       if (subtitleTiming) {
         // Add fade-in animation for subtitle
         subtitle.animations.push({
@@ -339,13 +340,17 @@ export function execute(program: ActionProgram): DslScene {
 
   // Simplified return for JSON format (no scene processing needed)
   return {
-    groups,
-    elements,
-    timeline: {
-      scale: 1,
-      duration: timelineManager.getTotalDuration(),
-      currentTime: 0,
-      animationStates: {}
+    sceneId: "scene-1",
+    sceneName: "Binary Search Demo",
+    sceneCanvas: {
+      groups,
+      elements: elements as CanvasElement[],
+      timeline: {
+        scale: 1,
+        duration: timelineManager.getTotalDuration(),
+        currentTime: 0,
+        animationStates: {}
+      }
     }
   };
 }

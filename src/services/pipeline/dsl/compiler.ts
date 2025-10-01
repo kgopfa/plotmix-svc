@@ -7,9 +7,11 @@ export class DslCompiler {
       const jsonProgram: JsonAnimationProgram = JSON.parse(jsonInput);
       const program: Action[] = [];
 
-      // Handle new content array format
-      if (jsonProgram.content) {
-        jsonProgram.content.forEach((item) => {
+      // Handle new scenes format
+      if (jsonProgram.scenes) {
+        jsonProgram.scenes.forEach((scene: any) => {
+          // Process each scene's content
+          scene.content.forEach((item: any) => {
           switch (item.type) {
             case "heading":
               // Add heading from first item in data array
@@ -51,17 +53,104 @@ export class DslCompiler {
               });
 
               // Convert demo steps to actions
-              item.steps.forEach((step, stepIndex) => {
-                // Add caption action
-                program.push({
-                  kind: "CAPTION",
-                  order: stepIndex + 1,
-                  text: step.caption
-                });
+              item.steps.forEach((step: any, stepIndex: number) => {
+                // Add caption action if present
+                if (step.caption) {
+                  program.push({
+                    kind: "CAPTION",
+                    order: stepIndex + 1,
+                    text: step.caption
+                  });
+                }
 
                 // Add actions for this step
                 if (step.actions) {
-                  step.actions.forEach(action => {
+                  step.actions.forEach((action: any) => {
+                    if (action.type === "pointer") {
+                      const pointerAction: any = {
+                        kind: "ANIMATE",
+                        type: "pointer",
+                        elements: [action.index!],
+                        startTime: 0, // Will be calculated by executor
+                        duration: 1.5
+                      };
+                      if (action.name !== undefined) {
+                        pointerAction.pointerName = action.name;
+                      }
+                      program.push(pointerAction);
+                    } else if (action.indices) {
+                      program.push({
+                        kind: "ANIMATE",
+                        type: action.type as "highlight" | "unhighlight" | "select" | "deselect" | "focus" | "compare",
+                        elements: action.indices,
+                        startTime: 0, // Will be calculated by executor
+                        duration: 1.5
+                      });
+                    }
+                  });
+                }
+              });
+              break;
+          }
+          });
+        });
+      } else if ((jsonProgram as any).content) {
+        // Handle legacy content array format for backward compatibility
+        (jsonProgram as any).content.forEach((item: any) => {
+          switch (item.type) {
+            case "heading":
+              // Add heading from first item in data array
+              program.push({
+                kind: "HEADING",
+                text: item.data[0] || "Untitled"
+              });
+              break;
+
+            case "list":
+              // Add list
+              const listAction: any = {
+                kind: "DRAW_LIST",
+                data: item.data
+              };
+              if (item.title !== undefined) {
+                listAction.title = item.title;
+              }
+              program.push(listAction);
+              break;
+
+            case "codeblock":
+              // Add codeblock
+              const codeblockAction: any = {
+                kind: "DRAW_CODEBLOCK",
+                data: item.data
+              };
+              if (item.title !== undefined) {
+                codeblockAction.title = item.title;
+              }
+              program.push(codeblockAction);
+              break;
+
+            case "demo":
+              // Add array from demo data structure
+              program.push({
+                kind: "DRAW_ARRAY",
+                values: item.dataStructure.data
+              });
+
+              // Convert demo steps to actions
+              item.steps.forEach((step: any, stepIndex: number) => {
+                // Add caption action if present
+                if (step.caption) {
+                  program.push({
+                    kind: "CAPTION",
+                    order: stepIndex + 1,
+                    text: step.caption
+                  });
+                }
+
+                // Add actions for this step
+                if (step.actions) {
+                  step.actions.forEach((action: any) => {
                     if (action.type === "pointer") {
                       const pointerAction: any = {
                         kind: "ANIMATE",
@@ -90,7 +179,7 @@ export class DslCompiler {
           }
         });
       } else {
-        // Handle legacy format for backward compatibility
+        // Handle other legacy formats for backward compatibility
         // Handle setup if present
         if ((jsonProgram as any).setup) {
           const setup = (jsonProgram as any).setup;

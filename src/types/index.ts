@@ -254,8 +254,7 @@ export type {
   Group, 
   Rect, 
   TextEl, 
-  CodeEditorEl, 
-  Scene as DslScene,
+  CodeEditorEl,
   VideoTimelineConfig,
   CaptionConfig,
   AnimationPack,
@@ -270,7 +269,9 @@ export type {
   DemoStep,
   DemoSection,
   // Content types
-  ContentItem
+  ContentItem,
+  // DSL Scene types
+  DSLSceneStructure,
 } from './dsl';
 
 // Procedural types

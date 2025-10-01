@@ -5,6 +5,12 @@ export type ContentItem =
   | { type: "codeblock"; data: string[]; title?: string }
   | { type: "demo"; dataStructure: DataStructure; steps: DemoStep[] };
 
+export type DSLSceneStructure = {
+  id: string;
+  name: string;
+  content: ContentItem[];
+};
+
 export type DataStructure = {
   type: "array";
   data: (number | string)[];
@@ -18,12 +24,13 @@ export type DemoAction = {
 };
 
 export type DemoStep = {
-  caption: string;
+  caption?: string; // Caption is now optional since it can be part of actions
   actions?: DemoAction[]; // Optional actions for this step
 };
 
 export type JsonAnimationProgram = {
-  content: ContentItem[];
+  scenes?: DSLSceneStructure[];
+  content?: ContentItem[]; // Legacy support
 };
 
 // Legacy types (kept for backward compatibility)
@@ -198,11 +205,4 @@ export type CodeEditorEl = {
   cornerRadius: number; letterSpacing: number; shadowEnabled: boolean; shadowOffsetX: number; shadowOffsetY: number; shadowOpacity: number;
   wordWrapWidth: number; textStrokeJoin: "round"|"miter"|"bevel"; isAnimationPath: boolean; textStrokeWidth: number;
   tabSize?: number; language?: string; syntaxTheme?: string; showLineNumbers?: boolean; showLineHighlight?: boolean;
-};
-
-export type Scene = {
-  groups: Group[];
-  elements: (Rect|TextEl|CodeEditorEl)[];
-  timeline: { scale: number; duration: number; currentTime: number; animationStates: Record<string, unknown> };
-  scenes?: Array<{ id: string; name: string; startTime: number; endTime?: number }>;
 };

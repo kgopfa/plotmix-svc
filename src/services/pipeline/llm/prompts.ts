@@ -198,100 +198,114 @@ export class PromptTemplates {
   }
 
   /**
- * DSL Emitter (LLM #3) - turns Content Plan + Animation Plan into DSL program
+ * JSON Emitter (LLM #3) - turns Content Plan + Animation Plan into JSON structure
  */
   static dslEmitter(contentPlan: any, animationPlan?: any): LlmMessage[] {
     return [
       {
         role: 'system',
-        content: `You are a precise DSL code generator. Your task is to convert structured educational content into a specific DSL format with exact animation sequences.
+        content: `You are a JSON generator that converts educational content plans into a specific JSON structure.
 
 CRITICAL: You must generate cleanup animations between every state transition. This is not optional.
 
 RESPONSE FORMAT
-- Output ONLY one \`\`\`dsl fenced block. No prose before/after.
+- Output ONLY valid JSON. No prose, no markdown fences, no explanations.
+- Your response must start with { and end with }
+- The JSON must be parseable by JSON.parse() without preprocessing
 
-ALLOWED COMMANDS (line-oriented)
-- scene "<id>" "<name>"               # begins a scene (id: kebab_case; name: human-friendly)
-- endscene                            # ends the current scene
+OUTPUT STRUCTURE:
+{
+  "content": [
+    {
+      "type": "heading",
+      "data": ["string - the main title"]
+    },
+    {
+      "type": "list",
+      "data": ["item1", "item2", "..."],
+      "title": "Section Title"
+    },
+    {
+      "type": "codeblock",
+      "data": ["multiline code as single string with \\n for newlines"],
+      "title": "Pseudocode"
+    },
+    {
+      "type": "demo",
+      "dataStructure": {
+        "type": "array",
+        "data": [1, 2, 3, ...]
+      },
+      "steps": [
+        {
+          "actions": [
+            {"type": "highlight|select|deselect|unhighlight|focus|compare", "indices": [0,1] or "index": 0}
+          ],
+          "caption": "Explanation of what's happening"
+        }
+      ]
+    }
+  ]
+}
 
-- heading "<text>"                    # required, from contentPlan.problem.title
-- subtitle <order> "<text>"           # numbered subtitles for different phases
-- explanation <order> "<text>"        # general explanation, from contentPlan.algorithmExplanation
-
-- approach <order> "<text>"           # ordered breakdown (from approaches.optimal.keyIdeas; rephrase as procedural steps)
-- keyidea <order> "<text>"            # ordered high-level principles (from keyIdeas; phrasing distinct from approach)
-- pseudocode """multiline text"""     # optional, from contentPlan.pseudocode
-
-- example "<text>"                    # explicit example with target mentioned in text
-- array [v1,v2,...]                   # numbers/strings/bools only
-
-- animate <type> [indices]            # types: select|deselect|highlight|unhighlight|focus|compare
-- caption <order> "<text>"            # MUST immediately follow its animate line
-
-- edgecase <order> "<text>"           # pitfalls (from contentPlan.edgeCases), ordered
-- conclusion <order> "<text>"         # complexities/use-cases, ordered
-- alternative <order> "<text>"        # naive/other approaches, ordered (from approaches.naive)
+CONTENT ARRAY ORDERING:
+1. heading (type: "heading")
+2. explanation list (type: "list", title: "How It Works")
+3. approach list (type: "list", title: "Step-by-Step Approach")
+4. key ideas list (type: "list", title: "Key Ideas")
+5. pseudocode (type: "codeblock", title: "Pseudocode")
+6. demo (type: "demo")
+7. edge cases list (type: "list", title: "Edge Cases")
+8. performance list (type: "list", title: "Performance")
+9. alternatives list (type: "list", title: "Alternatives")
 
 MANDATORY ANIMATION SEQUENCE FOR BINARY SEARCH:
-You must follow this exact pattern for each iteration (no exceptions):
+Follow this exact pattern for each iteration (no exceptions):
 
 FIRST iteration:
-1. animate highlight [start,end] + caption "Set initial boundaries"
-2. animate select [mid] + caption "Check midpoint value vs target"
+1. {"type": "highlight", "indices": [start,end]} + caption "Set initial boundaries"
+2. {"type": "select", "indices": [mid]} + caption "Check midpoint value vs target"
 
 SUBSEQUENT iterations (repeat this pattern):
-3. animate deselect [previous_mid] + caption "Clear previous midpoint selection"
-4. animate unhighlight [old_start,old_end] + caption "Clear old search boundaries"  
-5. animate highlight [new_start,new_end] + caption "Set new search boundaries"
-6. animate select [new_mid] + caption "Check new midpoint value vs target"
+3. {"type": "deselect", "indices": [previous_mid]} + caption "Clear previous midpoint"
+4. {"type": "unhighlight", "indices": [old_start,old_end]} + caption "Clear old boundaries"
+5. {"type": "highlight", "indices": [new_start,new_end]} + caption "Set new boundaries"
+6. {"type": "select", "indices": [new_mid]} + caption "Check new midpoint"
 
 FINAL step:
-7. animate highlight [found_index] + caption "Target found at index X"
+7. {"type": "highlight", "indices": [found_index]} + caption "Target found"
 
-STRICT FORMATTING RULES
-1) Every animate command MUST be immediately followed by exactly one caption
-2) Caption numbers are sequential: 1, 2, 3, 4, 5... (no gaps)
-3) You must include deselect and unhighlight commands - they are required for proper visualization
-4) Never skip the cleanup animations - they are pedagogically essential
-5) Use 0-based array indices only
-6) Each caption should explain what the animation shows and why
+STRICT RULES:
+1. Every item in content array must have a "type" field
+2. heading data is an array with one string
+3. list data is an array of strings
+4. codeblock data is an array with one string (use \\n for line breaks)
+5. All data fields must be arrays for consistency
+6. Demo steps must include cleanup animations (deselect/unhighlight)
+7. Use 0-based array indices
+8. Demo array should have 6-10 elements
 
-MANDATORY SCENE OUTLINE (default for algorithms; create 3–5 scenes)
-1) scene "intro" "Introduction and Mental Model"
-2) scene "setup" "Setup and Invariants"  
-3) scene "demo" "Iteration Walkthrough" with cleanup (see below)
-4) scene "edges" "Edge Cases"
-5) scene "wrap" "Conclusion and Alternatives"
+MAPPING FROM CONTENT PLAN:
+- heading: contentPlan.problem.title
+- explanation list: split contentPlan.algorithmExplanation into 2-3 bullet points
+- approach list: rephrase contentPlan.approaches.optimal.keyIdeas as procedural steps (2-4 items)
+- key ideas list: contentPlan.approaches.optimal.keyIdeas (2-4 items, different wording than approach)
+- pseudocode: contentPlan.pseudocode joined with \\n
+- demo: from animationPlan or synthesize a clear demo
+- edge cases list: contentPlan.edgeCases (3-5 items)
+- performance list: generate 2-3 complexity/performance points
+- alternatives list: contentPlan.approaches.naive formatted as "Title — Description (Complexity)"
 
-SECTION ORDER (mandatory):
-heading → [scene blocks with content] → endscene
-
-NUMBERING (all 1-based):
-- subtitle, explanation, approach, keyidea, edgecase, caption, conclusion, alternative
-
-KEY REQUIREMENTS:
-- Organize content into 3-5 scenes following the mandatory scene outline
-- Each scene must start with scene directive and end with endscene
-- Split algorithmExplanation into 1-2 numbered explanation lines
-- Generate 2-4 approach lines from keyIdeas (rephrased as procedural steps)
-- Generate 2-4 keyidea lines from keyIdeas (principles, different phrasing than approach)
-- Include target value in the example text (e.g., "Find target 9 in array [1,2,3,4,5]")
-- Animation sequence must show complete state transitions with cleanup
-- Generate 3-5 edgecase lines
-- Generate 2-3 conclusion lines about complexity/applications
-- Include alternative from naive approach if present
-
-Remember: The cleanup animations (deselect/unhighlight) are not redundant - they are essential for students to understand when the algorithm moves from one state to another.`
+Remember: Cleanup animations are essential for visualization - never skip them.`
       },
       {
         role: 'user',
-        content: `Convert this data to DSL format with proper animation cleanup sequences:
+        content: `Convert this data to JSON format with proper animation cleanup sequences:
 
 Content Plan:
 ${JSON.stringify(contentPlan, null, 2)}
 
-${animationPlan ? `Animation Plan:\n${JSON.stringify(animationPlan, null, 2)}` : 'Animation Plan: Not provided - generate a clear binary search demo with proper state transitions'}`
+${animationPlan ? `Animation Plan:\n${JSON.stringify(animationPlan, null, 2)}` : 'Animation Plan: Not provided - generate a clear demo with proper state transitions'}`
       }
     ];
   }
