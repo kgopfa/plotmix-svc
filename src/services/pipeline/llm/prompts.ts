@@ -200,11 +200,14 @@ export class PromptTemplates {
   /**
  * JSON Emitter (LLM #3) - turns Content Plan + Animation Plan into JSON structure
  */
+  /**
+ * JSON Emitter (LLM #3) - turns Content Plan + Animation Plan into JSON structure
+ */
   static dslEmitter(contentPlan: any, animationPlan?: any): LlmMessage[] {
     return [
       {
         role: 'system',
-        content: `You are a JSON generator that converts educational content plans into a specific JSON structure.
+        content: `You are a JSON generator that converts educational content plans into a structured JSON format with scenes.
 
 CRITICAL: You must generate cleanup animations between every state transition. This is not optional.
 
@@ -215,49 +218,74 @@ RESPONSE FORMAT
 
 OUTPUT STRUCTURE:
 {
-  "content": [
+  "scenes": [
     {
-      "type": "heading",
-      "data": ["string - the main title"]
-    },
-    {
-      "type": "list",
-      "data": ["item1", "item2", "..."],
-      "title": "Section Title"
-    },
-    {
-      "type": "codeblock",
-      "data": ["multiline code as single string with \\n for newlines"],
-      "title": "Pseudocode"
-    },
-    {
-      "type": "demo",
-      "dataStructure": {
-        "type": "array",
-        "data": [1, 2, 3, ...]
-      },
-      "steps": [
+      "id": "scene-id-kebab-case",
+      "name": "Human Friendly Scene Name",
+      "content": [
         {
-          "actions": [
-            {"type": "highlight|select|deselect|unhighlight|focus|compare", "indices": [0,1] or "index": 0}
-          ],
-          "caption": "Explanation of what's happening"
+          "type": "heading|list|codeblock|demo",
+          "data": [...],
+          "title": "optional title for lists/codeblocks"
         }
       ]
     }
   ]
 }
 
-CONTENT ARRAY ORDERING:
-1. heading (type: "heading")
-2. explanation list (type: "list", title: "How It Works")
-3. approach list (type: "list", title: "Step-by-Step Approach")
-4. key ideas list (type: "list", title: "Key Ideas")
-5. pseudocode (type: "codeblock", title: "Pseudocode")
-6. demo (type: "demo")
-7. edge cases list (type: "list", title: "Edge Cases")
-8. performance list (type: "list", title: "Performance")
-9. alternatives list (type: "list", title: "Alternatives")
+SCENE STRUCTURE (create 4-5 scenes):
+1. Scene "intro" - Introduction
+   - heading
+   - explanation list (title: "How It Works")
+   - approach list (title: "Step-by-Step Approach")
+
+2. Scene "concepts" - Key Concepts  
+   - key ideas list (title: "Key Ideas")
+   - pseudocode (title: "Pseudocode")
+
+3. Scene "demo" - Iteration Walkthrough
+   - demo with animated steps
+
+4. Scene "edge-cases" - Edge Cases & Performance
+   - edge cases list (title: "Edge Cases")
+   - performance list (title: "Performance")
+
+5. Scene "alternatives" - Alternative Approaches
+   - alternatives list (title: "Alternatives")
+
+CONTENT ITEM TYPES:
+{
+  "type": "heading",
+  "data": ["Single title string"]
+}
+
+{
+  "type": "list",
+  "data": ["item1", "item2", "item3"],
+  "title": "List Title"
+}
+
+{
+  "type": "codeblock",
+  "data": ["code as single string with \\n for newlines"],
+  "title": "Pseudocode"
+}
+
+{
+  "type": "demo",
+  "dataStructure": {
+    "type": "array",
+    "data": [1, 2, 3, ...]
+  },
+  "steps": [
+    {
+      "actions": [
+        {"type": "highlight|select|deselect|unhighlight|focus|compare", "indices": [0,1]}
+      ],
+      "caption": "What's happening and why"
+    }
+  ]
+}
 
 MANDATORY ANIMATION SEQUENCE FOR BINARY SEARCH:
 Follow this exact pattern for each iteration (no exceptions):
@@ -276,14 +304,15 @@ FINAL step:
 7. {"type": "highlight", "indices": [found_index]} + caption "Target found"
 
 STRICT RULES:
-1. Every item in content array must have a "type" field
-2. heading data is an array with one string
-3. list data is an array of strings
-4. codeblock data is an array with one string (use \\n for line breaks)
-5. All data fields must be arrays for consistency
-6. Demo steps must include cleanup animations (deselect/unhighlight)
-7. Use 0-based array indices
-8. Demo array should have 6-10 elements
+1. Every scene must have id (kebab-case), name (human-friendly), and content array
+2. Every content item must have a "type" field
+3. heading data is an array with one string
+4. list data is an array of strings
+5. codeblock data is an array with one string (use \\n for line breaks)
+6. All data fields must be arrays for consistency
+7. Demo steps must include cleanup animations (deselect/unhighlight)
+8. Use 0-based array indices
+9. Demo array should have 6-10 elements
 
 MAPPING FROM CONTENT PLAN:
 - heading: contentPlan.problem.title
@@ -291,7 +320,7 @@ MAPPING FROM CONTENT PLAN:
 - approach list: rephrase contentPlan.approaches.optimal.keyIdeas as procedural steps (2-4 items)
 - key ideas list: contentPlan.approaches.optimal.keyIdeas (2-4 items, different wording than approach)
 - pseudocode: contentPlan.pseudocode joined with \\n
-- demo: from animationPlan or synthesize a clear demo
+- demo: from animationPlan or synthesize a clear demo with 6-10 element array
 - edge cases list: contentPlan.edgeCases (3-5 items)
 - performance list: generate 2-3 complexity/performance points
 - alternatives list: contentPlan.approaches.naive formatted as "Title — Description (Complexity)"
@@ -300,7 +329,7 @@ Remember: Cleanup animations are essential for visualization - never skip them.`
       },
       {
         role: 'user',
-        content: `Convert this data to JSON format with proper animation cleanup sequences:
+        content: `Convert this data to JSON format with scenes and proper animation cleanup sequences:
 
 Content Plan:
 ${JSON.stringify(contentPlan, null, 2)}
