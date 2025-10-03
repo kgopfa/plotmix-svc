@@ -15,32 +15,56 @@ export function execute(program: ActionProgram): Scene {
   const timelineBuilder = new TimelineBuilder();
   const captionTiming: Map<number, { startTime: number; endTime: number }> = new Map();
   
-  let captionCount = 0;
-  let animationCount = 0;
-  let subtitleCount = 0;
-
+  // Process each action and build timeline based on content type
   for (const act of program) {
-    if (act.kind === "CAPTION") {
-      captionCount++;
+    if (act.kind === "HEADING") {
+      timelineBuilder.addHeading();
+    } else if (act.kind === "DRAW_LIST") {
+      timelineBuilder.addList(act.data.length);
+    } else if (act.kind === "DRAW_CODEBLOCK") {
+      timelineBuilder.addCodeblock();
+    } else if (act.kind === "DRAW_ARRAY") {
+      // Arrays are part of demos, handled separately
+    } else if (act.kind === "CAPTION") {
+      // Captions are part of demos, handled separately
     } else if (act.kind === "ANIMATE") {
-      animationCount++;
-    } else if (act.kind === "SUBTITLE") {
-      subtitleCount++;
+      // Animations are part of demos, handled separately
     }
   }
 
-  timelineBuilder.addDemo(Math.max(captionCount, animationCount));
+  // Count demos (array + caption/animation pairs)
+  let currentDemoSteps = 0;
+  
+  for (const act of program) {
+    if (act.kind === "DRAW_ARRAY") {
+      // Start of a new demo
+      if (currentDemoSteps > 0) {
+        timelineBuilder.addDemo(currentDemoSteps);
+        currentDemoSteps = 0;
+      }
+    } else if (act.kind === "CAPTION" || act.kind === "ANIMATE") {
+      currentDemoSteps++;
+    }
+  }
+  
+  // Add the last demo if there are remaining steps
+  if (currentDemoSteps > 0) {
+    timelineBuilder.addDemo(currentDemoSteps);
+  }
 
+  // Process captions and build timing map
+  let captionOrder = 0;
   for (const act of program) {
     if (act.kind === "CAPTION") {
+      captionOrder++;
       // Handle caption commands - create timed text elements with transitions
       const caption = ElementFactory.createCaption(act, style, timelineBuilder);
 
       // Store caption timing for animation synchronization using demo steps
       const demoItems = timelineBuilder.getAllDemoItems();
-      const demoItem = demoItems[0]; // Get the first (and main) demo
-      if (demoItem && demoItem.steps[act.order - 1]) {
-        const step = demoItem.steps[act.order - 1]!;
+      const demoItem = demoItems.find(demo => demo.stepCount >= captionOrder);
+      if (demoItem && demoItem.steps[captionOrder - 1]) {
+        const step = demoItem.steps[captionOrder - 1]!;
         captionTiming.set(act.order, {
           startTime: step.captionStartTime,
           endTime: step.captionStartTime + step.captionFadeInDuration + step.captionVisibleTime
@@ -69,12 +93,12 @@ export function execute(program: ActionProgram): Scene {
     }
 
     if (act.kind === "DRAW_LIST") {
-      const listElements = ElementFactory.createList(act, style);
+      const listElements = ElementFactory.createList(act, style, timelineBuilder);
       elements.push(...listElements);
     }
 
     if (act.kind === "DRAW_CODEBLOCK") {
-      const codeblockElements = ElementFactory.createCodeblock(act, style);
+      const codeblockElements = ElementFactory.createCodeblock(act, style, timelineBuilder);
       elements.push(...codeblockElements);
     }
   }

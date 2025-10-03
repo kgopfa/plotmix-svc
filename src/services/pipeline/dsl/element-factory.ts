@@ -400,7 +400,8 @@ export class ElementFactory {
 
   static createList(
     action: Action & { kind: "DRAW_LIST" },
-    style: StylePack
+    style: StylePack,
+    timelineBuilder: TimelineBuilder
   ): TextEl[] {
     const elements: TextEl[] = [];
     
@@ -456,13 +457,16 @@ export class ElementFactory {
       elements.push(title);
     }
     
-    // Add list items
+    // Add list items with timing from TimelineBuilder
+    const listItems = timelineBuilder.getAllListItems();
+    const listItem = listItems.find(item => item.itemCount === action.data.length);
+    
     action.data.forEach((item, index) => {
       const itemId = randomUUID();
       const itemFontSize = style.typography.size * 0.8;
       const itemY = startY + (index * itemSpacing);
       
-      const listItem: TextEl = {
+      const listItemElement: TextEl = {
         animations: [],
         fill: style.palette.text,
         x: startX,
@@ -480,7 +484,7 @@ export class ElementFactory {
         pivotX: 0, // Left-aligned
         pivotY: (style.typography.size * 1.1) / 2,
         zIndex: 5,
-        opacity: 1,
+        opacity: 0, // Start invisible for fade-in
         visible: true,
         groupId: "",
         wordWrap: true,
@@ -500,8 +504,41 @@ export class ElementFactory {
         isAnimationPath: false,
         textStrokeWidth: 0
       };
+
+      // Add timing animations if list timing is available
+      if (listItem && listItem.items[index]) {
+        const itemTiming = listItem.items[index]!;
+        
+        // Add fade-in animation
+        listItemElement.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: itemTiming.startTime,
+          duration: itemTiming.fadeInDuration,
+          properties: { alpha: 1 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `list-item-${index}-fade-in`,
+          repeatDelay: 0
+        });
+
+        // Add fade-out animation
+        listItemElement.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: itemTiming.startTime + itemTiming.fadeInDuration + itemTiming.visibleTime,
+          duration: itemTiming.fadeOutDuration,
+          properties: { alpha: 0 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `list-item-${index}-fade-out`,
+          repeatDelay: 0
+        });
+      }
       
-      elements.push(listItem);
+      elements.push(listItemElement);
     });
     
     return elements;
@@ -509,9 +546,14 @@ export class ElementFactory {
 
   static createCodeblock(
     action: Action & { kind: "DRAW_CODEBLOCK" },
-    style: StylePack
+    style: StylePack,
+    timelineBuilder: TimelineBuilder
   ): TextEl[] {
     const elements: TextEl[] = [];
+    
+    // Get codeblock timing from TimelineBuilder
+    const codeblockItems = timelineBuilder.getAllItems().filter(item => item.type === 'codeblock');
+    const codeblockItem = codeblockItems[codeblockItems.length - 1]; // Get the last (most recent) codeblock
     
     // Position codeblocks in the same place as other text elements (right side of canvas)
     const startX = 600; // Right side of canvas
@@ -541,7 +583,7 @@ export class ElementFactory {
         pivotX: 0, // Left-aligned
         pivotY: (style.typography.size * 1.2) / 2,
         zIndex: 5,
-        opacity: 1,
+        opacity: 0, // Start invisible for fade-in
         visible: true,
         groupId: "",
         wordWrap: true,
@@ -561,6 +603,37 @@ export class ElementFactory {
         isAnimationPath: false,
         textStrokeWidth: 0
       };
+
+      // Add timing animations if codeblock timing is available
+      if (codeblockItem) {
+        // Add fade-in animation
+        title.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: codeblockItem.startTime,
+          duration: codeblockItem.fadeInDuration,
+          properties: { alpha: 1 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `codeblock-title-fade-in`,
+          repeatDelay: 0
+        });
+
+        // Add fade-out animation
+        title.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: codeblockItem.startTime + codeblockItem.fadeInDuration + codeblockItem.visibleTime,
+          duration: codeblockItem.fadeOutDuration,
+          properties: { alpha: 0 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `codeblock-title-fade-out`,
+          repeatDelay: 0
+        });
+      }
       
       elements.push(title);
     }
@@ -589,7 +662,7 @@ export class ElementFactory {
         pivotX: 0, // Left-aligned
         pivotY: (style.typography.size * 1.0) / 2,
         zIndex: 5,
-        opacity: 1,
+        opacity: 0, // Start invisible for fade-in
         visible: true,
         groupId: "",
         wordWrap: true,
@@ -609,6 +682,37 @@ export class ElementFactory {
         isAnimationPath: false,
         textStrokeWidth: 0
       };
+
+      // Add timing animations if codeblock timing is available
+      if (codeblockItem) {
+        // Add fade-in animation
+        codeLine.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: codeblockItem.startTime,
+          duration: codeblockItem.fadeInDuration,
+          properties: { alpha: 1 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `codeblock-line-${index}-fade-in`,
+          repeatDelay: 0
+        });
+
+        // Add fade-out animation
+        codeLine.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: codeblockItem.startTime + codeblockItem.fadeInDuration + codeblockItem.visibleTime,
+          duration: codeblockItem.fadeOutDuration,
+          properties: { alpha: 0 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `codeblock-line-${index}-fade-out`,
+          repeatDelay: 0
+        });
+      }
       
       elements.push(codeLine);
     });
