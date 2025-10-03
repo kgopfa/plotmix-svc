@@ -1,0 +1,138 @@
+{
+  "scenes": [
+    {
+      "id": "intro-rotated-array-search",
+      "name": "Search in Rotated Sorted Array",
+      "content": [
+        {
+          "type": "heading",
+          "data": ["Search in Rotated Sorted Array"]
+        },
+        {
+          "type": "list", 
+          "title": "How It Works",
+          "data": [
+            "Find a target in a sorted array that has been rotated",
+            "Efficiently eliminate search space using modified binary search",
+            "Leverage partially sorted array properties"
+          ]
+        },
+        {
+          "type": "list",
+          "title": "Step-by-Step Approach", 
+          "data": [
+            "Identify sorted and unsorted halves of the array",
+            "Compare target with boundary elements",
+            "Eliminate half the search space in each iteration",
+            "Recursively narrow down to target location"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "concepts-rotated-array-search",
+      "name": "Key Concepts",
+      "content": [
+        {
+          "type": "list",
+          "title": "Key Ideas",
+          "data": [
+            "At least one half of rotated array remains sorted",
+            "Use boundary comparisons to determine search direction",
+            "Maintain logarithmic time complexity",
+            "Handle pivot point as special boundary condition"
+          ]
+        },
+        {
+          "type": "codeblock", 
+          "title": "Pseudocode",
+          "data": ["function rotatedArraySearch(arr, target):\n    left = 0, right = arr.length - 1\n    while left <= right:\n        mid = (left + right) / 2\n        if arr[mid] == target: return mid\n        if left half is sorted:\n            check if target in sorted left range\n        else right half is sorted:\n            check if target in sorted right range\n        update search boundaries"]
+        }
+      ]
+    },
+    {
+      "id": "demo-rotated-array-search", 
+      "name": "Iteration Walkthrough",
+      "content": [
+        {
+          "type": "demo",
+          "dataStructure": {
+            "type": "array", 
+            "data": [4, 5, 6, 7, 0, 1, 2]
+          },
+          "steps": [
+            {
+              "actions": [
+                {"type": "highlight", "indices": [0, 6]},
+                {"type": "select", "indices": [3]},
+                {"type": "compare", "indices": [3, 4]}
+              ],
+              "caption": "Set initial boundaries and check midpoint"
+            },
+            {
+              "actions": [
+                {"type": "deselect", "indices": [3]},
+                {"type": "unhighlight", "indices": [0, 6]},
+                {"type": "highlight", "indices": [4, 6]},
+                {"type": "select", "indices": [5]},
+                {"type": "compare", "indices": [5, 4]}
+              ],
+              "caption": "Narrow search to right half"
+            },
+            {
+              "actions": [
+                {"type": "deselect", "indices": [5]},
+                {"type": "unhighlight", "indices": [4, 6]},
+                {"type": "highlight", "indices": [4]},
+                {"type": "select", "indices": [4]},
+                {"type": "compare", "indices": [4, 4]}
+              ],
+              "caption": "Target found at index 4"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "edge-cases-rotated-array-search",
+      "name": "Edge Cases & Performance",
+      "content": [
+        {
+          "type": "list",
+          "title": "Edge Cases",
+          "data": [
+            "Array with single element",
+            "Target at rotation pivot point", 
+            "Multiple identical elements in rotated array",
+            "Target not present in array",
+            "Extreme rotation scenarios with minimal/maximal shifts"
+          ]
+        },
+        {
+          "type": "list", 
+          "title": "Performance",
+          "data": [
+            "Time Complexity: O(log n)",
+            "Space Complexity: O(1)",
+            "Logarithmic search reduces computational overhead"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "alternatives-rotated-array-search", 
+      "name": "Alternative Approaches",
+      "content": [
+        {
+          "type": "list",
+          "title": "Alternatives", 
+          "data": [
+            "Linear Search — Sequential scan of entire array (O(n))",
+            "Two-Pass Binary Search — First find pivot, then search (O(log n))",
+            "Recursive Binary Search — Divide-and-conquer approach (O(log n))"
+          ]
+        }
+      ]
+    }
+  ]
+}
