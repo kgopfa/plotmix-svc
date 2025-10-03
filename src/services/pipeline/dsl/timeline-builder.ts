@@ -1,4 +1,3 @@
-
 /**
  * CONTENT-DRIVEN TIMELINE BUILDER
  * 
@@ -9,7 +8,8 @@
  * - Codeblocks: simple fade transitions
  * - Headings: static (no timing)
  * 
- * No manual time setting required - timing emerges from content structure.
+ * Content items are agnostic - they don't know about specific types like "explanation" or "approach".
+ * Timing emerges from content structure, not manual configuration.
  */
 
 export interface TimelineItem {
@@ -21,21 +21,34 @@ export interface TimelineItem {
   fadeInEnd: number;
   visibleEnd: number;
   endTime: number;
-  type: 'content' | 'list' | 'demo' | 'codeblock' | 'heading';
+  type: 'list' | 'demo' | 'codeblock' | 'heading';
 }
 
 export interface ListTimelineItem extends TimelineItem {
   type: 'list';
-  itemType: 'explanation' | 'approach' | 'keyidea' | 'edgecase' | 'alternative';
-  items: TimelineItem[];
+  itemCount: number;
+  items: ListItemTiming[];
   // Timing for individual list items
   itemFadeInDuration: number;
   itemVisibleTime: number;
   itemFadeOutDuration: number;
 }
 
+export interface ListItemTiming {
+  id: string;
+  order: number;
+  fadeInDuration: number;
+  visibleTime: number;
+  fadeOutDuration: number;
+  startTime: number;
+  fadeInEnd: number;
+  visibleEnd: number;
+  endTime: number;
+}
+
 export interface DemoTimelineItem extends TimelineItem {
   type: 'demo';
+  stepCount: number;
   steps: DemoStep[];
   // Timing for individual demo steps
   animationDuration: number;
@@ -87,10 +100,9 @@ export class TimelineBuilder {
 
   /**
    * Add a list content item
-   * List timing = sum of all item animations
+   * List timing = sum of all item animations (items fade in one by one)
    */
   addList(
-    itemType: 'explanation' | 'approach' | 'keyidea' | 'edgecase' | 'alternative',
     itemCount: number,
     customTiming?: {
       itemFadeInDuration?: number;
@@ -106,42 +118,42 @@ export class TimelineBuilder {
     const itemVisibleTime = customTiming?.itemVisibleTime ?? this.timingConfig.listItemVisibleTime;
     const itemFadeOutDuration = customTiming?.itemFadeOutDuration ?? this.timingConfig.listItemFadeOutDuration;
     
-    // Calculate total list duration
-    const totalItemDuration = itemCount * (itemFadeInDuration + itemVisibleTime + itemFadeOutDuration);
-    const listEndTime = listStartTime + totalItemDuration;
-    
-    // Create individual item timings
-    const items: TimelineItem[] = [];
+    // Create individual item timings - each item fades in sequentially
+    const items: ListItemTiming[] = [];
     let itemCurrentTime = listStartTime;
     
     for (let i = 0; i < itemCount; i++) {
-      const item: TimelineItem = {
-        id: `${listId}-item-${i + 1}`,
+      const itemOrder = i + 1;
+      const item: ListItemTiming = {
+        id: `${listId}-item-${itemOrder}`,
+        order: itemOrder,
         fadeInDuration: itemFadeInDuration,
         visibleTime: itemVisibleTime,
         fadeOutDuration: itemFadeOutDuration,
         startTime: itemCurrentTime,
         fadeInEnd: itemCurrentTime + itemFadeInDuration,
         visibleEnd: itemCurrentTime + itemFadeInDuration + itemVisibleTime,
-        endTime: itemCurrentTime + itemFadeInDuration + itemVisibleTime + itemFadeOutDuration,
-        type: 'content'
+        endTime: itemCurrentTime + itemFadeInDuration + itemVisibleTime + itemFadeOutDuration
       };
       
       items.push(item);
       itemCurrentTime = item.endTime;
     }
     
+    // List duration = time from first item start to last item end
+    const listEndTime = items.length > 0 ? items[items.length - 1]!.endTime : listStartTime;
+    
     const listItem: ListTimelineItem = {
       id: listId,
       type: 'list',
-      itemType,
       fadeInDuration: 0, // List container has instant appearance
-      visibleTime: totalItemDuration,
+      visibleTime: listEndTime - listStartTime,
       fadeOutDuration: 0, // List container doesn't fade out (items do)
       startTime: listStartTime,
       fadeInEnd: listStartTime,
       visibleEnd: listEndTime,
       endTime: listEndTime,
+      itemCount,
       items,
       itemFadeInDuration,
       itemVisibleTime,
@@ -223,6 +235,7 @@ export class TimelineBuilder {
       fadeInEnd: demoStartTime,
       visibleEnd: demoEndTime,
       endTime: demoEndTime,
+      stepCount,
       steps,
       animationDuration,
       captionFadeInDuration,
@@ -349,11 +362,11 @@ export class TimelineBuilder {
   }
 
   /**
-   * Get a specific demo step by demo ID and step order
+   * Get a specific list item timing by list ID and item order
    */
-  getDemoStep(demoId: string, stepOrder: number): DemoStep | undefined {
-    const demo = this.items.find(item => item.id === demoId && item.type === 'demo') as DemoTimelineItem;
-    return demo?.steps.find(step => step.order === stepOrder);
+  getListItemTiming(listId: string, itemOrder: number): ListItemTiming | undefined {
+    const list = this.items.find(item => item.id === listId && item.type === 'list') as ListTimelineItem;
+    return list?.items.find(item => item.order === itemOrder);
   }
 
   /**
