@@ -3,7 +3,7 @@ import type { StylePack } from '../../../types';
 import { randomUUID } from 'crypto';
 import { computeCenteredXPositions } from '../../../utils/grid';
 import { measureTextWidthAdvanced } from '../../../utils/text-width';
-import { TimelineManager } from './timeline-manager';
+import { TimelineBuilder } from './timeline-builder';
 
 // Helper function to calculate text width using Canvas API for accurate measurements
 function calculateTextWidth(text: string, fontSize: number, fontFamily: string, fontWeight: string = 'normal'): number {
@@ -249,7 +249,7 @@ export class ElementFactory {
   static createCaption(
     action: Action & { kind: "CAPTION" },
     style: StylePack,
-    timelineManager: TimelineManager
+    timelineBuilder: TimelineBuilder
   ): TextEl {
     const captionId = randomUUID();
     
@@ -302,19 +302,18 @@ export class ElementFactory {
       textStrokeWidth: 0
     };
 
-    // Get timing for this specific caption order
-    const captionTiming = timelineManager.getElementTiming('caption');
-    
-    if (captionTiming) {
-      const totalCaptionDuration = captionTiming.fadeInDuration! + captionTiming.visibleTime! + captionTiming.fadeOutDuration!;
-      const captionStartTime = captionTiming.startTime! + (action.order - 1) * totalCaptionDuration;
+    // Get timing for this specific caption order from demo steps
+    const demoItems = timelineBuilder.getAllDemoItems();
+    const demoItem = demoItems[0]; // Get the first (and main) demo
+    if (demoItem && demoItem.steps[action.order - 1]) {
+      const step = demoItem.steps[action.order - 1]!;
       
       // Add fade-in animation for caption
       caption.animations.push({
         id: randomUUID(),
         type: "fade",
-        startTime: captionStartTime,
-        duration: captionTiming.fadeInDuration!,
+        startTime: step.captionStartTime,
+        duration: step.captionFadeInDuration,
         properties: { alpha: 1 },
         easing: "power1.inOut",
         yoyo: false,
@@ -327,8 +326,8 @@ export class ElementFactory {
       caption.animations.push({
         id: randomUUID(),
         type: "fade",
-        startTime: captionStartTime + captionTiming.fadeInDuration! + captionTiming.visibleTime!,
-        duration: captionTiming.fadeOutDuration!,
+        startTime: step.captionStartTime + step.captionFadeInDuration + step.captionVisibleTime,
+        duration: step.captionFadeOutDuration,
         properties: { alpha: 0 },
         easing: "power1.inOut",
         yoyo: false,
