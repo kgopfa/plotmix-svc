@@ -1,8 +1,8 @@
 import type { Group, Rect, TextEl, CodeEditorEl, CanvasElement } from '../../../types';
 import type { StylePack } from '../../../types';
 import STYLES from '../procedural/layout/styles';
-import { TimelineBuilder } from './timeline-builder';
-import { ElementFactory } from './element-factory';
+import { TimelineBuilder } from './timeline';
+import { ElementFactory } from './factory';
 import { Scene } from '../../../types';
 
 export function executeScene(scene: any): Scene {
