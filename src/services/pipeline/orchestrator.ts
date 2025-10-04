@@ -1,7 +1,6 @@
-import { DslCompiler } from './dsl/compiler';
-import { execute } from './dsl/executor';
+import { executeScene } from './dsl/executor';
 import { LlmPipeline } from './llm';
-import type { ActionProgram, Scene } from '../../types';
+import type { Scene } from '../../types';
 import { validateElementsArray } from '../../schema/elements';
 import { logger } from '../../utils/logger';
 
@@ -52,28 +51,36 @@ export class Orchestrator {
   static generateFromDsl(dsl: string): PipelineResult {
     try {
       logger.info(`Generating from DSL: ${dsl}`);
-      const program = DslCompiler.compile(dsl);
-      if (program.length === 0) {
-        return { success: false, error: 'No valid actions found in DSL' };
+      const jsonProgram = JSON.parse(dsl);
+      
+      if (!jsonProgram.scenes || !Array.isArray(jsonProgram.scenes)) {
+        return { success: false, error: 'DSL must contain a scenes array' };
       }
 
-      const scene = execute(program);
+      const executedScenes = jsonProgram.scenes.map((scene: any) => {
+        if (!scene.id || !scene.name) {
+          throw new Error(`Scene is missing required id or name: ${JSON.stringify(scene)}`);
+        }
+        return executeScene(scene);
+      });
 
       // Validate elements using schema validation
-      const validationResult = validateElementsArray(scene.sceneCanvas.elements);
-      if (!validationResult.valid) {
-        logger.error('Element validation failed:', { errors: validationResult.errors });
-        throw new Error(`Element validation failed: ${validationResult.errors.join('; ')}`);
-      }
-      
-      // Convert canvas scene to scene-based mainState
-      if (!scene.sceneCanvas.elements || scene.sceneCanvas.elements.length === 0) {
-        throw new Error('No elements found in scene. Scene must contain at least one element.');
+      for (const scene of executedScenes) {
+        const validationResult = validateElementsArray(scene.sceneCanvas.elements);
+        if (!validationResult.valid) {
+          logger.error('Element validation failed:', { errors: validationResult.errors });
+          throw new Error(`Element validation failed: ${validationResult.errors.join('; ')}`);
+        }
+        
+        // Convert canvas scene to scene-based mainState
+        if (!scene.sceneCanvas.elements || scene.sceneCanvas.elements.length === 0) {
+          throw new Error('No elements found in scene. Scene must contain at least one element.');
+        }
       }
 
       const mainState = {
         dimensions: { width: 1920, height: 1080 },
-        scenes: [{
+        scenes: executedScenes.map((scene: Scene) => ({
           sceneId: scene.sceneId,
           sceneName: scene.sceneName,
           sceneCanvas: {
@@ -81,10 +88,17 @@ export class Orchestrator {
             groups: scene.sceneCanvas.groups,
             timeline: scene.sceneCanvas.timeline
           }
-        }]
+        })),
+        currentSceneId: executedScenes[0]?.sceneId || "scene-1",
+        globalTimeline: {
+          scale: 1,
+          duration: Math.max(...executedScenes.map((s: Scene) => s.sceneCanvas.timeline.duration)),
+          currentTime: 0,
+          animationStates: {}
+        }
       };
       
-      return { success: true, mainState, summary: this.generateSummary(program, scene) };
+      return { success: true, mainState, summary: this.generateSummary(jsonProgram.scenes, executedScenes) };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
@@ -93,14 +107,14 @@ export class Orchestrator {
   /**
    * Human-readable summary (presentation-only)
    */
-  private static generateSummary(program: ActionProgram, scene: Scene): string {
-    const setup = program.find(a => a.kind === 'SETUP');
-    const seed = setup && setup.kind === 'SETUP' ? setup.seed : 0;
+  private static generateSummary(_scenes: any[], executedScenes: Scene[]): string {
+    const arrayElements = executedScenes.reduce((sum, scene) => 
+      sum + scene.sceneCanvas.elements.filter((el: any) => el.type === 'rectangle').length, 0);
+    const textElements = executedScenes.reduce((sum, scene) => 
+      sum + scene.sceneCanvas.elements.filter((el: any) => el.type === 'text').length, 0);
+    const totalDuration = Math.max(...executedScenes.map(s => s.sceneCanvas.timeline.duration));
 
-    const arrayElements = scene.sceneCanvas.elements.filter((el: any) => el.type === 'rectangle').length;
-    const textElements = scene.sceneCanvas.elements.filter((el: any) => el.type === 'text').length;
-
-    return `Generated visualization with ${arrayElements} array elements and ${textElements} text elements using seed ${seed}.`;
+    return `Generated visualization with ${arrayElements} array elements and ${textElements} text elements across ${executedScenes.length} scenes. Total duration: ${totalDuration}s.`;
   }
 
   /**

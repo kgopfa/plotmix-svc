@@ -1,112 +1,83 @@
-import type { ActionProgram, Group, Rect, TextEl, CodeEditorEl, CanvasElement } from '../../../types';
+import type { Group, Rect, TextEl, CodeEditorEl, CanvasElement } from '../../../types';
 import type { StylePack } from '../../../types';
 import STYLES from '../procedural/layout/styles';
 import { TimelineBuilder } from './timeline-builder';
 import { ElementFactory } from './element-factory';
 import { Scene } from '../../../types';
 
-// Executor core - Grid-based automatic positioning
-export function execute(program: ActionProgram): Scene {
+export function executeScene(scene: any): Scene {
   let style: StylePack = STYLES[0]!;
 
   const groups: Group[] = [];
   const elements: (Rect | TextEl | CodeEditorEl)[] = [];
 
   const timelineBuilder = new TimelineBuilder();
-  const captionTiming: Map<number, { startTime: number; endTime: number }> = new Map();
   
-  // Process each action and build timeline based on content type
-  for (const act of program) {
-    if (act.kind === "HEADING") {
-      timelineBuilder.addHeading();
-    } else if (act.kind === "DRAW_LIST") {
-      timelineBuilder.addList(act.data.length);
-    } else if (act.kind === "DRAW_CODEBLOCK") {
-      timelineBuilder.addCodeblock();
-    } else if (act.kind === "DRAW_ARRAY") {
-      // Arrays are part of demos, handled separately
-    } else if (act.kind === "CAPTION") {
-      // Captions are part of demos, handled separately
-    } else if (act.kind === "ANIMATE") {
-      // Animations are part of demos, handled separately
+  for (const item of scene.content) {
+    switch (item.type) {
+      case "heading":
+        timelineBuilder.addHeading();
+        break;
+      case "list":
+        timelineBuilder.addList(item.data.length);
+        break;
+      case "codeblock":
+        timelineBuilder.addCodeblock();
+        break;
+      case "demo":
+        timelineBuilder.addDemo(item.steps.length);
+        break;
     }
   }
 
-  // Count demos (array + caption/animation pairs)
-  let currentDemoSteps = 0;
-  
-  for (const act of program) {
-    if (act.kind === "DRAW_ARRAY") {
-      // Start of a new demo
-      if (currentDemoSteps > 0) {
-        timelineBuilder.addDemo(currentDemoSteps);
-        currentDemoSteps = 0;
-      }
-    } else if (act.kind === "CAPTION" || act.kind === "ANIMATE") {
-      currentDemoSteps++;
-    }
-  }
-  
-  // Add the last demo if there are remaining steps
-  if (currentDemoSteps > 0) {
-    timelineBuilder.addDemo(currentDemoSteps);
-  }
+  for (const item of scene.content) {
+    switch (item.type) {
+      case "heading":
+        const heading = ElementFactory.createHeading({
+          text: item.data[0]
+        }, style);
+        elements.push(heading);
+        break;
 
-  // Process captions and build timing map
-  let captionOrder = 0;
-  for (const act of program) {
-    if (act.kind === "CAPTION") {
-      captionOrder++;
-      // Handle caption commands - create timed text elements with transitions
-      const caption = ElementFactory.createCaption(act, style, timelineBuilder);
+      case "list":
+        const listElements = ElementFactory.createList({
+          data: item.data,
+          title: item.title
+        }, style, timelineBuilder);
+        elements.push(...listElements);
+        break;
 
-      // Store caption timing for animation synchronization using demo steps
-      const demoItems = timelineBuilder.getAllDemoItems();
-      const demoItem = demoItems.find(demo => demo.stepCount >= captionOrder);
-      if (demoItem && demoItem.steps[captionOrder - 1]) {
-        const step = demoItem.steps[captionOrder - 1]!;
-        captionTiming.set(act.order, {
-          startTime: step.captionStartTime,
-          endTime: step.captionStartTime + step.captionFadeInDuration + step.captionVisibleTime
+      case "codeblock":
+        const codeblockElements = ElementFactory.createCodeblock({
+          data: item.data,
+          title: item.title
+        }, style, timelineBuilder);
+        elements.push(...codeblockElements);
+        break;
+
+      case "demo":
+        const arrayResult = ElementFactory.createArray({
+          values: item.dataStructure.data
+        }, style);
+        groups.push(...arrayResult.groups);
+        elements.push(...arrayResult.elements);
+
+        item.steps.forEach((step: any, stepIndex: number) => {
+          if (step.caption) {
+            const caption = ElementFactory.createCaption({
+              order: stepIndex + 1,
+              text: step.caption
+            }, style, timelineBuilder);
+            elements.push(caption);
+          }
         });
-      }
-
-      elements.push(caption);
+        break;
     }
   }
 
-  // Process all other actions (simplified for JSON format)
-  for (const act of program) {
-    if (act.kind === "SETUP" || act.kind === "CAPTION") {
-      continue;
-    }
-
-    if (act.kind === "DRAW_ARRAY") {
-      const arrayResult = ElementFactory.createArray(act, style);
-      groups.push(...arrayResult.groups);
-      elements.push(...arrayResult.elements);
-    }
-
-    if (act.kind === "HEADING") {
-      const heading = ElementFactory.createHeading(act, style);
-      elements.push(heading);
-    }
-
-    if (act.kind === "DRAW_LIST") {
-      const listElements = ElementFactory.createList(act, style, timelineBuilder);
-      elements.push(...listElements);
-    }
-
-    if (act.kind === "DRAW_CODEBLOCK") {
-      const codeblockElements = ElementFactory.createCodeblock(act, style, timelineBuilder);
-      elements.push(...codeblockElements);
-    }
-  }
-
-  // Simplified return for JSON format (no scene processing needed)
   return {
-    sceneId: "scene-1",
-    sceneName: "Binary Search Demo",
+    sceneId: scene.id,
+    sceneName: scene.name,
     sceneCanvas: {
       groups,
       elements: elements as CanvasElement[],

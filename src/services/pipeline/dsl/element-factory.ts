@@ -1,4 +1,4 @@
-import type { Action, Group, Rect, TextEl } from '../../../types';
+import type { Group, Rect, TextEl } from '../../../types';
 import type { StylePack } from '../../../types';
 import { randomUUID } from 'crypto';
 import { computeCenteredXPositions } from '../../../utils/grid';
@@ -203,19 +203,19 @@ function makeCell(
 
 export class ElementFactory {
   static createArray(
-    action: Action & { kind: "DRAW_ARRAY" },
+    data: { values: (string | number)[]; cell?: number; gap?: number },
     style: StylePack,
   ): { groups: Group[]; elements: (Rect | TextEl)[] } {
     const groups: Group[] = [];
     const elements: (Rect | TextEl)[] = [];
 
     // Center-origin positioning for arrays aligned to center-start grid lines
-    const minCellSize = action.cell ?? style.cell.w;
-    const gap = action.gap ?? 80;
+    const minCellSize = data.cell ?? style.cell.w;
+    const gap = data.gap ?? 80;
 
     // Calculate optimal cell dimensions based on content
     const { width: cellWidth, height: cellHeight } = calculateOptimalCellDimensions(
-      action.values,
+      data.values,
       style,
       minCellSize
     );
@@ -225,9 +225,9 @@ export class ElementFactory {
     const arrayY = 0; // center row per requirement
     const canvasWidth = 1920;
     const marginX = 40;
-    const centerXs = computeCenteredXPositions(action.values.length, stepX, canvasWidth, marginX);
+    const centerXs = computeCenteredXPositions(data.values.length, stepX, canvasWidth, marginX);
 
-    action.values.forEach((v, i) => {
+    data.values.forEach((v, i) => {
       const centerX = centerXs[i]!;
       const { group, rect, text, indexText, indexGroup } = makeCell(
         style,
@@ -247,7 +247,7 @@ export class ElementFactory {
   }
 
   static createCaption(
-    action: Action & { kind: "CAPTION" },
+    data: { text: string; order: number },
     style: StylePack,
     timelineBuilder: TimelineBuilder
   ): TextEl {
@@ -259,7 +259,7 @@ export class ElementFactory {
     
     // Create caption text element
     const captionFontSize = style.typography.size * 0.9;
-    const captionTextWidth = calculateTextWidth(action.text, captionFontSize, style.typography.family);
+    const captionTextWidth = calculateTextWidth(data.text, captionFontSize, style.typography.family);
     const captionWidth = Math.min(captionTextWidth, 1200); // Cap at 1200px
     const captionHeight = style.typography.size * 1.5;
     
@@ -269,8 +269,8 @@ export class ElementFactory {
       x: captionX,
       y: captionY,
       id: captionId,
-      name: `Caption ${action.order}`,
-      text: action.text,
+      name: `Caption ${data.order}`,
+      text: data.text,
       type: "text",
       width: captionWidth,
       height: captionHeight,
@@ -305,8 +305,8 @@ export class ElementFactory {
     // Get timing for this specific caption order from demo steps
     const demoItems = timelineBuilder.getAllDemoItems();
     const demoItem = demoItems[0]; // Get the first (and main) demo
-    if (demoItem && demoItem.steps[action.order - 1]) {
-      const step = demoItem.steps[action.order - 1]!;
+    if (demoItem && demoItem.steps[data.order - 1]) {
+      const step = demoItem.steps[data.order - 1]!;
       
       // Add fade-in animation for caption
       caption.animations.push({
@@ -318,7 +318,7 @@ export class ElementFactory {
         easing: "power1.inOut",
         yoyo: false,
         repeat: 0,
-        displayName: `caption-${action.order}-fade-in`,
+        displayName: `caption-${data.order}-fade-in`,
         repeatDelay: 0
       });
 
@@ -332,7 +332,7 @@ export class ElementFactory {
         easing: "power1.inOut",
         yoyo: false,
         repeat: 0,
-        displayName: `caption-${action.order}-fade-out`,
+        displayName: `caption-${data.order}-fade-out`,
         repeatDelay: 0
       });
     }
@@ -341,7 +341,7 @@ export class ElementFactory {
   }
 
   static createHeading(
-    action: Action & { kind: "HEADING" },
+    data: { text: string },
     style: StylePack,
   ): TextEl {
     const headingId = randomUUID();
@@ -352,7 +352,7 @@ export class ElementFactory {
     
     // Create heading text element
     const headingFontSize = style.typography.size * 1.2;
-    const headingTextWidth = calculateTextWidth(action.text, headingFontSize, style.typography.family);
+    const headingTextWidth = calculateTextWidth(data.text, headingFontSize, style.typography.family);
     const headingWidth = Math.min(headingTextWidth, 1200); // Cap at 1200px
     const headingHeight = style.typography.size * 1.8;
     
@@ -363,7 +363,7 @@ export class ElementFactory {
       y: headingY,
       id: headingId,
       name: "Heading",
-      text: action.text,
+      text: data.text,
       type: "text",
       width: headingWidth,
       height: headingHeight,
@@ -399,7 +399,7 @@ export class ElementFactory {
   }
 
   static createList(
-    action: Action & { kind: "DRAW_LIST" },
+    data: { data: string[]; title?: string },
     style: StylePack,
     timelineBuilder: TimelineBuilder
   ): TextEl[] {
@@ -411,7 +411,7 @@ export class ElementFactory {
     const itemSpacing = 50; // Vertical spacing between items
     
     // Add title if present
-    if (action.title) {
+    if (data.title) {
       const titleId = randomUUID();
       const titleFontSize = style.typography.size * 0.9;
       
@@ -422,7 +422,7 @@ export class ElementFactory {
         y: startY - 40, // Above the list items
         id: titleId,
         name: "List Title",
-        text: action.title,
+        text: data.title,
         type: "text",
         width: 800, // Max width for list titles
         height: style.typography.size * 1.2,
@@ -459,9 +459,9 @@ export class ElementFactory {
     
     // Add list items with timing from TimelineBuilder
     const listItems = timelineBuilder.getAllListItems();
-    const listItem = listItems.find(item => item.itemCount === action.data.length);
+    const listItem = listItems.find(item => item.itemCount === data.data.length);
     
-    action.data.forEach((item, index) => {
+    data.data.forEach((item, index) => {
       const itemId = randomUUID();
       const itemFontSize = style.typography.size * 0.8;
       const itemY = startY + (index * itemSpacing);
@@ -545,7 +545,7 @@ export class ElementFactory {
   }
 
   static createCodeblock(
-    action: Action & { kind: "DRAW_CODEBLOCK" },
+    data: { data: string[]; title?: string },
     style: StylePack,
     timelineBuilder: TimelineBuilder
   ): TextEl[] {
@@ -561,7 +561,7 @@ export class ElementFactory {
     const lineSpacing = 25; // Vertical spacing between code lines
     
     // Add title if present
-    if (action.title) {
+    if (data.title) {
       const titleId = randomUUID();
       const titleFontSize = style.typography.size * 0.9;
       
@@ -572,7 +572,7 @@ export class ElementFactory {
         y: startY - 40, // Above the code
         id: titleId,
         name: "Codeblock Title",
-        text: action.title,
+        text: data.title,
         type: "text",
         width: 800, // Max width for codeblock titles
         height: style.typography.size * 1.2,
@@ -639,7 +639,7 @@ export class ElementFactory {
     }
     
     // Add code lines
-    action.data.forEach((line, index) => {
+    data.data.forEach((line, index) => {
       const lineId = randomUUID();
       const lineFontSize = style.typography.size * 0.7; // Smaller font for code
       const lineY = startY + (index * lineSpacing);
