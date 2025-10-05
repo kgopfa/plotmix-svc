@@ -225,6 +225,8 @@ export class ProjectController {
       
       const project = await ProjectService.getProjectById(projectId, req.user.userId);
 
+      logger.info('Project retrieved', { project });
+
       if (!project) {
         logger.warn('Project not found or access denied', {
           projectId,
