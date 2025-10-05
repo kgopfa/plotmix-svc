@@ -112,6 +112,8 @@ function makeCell(
   // Create groups using helper function
   const indexGroup = createGroup({
     elementIds: [indexText.id],
+    x: centerX,
+    y: indexY,
     name: `Index Group ${index}`,
     opacity: 1,
     animations: []
@@ -119,6 +121,8 @@ function makeCell(
 
   const group = createGroup({
     elementIds: [rect.id, text.id],
+    x: centerX,
+    y: centerY,
     name: `Array Cell ${index}`,
     opacity: 1,
     animations: []
@@ -288,8 +292,9 @@ export class ElementFactory {
     style: StylePack,
     timelineBuilder: TimelineBuilder,
     listOrder?: number
-  ): TextEl[] {
+  ): { groups: Group[]; elements: TextEl[] } {
     const elements: TextEl[] = [];
+    const groups: Group[] = [];
     
     // Position lists using grid system
     const { x: startX, y: startY } = getCanvasGrid().getNextPosition('list', 'CONTENT_START');
@@ -298,7 +303,37 @@ export class ElementFactory {
     // Get timing for this list content item
     const listTiming = timelineBuilder.getListTiming(listOrder || 0);
     
-    // Add title if present - with proper timing like subtitles
+    // Create content item group for fade-out animation
+    const contentGroupId = randomUUID();
+    const contentGroup = createGroup({
+      elementIds: [], // Will be populated as we add elements
+      x: startX,
+      y: startY,
+      name: `List Content Item ${listOrder || 'Unknown'}`,
+      opacity: 1, // Start visible, group handles fade-out
+      animations: [],
+      id: contentGroupId // Use the same ID
+    });
+    
+    // Add group-level fade-out animation
+    if (listTiming) {
+      contentGroup.animations.push({
+        id: randomUUID(),
+        type: "fade",
+        startTime: listTiming.visibleEnd,
+        duration: listTiming.fadeOutDuration,
+        properties: { alpha: 0 },
+        easing: "power1.inOut",
+        yoyo: false,
+        repeat: 0,
+        displayName: `list-content-fade-out`,
+        repeatDelay: 0
+      });
+    }
+    
+    groups.push(contentGroup);
+    
+    // Add title if present - with proper timing (appears first)
     if (data.title) {
       const titleFontSize = style.typography.size * 0.9;
       const titleWidth = getCappedTextWidth(
@@ -321,6 +356,7 @@ export class ElementFactory {
         textAlign: 'left',
         zIndex: 5,
         opacity: 0, // Start invisible for fade-in
+        groupId: contentGroupId,
         name: `List Title ${listOrder || 'Unknown'}`,
         animations: []
       });
@@ -328,14 +364,15 @@ export class ElementFactory {
       // Set fill color from style
       title.fill = style.palette.text;
       
-      // Add content item fade animations if timing is available
-      if (listTiming) {
-        // Fade in title with content item
+      // Add title fade-in animation (appears first)
+      if (listTiming?.internalAnimations?.[0]?.id === 'list-title') {
+        const titleTiming = listTiming.internalAnimations[0];
+        
         title.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: listTiming.startTime,
-          duration: listTiming.fadeInDuration,
+          startTime: titleTiming.startTime,
+          duration: titleTiming.fadeInDuration,
           properties: { alpha: 1 },
           easing: "power1.inOut",
           yoyo: false,
@@ -343,23 +380,10 @@ export class ElementFactory {
           displayName: `list-title-fade-in`,
           repeatDelay: 0
         });
-
-        // Fade out title with content item
-        title.animations.push({
-          id: randomUUID(),
-          type: "fade",
-          startTime: listTiming.visibleEnd,
-          duration: listTiming.fadeOutDuration,
-          properties: { alpha: 0 },
-          easing: "power1.inOut",
-          yoyo: false,
-          repeat: 0,
-          displayName: `list-title-fade-out`,
-          repeatDelay: 0
-        });
       }
       
       elements.push(title);
+      contentGroup.elementIds.push(title.id);
     }
     
     data.data.forEach((item, index) => {
@@ -385,6 +409,7 @@ export class ElementFactory {
         textAlign: 'left',
         zIndex: 5,
         opacity: 0, // Start invisible for fade-in
+        groupId: contentGroupId,
         name: `List Item ${index}`,
         animations: []
       });
@@ -392,45 +417,32 @@ export class ElementFactory {
       // Set fill color from style
       listItemElement.fill = style.palette.text;
 
-      // Add internal animation timing if available
-      if (listTiming?.internalAnimations?.[index]) {
-        const itemTiming = listTiming.internalAnimations[index]!;
+      // Add internal animation timing if available (items appear after title)
+      if (listTiming?.internalAnimations) {
+        const itemAnimation = listTiming.internalAnimations.find(anim => anim.id === `list-item-${index}`);
         
-        // Add fade-in animation (sequential timing)
-        listItemElement.animations.push({
-          id: randomUUID(),
-          type: "fade",
-          startTime: itemTiming.startTime,
-          duration: itemTiming.fadeInDuration,
-          properties: { alpha: 1 },
-          easing: "power1.inOut",
-          yoyo: false,
-          repeat: 0,
-          displayName: `list-item-${index}-fade-in`,
-          repeatDelay: 0
-        });
-      }
-
-      // Add fade-out animation using content item timing (all items fade out together)
-      if (listTiming) {
-        listItemElement.animations.push({
-          id: randomUUID(),
-          type: "fade",
-          startTime: listTiming.visibleEnd,
-          duration: listTiming.fadeOutDuration,
-          properties: { alpha: 0 },
-          easing: "power1.inOut",
-          yoyo: false,
-          repeat: 0,
-          displayName: `list-item-${index}-fade-out`,
-          repeatDelay: 0
-        });
+        if (itemAnimation) {
+          // Add fade-in animation (sequential timing)
+          listItemElement.animations.push({
+            id: randomUUID(),
+            type: "fade",
+            startTime: itemAnimation.startTime,
+            duration: itemAnimation.fadeInDuration,
+            properties: { alpha: 1 },
+            easing: "power1.inOut",
+            yoyo: false,
+            repeat: 0,
+            displayName: `list-item-${index}-fade-in`,
+            repeatDelay: 0
+          });
+        }
       }
       
       elements.push(listItemElement);
+      contentGroup.elementIds.push(listItemElement.id);
     });
     
-    return elements;
+    return { groups, elements };
   }
 
   static createCodeblock(
@@ -502,6 +514,8 @@ export class ElementFactory {
     
     const codeGroup = createGroup({
       elementIds: [rectangle.id, codeTextElement.id],
+      x: codeblockX,
+      y: codeblockY,
       name: "Code Block",
       opacity: 0,
       animations: []

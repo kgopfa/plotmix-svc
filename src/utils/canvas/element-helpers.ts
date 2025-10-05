@@ -142,25 +142,31 @@ export function createRect(config: RectConfig): Rect {
 
 export interface GroupConfig {
   elementIds: string[];
+  x: number;
+  y: number;
   name: string;
   opacity?: number;
   animations?: any[];
+  id?: string; // Allow custom ID
 }
 
 export function createGroup(config: GroupConfig): Group {
   const {
     elementIds,
+    x,
+    y,
     name,
     opacity = 1,
-    animations = []
+    animations = [],
+    id
   } = config;
 
   return {
     animations,
     elementIds,
-    x: 0,
-    y: 0,
-    id: randomUUID(),
+    x,
+    y,
+    id: id || randomUUID(),
     name,
     type: 'custom',
     opacity,

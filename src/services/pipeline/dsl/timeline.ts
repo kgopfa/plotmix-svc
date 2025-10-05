@@ -50,10 +50,10 @@ export class TimelineBuilder {
   
   // Type-specific timing - using the better values from previous system
   private readonly TIMING = {
-    heading: { fadeIn: 1.0, visible: 2.0, fadeOut: 1.0 },
-    list: { fadeIn: 1.0, visible: 2.0, fadeOut: 1.0 },
-    codeblock: { fadeIn: 1.0, visible: 3.0, fadeOut: 1.0 },
-    demo: { fadeIn: 1.0, visible: 2.0, fadeOut: 1.0 }
+    heading: { fadeIn: 1.0, visible: 2.0, fadeOut: 1.5 },
+    list: { fadeIn: 1.0, visible: 2.0, fadeOut: 1.5 },
+    codeblock: { fadeIn: 1.0, visible: 3.0, fadeOut: 1.5 },
+    demo: { fadeIn: 1.0, visible: 2.0, fadeOut: 1.5 }
   };
 
   addHeading(): void {
@@ -68,7 +68,24 @@ export class TimelineBuilder {
     const itemSpacing = 0.1;      // elementStaggerDelay
     
     contentItem.internalAnimations = [];
-    let itemStartTime = contentItem.startTime;
+    
+    // Title appears first at content item start time
+    const titleAnimation: InternalAnimation = {
+      id: 'list-title',
+      order: -1, // Special order for title (appears first)
+      fadeInDuration: itemFadeIn,
+      visibleTime: 0, // No individual visible time - controlled by content item
+      fadeOutDuration: 0, // No individual fade out - controlled by content item
+      startTime: contentItem.startTime,
+      fadeInEnd: contentItem.startTime + itemFadeIn,
+      visibleEnd: contentItem.startTime + itemFadeIn,
+      endTime: contentItem.startTime + itemFadeIn
+    };
+    
+    contentItem.internalAnimations.push(titleAnimation);
+    
+    // Items appear sequentially after title
+    let itemStartTime = contentItem.startTime + itemFadeIn + itemSpacing;
     
     for (let i = 0; i < itemCount; i++) {
       const itemAnimation: InternalAnimation = {

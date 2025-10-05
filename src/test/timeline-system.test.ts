@@ -39,14 +39,14 @@ describe('Timeline System Tests', () => {
       expect(heading?.startTime).toBe(0);
       expect(heading?.fadeInDuration).toBe(1.0);
       expect(heading?.visibleTime).toBe(2.0);
-      expect(heading?.fadeOutDuration).toBe(1.0);
-      expect(heading?.endTime).toBe(4.0);
+      expect(heading?.fadeOutDuration).toBe(1.5);
+      expect(heading?.endTime).toBe(4.5);
 
       // List should start after heading ends + gap
-      expect(list?.startTime).toBe(4.2); // 4.0 + 0.2 gap
+      expect(list?.startTime).toBe(4.7); // 4.5 + 0.2 gap
       expect(list?.fadeInDuration).toBe(1.0);
       expect(list?.visibleTime).toBe(2.0);
-      expect(list?.fadeOutDuration).toBe(1.0);
+      expect(list?.fadeOutDuration).toBe(1.5);
     });
 
     test('should create internal animations for list items', () => {
@@ -55,17 +55,24 @@ describe('Timeline System Tests', () => {
       const items = timelineBuilder.getAllContentItems();
       const list = items[0];
       
-      expect(list?.internalAnimations).toHaveLength(3);
+      expect(list?.internalAnimations).toHaveLength(4); // title + 3 items
       
-      // First item should start at list start time
+      // Title should start at list start time
+      expect(list?.internalAnimations?.[0]?.id).toBe('list-title');
       expect(list?.internalAnimations?.[0]?.startTime).toBe(list?.startTime);
+      
+      // First item should start after title
+      expect(list?.internalAnimations?.[1]?.id).toBe('list-item-0');
+      expect(list?.internalAnimations?.[1]?.startTime).toBeGreaterThan(list?.startTime!);
       expect(list?.internalAnimations?.[0]?.fadeInDuration).toBe(1.0);
       
       // Second item should start after first item + spacing
-      expect(list?.internalAnimations?.[1]?.startTime).toBe(list?.startTime! + 1.0 + 0.1);
+      expect(list?.internalAnimations?.[2]?.id).toBe('list-item-1');
+      expect(list?.internalAnimations?.[2]?.startTime).toBeCloseTo(list?.startTime! + 2.0 + 0.2, 1);
       
       // Third item should start after second item + spacing
-      expect(list?.internalAnimations?.[2]?.startTime).toBe(list?.startTime! + 2.0 + 0.2);
+      expect(list?.internalAnimations?.[3]?.id).toBe('list-item-2');
+      expect(list?.internalAnimations?.[3]?.startTime).toBeCloseTo(list?.startTime! + 3.0 + 0.3, 1);
     });
 
     test('should create internal animations for demo steps', () => {
@@ -92,16 +99,17 @@ describe('Timeline System Tests', () => {
     test('should create list with sequential fade-in animations', () => {
       timelineBuilder.addList(3);
       
-      const listElements = ElementFactory.createList({
+      const listResult = ElementFactory.createList({
         data: ['Item 1', 'Item 2', 'Item 3'],
         title: 'Test List'
       }, style, timelineBuilder, 0);
 
+      const listElements = listResult.elements;
       expect(listElements).toHaveLength(4); // 1 title + 3 items
 
       // Check title has content item timing
       const title = listElements[0];
-      expect(title?.animations).toHaveLength(2); // fade in + fade out
+      expect(title?.animations).toHaveLength(1); // Only fade-in animation (fade-out handled by group)
       expect(title?.animations?.[0]?.type).toBe('fade');
       expect(title?.animations?.[0]?.properties?.alpha).toBe(1);
 
@@ -110,9 +118,9 @@ describe('Timeline System Tests', () => {
       const item2 = listElements[2];
       const item3 = listElements[3];
 
-      expect(item1?.animations).toHaveLength(2); // fade in + fade out
-      expect(item2?.animations).toHaveLength(2);
-      expect(item3?.animations).toHaveLength(2);
+      expect(item1?.animations).toHaveLength(1); // Only fade-in animation (fade-out handled by group)
+      expect(item2?.animations).toHaveLength(1);
+      expect(item3?.animations).toHaveLength(1);
 
       // Fade-in times should be sequential
       const item1FadeIn = item1?.animations?.[0]?.startTime;
@@ -126,22 +134,29 @@ describe('Timeline System Tests', () => {
     test('should have same fade-out timing for all list items', () => {
       timelineBuilder.addList(3);
       
-      const listElements = ElementFactory.createList({
+      const listResult = ElementFactory.createList({
         data: ['Item 1', 'Item 2', 'Item 3'],
         title: 'Test List'
       }, style, timelineBuilder, 0);
+
+      const listElements = listResult.elements;
+      const listGroups = listResult.groups;
 
       const item1 = listElements[1];
       const item2 = listElements[2];
       const item3 = listElements[3];
 
-      // All items should fade out at the same time (content item timing)
-      const item1FadeOut = item1?.animations?.[1]?.startTime;
-      const item2FadeOut = item2?.animations?.[1]?.startTime;
-      const item3FadeOut = item3?.animations?.[1]?.startTime;
+      // All items should only have fade-in animations (fade-out handled by group)
+      expect(item1?.animations).toHaveLength(1);
+      expect(item2?.animations).toHaveLength(1);
+      expect(item3?.animations).toHaveLength(1);
 
-      expect(item1FadeOut).toBe(item2FadeOut);
-      expect(item2FadeOut).toBe(item3FadeOut);
+      // Check that the group has the fade-out animation
+      expect(listGroups).toHaveLength(1);
+      const contentGroup = listGroups[0];
+      expect(contentGroup?.animations).toHaveLength(1);
+      expect(contentGroup?.animations?.[0]?.type).toBe('fade');
+      expect(contentGroup?.animations?.[0]?.properties?.alpha).toBe(0);
     });
   });
 
@@ -255,10 +270,12 @@ describe('Timeline System Tests', () => {
         text: "Test Heading"
       }, style);
 
-      const listElements = ElementFactory.createList({
+      const listResult = ElementFactory.createList({
         data: ['Item 1', 'Item 2'],
         title: 'Test List'
       }, style, timelineBuilder, 0);
+
+      const listElements = listResult.elements;
 
       // Elements should be positioned on grid
       expect(heading?.x).toBeDefined();
@@ -270,10 +287,12 @@ describe('Timeline System Tests', () => {
     test('should not have overlapping elements', () => {
       timelineBuilder.addList(3);
 
-      const listElements = ElementFactory.createList({
+      const listResult = ElementFactory.createList({
         data: ['Item 1', 'Item 2', 'Item 3'],
         title: 'Test List'
       }, style, timelineBuilder, 0);
+
+      const listElements = listResult.elements;
 
       const title = listElements[0];
       const item1 = listElements[1];

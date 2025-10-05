@@ -45,11 +45,12 @@ export function executeScene(scene: any): Scene {
         break;
 
       case "list":
-        const listElements = ElementFactory.createList({
+        const listResult = ElementFactory.createList({
           data: item.data,
           title: item.title
         }, style, timelineBuilder, listOrder);
-        elements.push(...listElements);
+        groups.push(...listResult.groups);
+        elements.push(...listResult.elements);
         listOrder++;
         break;
 
