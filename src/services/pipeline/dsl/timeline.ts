@@ -100,7 +100,7 @@ export class TimelineBuilder {
 
   /**
    * Add a list content item
-   * List timing = sum of all item animations (items fade in one by one)
+   * List timing = items fade in sequentially, then entire list fades out together
    */
   addList(
     itemCount: number,
@@ -118,7 +118,7 @@ export class TimelineBuilder {
     const itemVisibleTime = customTiming?.itemVisibleTime ?? this.timingConfig.listItemVisibleTime;
     const itemFadeOutDuration = customTiming?.itemFadeOutDuration ?? this.timingConfig.listItemFadeOutDuration;
     
-    // Create individual item timings - each item fades in sequentially
+    // Create individual item timings - each item fades in sequentially, then all stay visible
     const items: ListItemTiming[] = [];
     let itemCurrentTime = listStartTime;
     
@@ -129,29 +129,30 @@ export class TimelineBuilder {
         order: itemOrder,
         fadeInDuration: itemFadeInDuration,
         visibleTime: itemVisibleTime,
-        fadeOutDuration: itemFadeOutDuration,
+        fadeOutDuration: 0, // Individual items don't fade out
         startTime: itemCurrentTime,
         fadeInEnd: itemCurrentTime + itemFadeInDuration,
         visibleEnd: itemCurrentTime + itemFadeInDuration + itemVisibleTime,
-        endTime: itemCurrentTime + itemFadeInDuration + itemVisibleTime + itemFadeOutDuration
+        endTime: itemCurrentTime + itemFadeInDuration + itemVisibleTime // No individual fade out
       };
       
       items.push(item);
-      itemCurrentTime = item.endTime;
+      itemCurrentTime = item.fadeInEnd; // Next item starts when previous finishes fading in
     }
     
-    // List duration = time from first item start to last item end
-    const listEndTime = items.length > 0 ? items[items.length - 1]!.endTime : listStartTime;
+    // List duration = time from first item start to when all items are visible + list fade out
+    const allItemsVisibleTime = items.length > 0 ? items[items.length - 1]!.visibleEnd : listStartTime;
+    const listEndTime = allItemsVisibleTime + itemFadeOutDuration; // Entire list fades out together
     
     const listItem: ListTimelineItem = {
       id: listId,
       type: 'list',
       fadeInDuration: 0, // List container has instant appearance
-      visibleTime: listEndTime - listStartTime,
-      fadeOutDuration: 0, // List container doesn't fade out (items do)
+      visibleTime: allItemsVisibleTime - listStartTime, // Time when all items are visible
+      fadeOutDuration: itemFadeOutDuration, // Entire list fades out together
       startTime: listStartTime,
       fadeInEnd: listStartTime,
-      visibleEnd: listEndTime,
+      visibleEnd: allItemsVisibleTime,
       endTime: listEndTime,
       itemCount,
       items,
@@ -377,19 +378,29 @@ export class TimelineBuilder {
   }
 
   /**
-   * Compatibility method for caption timing (used by element-factory)
-   * Returns default caption timing for legacy compatibility
+   * Get list title timing (similar to subtitle timing)
+   * List titles appear individually with proper timing
    */
-  getElementTiming(elementType: string) {
-    if (elementType === 'caption') {
-      return {
-        fadeInDuration: this.timingConfig.captionFadeInDuration,
-        visibleTime: this.timingConfig.captionVisibleTime,
-        fadeOutDuration: this.timingConfig.captionFadeOutDuration,
-        startTime: 0 // Will be calculated by caller
-      };
-    }
-    return null;
+  getListTitleTiming(listOrder: number): {
+    startTime: number;
+    fadeInDuration: number;
+    visibleTime: number;
+    fadeOutDuration: number;
+    fadeOutStartTime: number;
+  } | null {
+    // Find the list item by order (assuming lists are added in order)
+    const listItems = this.getAllListItems();
+    const listItem = listItems[listOrder - 1]; // 0-based index
+    
+    if (!listItem) return null;
+    
+    return {
+      startTime: listItem.startTime,
+      fadeInDuration: this.timingConfig.listItemFadeInDuration,
+      visibleTime: listItem.visibleTime,
+      fadeOutDuration: listItem.fadeOutDuration,
+      fadeOutStartTime: listItem.visibleEnd
+    };
   }
 
   /**

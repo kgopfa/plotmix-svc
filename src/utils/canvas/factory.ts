@@ -288,7 +288,8 @@ export class ElementFactory {
   static createList(
     data: { data: string[]; title?: string },
     style: StylePack,
-    timelineBuilder: TimelineBuilder
+    timelineBuilder: TimelineBuilder,
+    listOrder?: number
   ): TextEl[] {
     const elements: TextEl[] = [];
     
@@ -296,8 +297,8 @@ export class ElementFactory {
     const { x: startX, y: startY } = getCanvasGrid().getNextPosition('list', 'CONTENT_START');
     const itemSpacing = 50; // Vertical spacing between items
     
-    // Add title if present
-    if (data.title) {
+    // Add title if present - with proper timing like subtitles
+    if (data.title && listOrder) {
       const titleFontSize = style.typography.size * 0.9;
       const titleWidth = getCappedTextWidth(
         data.title, 
@@ -318,13 +319,46 @@ export class ElementFactory {
         fontWeight: 'bold',
         textAlign: 'left',
         zIndex: 5,
-        opacity: 1,
-        name: 'List Title',
+        opacity: 0, // Start invisible for fade-in
+        name: `List Title ${listOrder}`,
         animations: []
       });
 
       // Set fill color from style
       title.fill = style.palette.text;
+      
+      // Get timing for this specific list title order
+      const titleTiming = timelineBuilder.getListTitleTiming(listOrder);
+      
+      if (titleTiming) {
+        // Add fade-in animation for title
+        title.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: titleTiming.startTime,
+          duration: titleTiming.fadeInDuration,
+          properties: { alpha: 1 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `list-title-${listOrder}-fade-in`,
+          repeatDelay: 0
+        });
+
+        // Add fade-out animation for title
+        title.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: titleTiming.fadeOutStartTime,
+          duration: titleTiming.fadeOutDuration,
+          properties: { alpha: 0 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `list-title-${listOrder}-fade-out`,
+          repeatDelay: 0
+        });
+      }
       
       elements.push(title);
     }
@@ -367,7 +401,7 @@ export class ElementFactory {
       if (listItem && listItem.items[index]) {
         const itemTiming = listItem.items[index]!;
         
-        // Add fade-in animation
+        // Add fade-in animation (items appear sequentially)
         listItemElement.animations.push({
           id: randomUUID(),
           type: "fade",
@@ -381,19 +415,21 @@ export class ElementFactory {
           repeatDelay: 0
         });
 
-        // Add fade-out animation
-        listItemElement.animations.push({
-          id: randomUUID(),
-          type: "fade",
-          startTime: itemTiming.startTime + itemTiming.fadeInDuration + itemTiming.visibleTime,
-          duration: itemTiming.fadeOutDuration,
-          properties: { alpha: 0 },
-          easing: "power1.inOut",
-          yoyo: false,
-          repeat: 0,
-          displayName: `list-item-${index}-fade-out`,
-          repeatDelay: 0
-        });
+        // Add fade-out animation for entire list (all items fade out together)
+        if (listItem.fadeOutDuration > 0) {
+          listItemElement.animations.push({
+            id: randomUUID(),
+            type: "fade",
+            startTime: listItem.visibleEnd, // When entire list starts fading out
+            duration: listItem.fadeOutDuration,
+            properties: { alpha: 0 },
+            easing: "power1.inOut",
+            yoyo: false,
+            repeat: 0,
+            displayName: `list-item-${index}-fade-out`,
+            repeatDelay: 0
+          });
+        }
       }
       
       elements.push(listItemElement);

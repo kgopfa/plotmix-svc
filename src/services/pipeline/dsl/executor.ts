@@ -15,12 +15,16 @@ export function executeScene(scene: any): Scene {
   
   resetCanvasGrid();
   
+  // Track list order for proper title timing
+  let listOrder = 0;
+  
   for (const item of scene.content) {
     switch (item.type) {
       case "heading":
         timelineBuilder.addHeading();
         break;
       case "list":
+        listOrder++;
         timelineBuilder.addList(item.data.length);
         break;
       case "codeblock":
@@ -42,10 +46,11 @@ export function executeScene(scene: any): Scene {
         break;
 
       case "list":
+        listOrder++;
         const listElements = ElementFactory.createList({
           data: item.data,
           title: item.title
-        }, style, timelineBuilder);
+        }, style, timelineBuilder, listOrder);
         elements.push(...listElements);
         break;
 
