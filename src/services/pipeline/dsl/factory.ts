@@ -1,34 +1,28 @@
-import type { Group, Rect, TextEl } from '../../../types';
+import type { Group, Rect, TextEl, CodeEditorEl } from '../../../types';
 import type { StylePack } from '../../../types';
 import { randomUUID } from 'crypto';
-import { computeCenteredXPositions } from '../../../utils/grid';
-import { measureTextWidthAdvanced } from '../../../utils/text-width';
+import { 
+  calculateTextWidth, 
+  getCappedTextWidth, 
+  getArrayPositions,
+  calculateOptimalCellDimensions,
+  CanvasGrid,
+  ZONES
+} from '../../../utils/canvas-grid';
 import { TimelineBuilder } from './timeline';
 
-// Helper function to calculate text width using Canvas API for accurate measurements
-function calculateTextWidth(text: string, fontSize: number, fontFamily: string, fontWeight: string = 'normal'): number {
-  return measureTextWidthAdvanced(text, fontSize, fontFamily, fontWeight);
+// Grid system for consistent positioning - shared instance
+let canvasGrid: CanvasGrid | null = null;
+
+export function resetCanvasGrid(): void {
+  canvasGrid = new CanvasGrid();
 }
 
-// Helper function to calculate optimal cell dimensions based on content
-function calculateOptimalCellDimensions(
-  values: (string | number)[],
-  style: StylePack,
-  minCellSize: number = 60
-): { width: number; height: number } {
-  let maxTextWidth = 0;
-  
-  for (const value of values) {
-    const textStr = String(value);
-    const textWidth = calculateTextWidth(textStr, style.typography.size, style.typography.family);
-    maxTextWidth = Math.max(maxTextWidth, textWidth);
+export function getCanvasGrid(): CanvasGrid {
+  if (!canvasGrid) {
+    canvasGrid = new CanvasGrid();
   }
-  
-  // Add padding and ensure minimum size
-  const optimalWidth = Math.max(maxTextWidth + 20, minCellSize);
-  const optimalHeight = Math.max(style.typography.size * 1.5, minCellSize);
-
-  return { width: optimalWidth, height: optimalHeight };
+  return canvasGrid;
 }
 
 // Element builders (cell group) - CORRECTED to use consistent center-origin positioning
@@ -209,23 +203,21 @@ export class ElementFactory {
     const groups: Group[] = [];
     const elements: (Rect | TextEl)[] = [];
 
-    // Center-origin positioning for arrays aligned to center-start grid lines
+    // Use grid system for consistent positioning
     const minCellSize = data.cell ?? style.cell.w;
     const gap = data.gap ?? 80;
 
     // Calculate optimal cell dimensions based on content
     const { width: cellWidth, height: cellHeight } = calculateOptimalCellDimensions(
       data.values,
-      style,
+      style.typography.size,
+      style.typography.family,
       minCellSize
     );
 
-    // Place middle item at x=0 using symmetric spacing (gap + cell width as step)
-    const stepX = cellWidth + gap;
-    const arrayY = 0; // center row per requirement
-    const canvasWidth = 1920;
-    const marginX = 40;
-    const centerXs = computeCenteredXPositions(data.values.length, stepX, canvasWidth, marginX);
+    // Position array at center of canvas (zone CONTENT_MID)
+    const arrayY = ZONES.CONTENT_MID;
+    const centerXs = getArrayPositions(data.values.length, cellWidth, gap);
 
     data.values.forEach((v, i) => {
       const centerX = centerXs[i]!;
@@ -253,14 +245,17 @@ export class ElementFactory {
   ): TextEl {
     const captionId = randomUUID();
     
-    // Position caption at the top of the canvas, centered horizontally
-    const captionY = -400; // Above the array
-    const captionX = 0; // Center horizontally
+    // Position caption using grid system
+    const { x: captionX, y: captionY } = getCanvasGrid().getNextPosition('caption', 'CAPTION');
     
-    // Create caption text element
+    // Create caption text element with proper width calculation
     const captionFontSize = style.typography.size * 0.9;
-    const captionTextWidth = calculateTextWidth(data.text, captionFontSize, style.typography.family);
-    const captionWidth = Math.min(captionTextWidth, 1200); // Cap at 1200px
+    const captionWidth = getCappedTextWidth(
+      data.text, 
+      captionFontSize, 
+      style.typography.family, 
+      'CAPTION'
+    );
     const captionHeight = style.typography.size * 1.5;
     
     const caption: TextEl = {
@@ -346,15 +341,19 @@ export class ElementFactory {
   ): TextEl {
     const headingId = randomUUID();
     
-    // Position heading at the very top of the canvas, centered horizontally
-    const headingY = -450; // Top of canvas
-    const headingX = 0; // Center horizontally
+    // Position heading using grid system
+    const { x: headingX, y: headingY } = getCanvasGrid().getNextPosition('heading', 'TOP');
     
-    // Create heading text element
-    const headingFontSize = style.typography.size * 1.2;
-    const headingTextWidth = calculateTextWidth(data.text, headingFontSize, style.typography.family);
-    const headingWidth = Math.min(headingTextWidth, 1200); // Cap at 1200px
-    const headingHeight = style.typography.size * 1.8;
+    // Create heading text element with proper width calculation
+    const headingFontSize = style.typography.size * 1.5;
+    const headingWidth = getCappedTextWidth(
+      data.text, 
+      headingFontSize, 
+      style.typography.family, 
+      'HEADING',
+      'bold'
+    );
+    const headingHeight = style.typography.size * 2;
     
     const heading: TextEl = {
       animations: [],
@@ -405,15 +404,21 @@ export class ElementFactory {
   ): TextEl[] {
     const elements: TextEl[] = [];
     
-    // Position lists in the same place as other text elements (right side of canvas)
-    const startX = 600; // Right side of canvas
-    const startY = -300; // Start above the array
+    // Position lists using grid system
+    const { x: startX, y: startY } = getCanvasGrid().getNextPosition('list', 'CONTENT_START');
     const itemSpacing = 50; // Vertical spacing between items
     
     // Add title if present
     if (data.title) {
       const titleId = randomUUID();
       const titleFontSize = style.typography.size * 0.9;
+      const titleWidth = getCappedTextWidth(
+        data.title, 
+        titleFontSize, 
+        style.typography.family, 
+        'LIST_TITLE',
+        'bold'
+      );
       
       const title: TextEl = {
         animations: [],
@@ -424,7 +429,7 @@ export class ElementFactory {
         name: "List Title",
         text: data.title,
         type: "text",
-        width: 800, // Max width for list titles
+        width: titleWidth,
         height: style.typography.size * 1.2,
         fontFamily: style.typography.family,
         fontSize: titleFontSize,
@@ -466,6 +471,13 @@ export class ElementFactory {
       const itemFontSize = style.typography.size * 0.8;
       const itemY = startY + (index * itemSpacing);
       
+      const itemWidth = getCappedTextWidth(
+        `• ${item}`, 
+        itemFontSize, 
+        style.typography.family, 
+        'LIST_ITEM'
+      );
+      
       const listItemElement: TextEl = {
         animations: [],
         fill: style.palette.text,
@@ -475,7 +487,7 @@ export class ElementFactory {
         name: `List Item ${index}`,
         text: `• ${item}`, // Add bullet point
         type: "text",
-        width: 800, // Max width for list items
+        width: itemWidth,
         height: style.typography.size * 1.1,
         fontFamily: style.typography.family,
         fontSize: itemFontSize,
@@ -548,41 +560,196 @@ export class ElementFactory {
     data: { data: string[]; title?: string },
     style: StylePack,
     timelineBuilder: TimelineBuilder
-  ): TextEl[] {
-    const elements: TextEl[] = [];
+  ): { groups: Group[]; elements: (Rect | TextEl | CodeEditorEl)[] } {
+    const groups: Group[] = [];
+    const elements: (Rect | TextEl | CodeEditorEl)[] = [];
     
     // Get codeblock timing from TimelineBuilder
     const codeblockItems = timelineBuilder.getAllItems().filter(item => item.type === 'codeblock');
     const codeblockItem = codeblockItems[codeblockItems.length - 1]; // Get the last (most recent) codeblock
     
-    // Position codeblocks in the same place as other text elements (right side of canvas)
-    const startX = 600; // Right side of canvas
-    const startY = -300; // Start above the array
-    const lineSpacing = 25; // Vertical spacing between code lines
+    // Position codeblock using grid system
+    const { x: codeblockX, y: codeblockY } = getCanvasGrid().getNextPosition('codeblock', 'CONTENT_START');
     
-    // Add title if present
+    // Create group and element IDs
+    const groupId = randomUUID();
+    const rectangleId = randomUUID();
+    const codeId = randomUUID();
+    
+    // Join all code lines into single text
+    const codeText = data.data.join('\n');
+    const codeLines = data.data;
+    
+    // Calculate code block dimensions based on content
+    const codeBlockPadding = 40; // 40px padding around the code editor
+    const lineHeight = 1.5;
+    const fontSize = 26;
+    const fontFamily = 'Monaco, Consolas, "Courier New", monospace';
+    
+    // Calculate width: find longest line (including indentation)
+    let maxLineWidth = 0;
+    for (const line of codeLines) {
+      const lineWidth = calculateTextWidth(line, fontSize, fontFamily);
+      maxLineWidth = Math.max(maxLineWidth, lineWidth);
+    }
+    
+    // Calculate code editor dimensions (inner)
+    const codeEditorWidth = Math.max(maxLineWidth, 300);
+    const codeEditorHeight = Math.max(codeLines.length * lineHeight * fontSize, 200);
+    
+    // Calculate rectangle dimensions (outer) with 40px padding
+    const codeBlockWidth = codeEditorWidth + (codeBlockPadding * 2); // 40px on each side
+    const codeBlockHeight = codeEditorHeight + (codeBlockPadding * 2); // 40px top and bottom
+    
+    // Create background rectangle
+    const rectangle: Rect = {
+      animations: [],
+      fill: "#ffffff",
+      x: codeblockX,
+      y: codeblockY,
+      id: rectangleId,
+      name: "Code Block Background",
+      type: "rectangle",
+      width: codeBlockWidth,
+      height: codeBlockHeight,
+      pivotX: codeBlockWidth / 2,  // Center pivot
+      pivotY: codeBlockHeight / 2, // Center pivot
+      stroke: "#000000",
+      zIndex: 1,
+      groupId: groupId,
+      opacity: 1, // Elements inherit group opacity
+      visible: true,
+      shadowBlur: 0,
+      shadowColor: "#000000",
+      strokeWidth: 1,
+      cornerRadius: 13,
+      shadowEnabled: false,
+      shadowOffsetX: 10,
+      shadowOffsetY: 10,
+      shadowOpacity: 0.5,
+      isAnimationPath: false
+    };
+    
+    // Create code text element
+    const codeTextElement: CodeEditorEl = {
+      animations: [],
+      fill: "#1e1e1e",
+      x: codeblockX,
+      y: codeblockY,
+      id: codeId,
+      name: "Code Editor",
+      text: codeText,
+      type: "code-editor",
+      width: codeEditorWidth,
+      height: codeEditorHeight,
+      pivotX: codeEditorWidth / 2,  // Center pivot
+      pivotY: codeEditorHeight / 2, // Center pivot
+      zIndex: 2,
+      groupId: groupId,
+      opacity: 1, // Elements inherit group opacity
+      visible: true,
+      fontSize: fontSize,
+      wordWrap: true,
+      fontStyle: "normal",
+      textAlign: "left",
+      fontFamily: fontFamily,
+      fontWeight: "400",
+      lineHeight: lineHeight,
+      shadowBlur: 0,
+      shadowColor: "#000000",
+      strokeWidth: 1,
+      cornerRadius: 0,
+      letterSpacing: 0,
+      shadowEnabled: false,
+      shadowOffsetX: 10,
+      shadowOffsetY: 10,
+      shadowOpacity: 0.5,
+      wordWrapWidth: codeEditorWidth,
+      textStrokeJoin: "round",
+      isAnimationPath: false,
+      textStrokeWidth: 0,
+      tabSize: 4,
+      language: "javascript",
+      syntaxTheme: "light",
+      showLineNumbers: false,
+      showLineHighlight: true
+    };
+    
+    // Create group for code block
+    const codeGroup: Group = {
+      animations: [],
+      elementIds: [rectangleId, codeId],
+      x: 0, // Group positioning handled by elements
+      y: 0, // Group positioning handled by elements
+      id: groupId,
+      name: "Code Block",
+      type: "custom",
+      opacity: 0, // Start invisible for fade-in animation
+      rotation: 0,
+      isDefaultGroup: false
+    };
+    
+    // Add timing animations if codeblock timing is available
+    if (codeblockItem) {
+      // Add fade-in animation to the group
+      codeGroup.animations.push({
+        id: randomUUID(),
+        type: "fade",
+        startTime: codeblockItem.startTime,
+        duration: codeblockItem.fadeInDuration,
+        properties: { alpha: 1 },
+        easing: "power1.inOut",
+        yoyo: false,
+        repeat: 0,
+        displayName: "codeblock-fade-in",
+        repeatDelay: 0
+      });
+      
+      // Add fade-out animation to the group
+      codeGroup.animations.push({
+        id: randomUUID(),
+        type: "fade",
+        startTime: codeblockItem.startTime + codeblockItem.fadeInDuration + codeblockItem.visibleTime,
+        duration: codeblockItem.fadeOutDuration,
+        properties: { alpha: 0 },
+        easing: "power1.inOut",
+        yoyo: false,
+        repeat: 0,
+        displayName: "codeblock-fade-out",
+        repeatDelay: 0
+      });
+    }
+    
+    // Add title if present (positioned above the code block)
     if (data.title) {
       const titleId = randomUUID();
       const titleFontSize = style.typography.size * 0.9;
+      const titleWidth = getCappedTextWidth(
+        data.title, 
+        titleFontSize, 
+        style.typography.family, 
+        'CODE_TITLE',
+        'bold'
+      );
       
       const title: TextEl = {
         animations: [],
         fill: style.palette.text,
-        x: startX,
-        y: startY - 40, // Above the code
+        x: codeblockX,
+        y: codeblockY - (codeBlockHeight / 2) - 40, // Above the code block
         id: titleId,
         name: "Codeblock Title",
         text: data.title,
         type: "text",
-        width: 800, // Max width for codeblock titles
+        width: titleWidth,
         height: style.typography.size * 1.2,
         fontFamily: style.typography.family,
         fontSize: titleFontSize,
         fontWeight: "bold",
-        textAlign: "left",
-        pivotX: 0, // Left-aligned
-        pivotY: (style.typography.size * 1.2) / 2,
-        zIndex: 5,
+        textAlign: "center",
+        pivotX: titleWidth / 2, // Center pivot
+        pivotY: (style.typography.size * 1.2) / 2, // Center pivot
+        zIndex: 3,
         opacity: 0, // Start invisible for fade-in
         visible: true,
         groupId: "",
@@ -598,13 +765,13 @@ export class ElementFactory {
         shadowOffsetX: 0,
         shadowOffsetY: 0,
         shadowOpacity: 0,
-        wordWrapWidth: 800,
+        wordWrapWidth: titleWidth,
         textStrokeJoin: "round",
         isAnimationPath: false,
         textStrokeWidth: 0
       };
-
-      // Add timing animations if codeblock timing is available
+      
+      // Add timing animations for title if codeblock timing is available
       if (codeblockItem) {
         // Add fade-in animation
         title.animations.push({
@@ -616,10 +783,10 @@ export class ElementFactory {
           easing: "power1.inOut",
           yoyo: false,
           repeat: 0,
-          displayName: `codeblock-title-fade-in`,
+          displayName: "codeblock-title-fade-in",
           repeatDelay: 0
         });
-
+        
         // Add fade-out animation
         title.animations.push({
           id: randomUUID(),
@@ -630,7 +797,7 @@ export class ElementFactory {
           easing: "power1.inOut",
           yoyo: false,
           repeat: 0,
-          displayName: `codeblock-title-fade-out`,
+          displayName: "codeblock-title-fade-out",
           repeatDelay: 0
         });
       }
@@ -638,85 +805,10 @@ export class ElementFactory {
       elements.push(title);
     }
     
-    // Add code lines
-    data.data.forEach((line, index) => {
-      const lineId = randomUUID();
-      const lineFontSize = style.typography.size * 0.7; // Smaller font for code
-      const lineY = startY + (index * lineSpacing);
-      
-      const codeLine: TextEl = {
-        animations: [],
-        fill: style.palette.text,
-        x: startX,
-        y: lineY,
-        id: lineId,
-        name: `Code Line ${index}`,
-        text: line,
-        type: "text",
-        width: 800, // Max width for code lines
-        height: style.typography.size * 1.0,
-        fontFamily: style.typography.family,
-        fontSize: lineFontSize,
-        fontWeight: "normal",
-        textAlign: "left",
-        pivotX: 0, // Left-aligned
-        pivotY: (style.typography.size * 1.0) / 2,
-        zIndex: 5,
-        opacity: 0, // Start invisible for fade-in
-        visible: true,
-        groupId: "",
-        wordWrap: true,
-        fontStyle: "normal",
-        lineHeight: 1.0,
-        shadowBlur: 0,
-        shadowColor: "#000000",
-        strokeWidth: 0,
-        cornerRadius: 0,
-        letterSpacing: 0,
-        shadowEnabled: false,
-        shadowOffsetX: 0,
-        shadowOffsetY: 0,
-        shadowOpacity: 0,
-        wordWrapWidth: 800,
-        textStrokeJoin: "round",
-        isAnimationPath: false,
-        textStrokeWidth: 0
-      };
-
-      // Add timing animations if codeblock timing is available
-      if (codeblockItem) {
-        // Add fade-in animation
-        codeLine.animations.push({
-          id: randomUUID(),
-          type: "fade",
-          startTime: codeblockItem.startTime,
-          duration: codeblockItem.fadeInDuration,
-          properties: { alpha: 1 },
-          easing: "power1.inOut",
-          yoyo: false,
-          repeat: 0,
-          displayName: `codeblock-line-${index}-fade-in`,
-          repeatDelay: 0
-        });
-
-        // Add fade-out animation
-        codeLine.animations.push({
-          id: randomUUID(),
-          type: "fade",
-          startTime: codeblockItem.startTime + codeblockItem.fadeInDuration + codeblockItem.visibleTime,
-          duration: codeblockItem.fadeOutDuration,
-          properties: { alpha: 0 },
-          easing: "power1.inOut",
-          yoyo: false,
-          repeat: 0,
-          displayName: `codeblock-line-${index}-fade-out`,
-          repeatDelay: 0
-        });
-      }
-      
-      elements.push(codeLine);
-    });
+    // Add elements and group to scene
+    elements.push(rectangle, codeTextElement);
+    groups.push(codeGroup);
     
-    return elements;
+    return { groups, elements };
   }
 }

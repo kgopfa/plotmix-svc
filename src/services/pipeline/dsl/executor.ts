@@ -2,7 +2,7 @@ import type { Group, Rect, TextEl, CodeEditorEl, CanvasElement } from '../../../
 import type { StylePack } from '../../../types';
 import STYLES from '../procedural/layout/styles';
 import { TimelineBuilder } from './timeline';
-import { ElementFactory } from './factory';
+import { ElementFactory, resetCanvasGrid } from './factory';
 import { Scene } from '../../../types';
 
 export function executeScene(scene: any): Scene {
@@ -12,6 +12,8 @@ export function executeScene(scene: any): Scene {
   const elements: (Rect | TextEl | CodeEditorEl)[] = [];
 
   const timelineBuilder = new TimelineBuilder();
+  
+  resetCanvasGrid();
   
   for (const item of scene.content) {
     switch (item.type) {
@@ -48,11 +50,12 @@ export function executeScene(scene: any): Scene {
         break;
 
       case "codeblock":
-        const codeblockElements = ElementFactory.createCodeblock({
+        const codeblockResult = ElementFactory.createCodeblock({
           data: item.data,
           title: item.title
         }, style, timelineBuilder);
-        elements.push(...codeblockElements);
+        groups.push(...codeblockResult.groups);
+        elements.push(...codeblockResult.elements);
         break;
 
       case "demo":
