@@ -1,40 +1,37 @@
 /**
- * CONTENT-DRIVEN TIMELINE BUILDER
+ * SIMPLE TIMELINE BUILDER
  * 
- * This TimelineBuilder automatically calculates timing based on content items.
- * Content items handle their own internal animations and timing:
- * - Lists: fade in items sequentially, total duration = sum of item animations  
- * - Demos: synchronized animations + captions in steps, duration = sum of all steps
- * - Codeblocks: simple fade transitions
- * - Headings: static (no timing)
+ * Works like an array - content items are added in order and get sequential timing.
+ * Each content item has:
+ * - Fade in duration
+ * - Visible time 
+ * - Fade out duration
+ * - Calculated start/end times based on order
  * 
- * Content items are agnostic - they don't know about specific types like "explanation" or "approach".
- * Timing emerges from content structure, not manual configuration.
+ * Content items can have their own internal animations (like list items fading in).
  */
 
-export interface TimelineItem {
+export interface ContentItem {
   id: string;
+  type: 'heading' | 'list' | 'codeblock' | 'demo';
+  order: number;
+  
+  // Timing for the content item itself
   fadeInDuration: number;
   visibleTime: number;
   fadeOutDuration: number;
+  
+  // Calculated times
   startTime: number;
   fadeInEnd: number;
   visibleEnd: number;
   endTime: number;
-  type: 'list' | 'demo' | 'codeblock' | 'heading';
+  
+  // Internal animations (like list items)
+  internalAnimations?: InternalAnimation[];
 }
 
-export interface ListTimelineItem extends TimelineItem {
-  type: 'list';
-  itemCount: number;
-  items: ListItemTiming[];
-  // Timing for individual list items
-  itemFadeInDuration: number;
-  itemVisibleTime: number;
-  itemFadeOutDuration: number;
-}
-
-export interface ListItemTiming {
+export interface InternalAnimation {
   id: string;
   order: number;
   fadeInDuration: number;
@@ -44,380 +41,151 @@ export interface ListItemTiming {
   fadeInEnd: number;
   visibleEnd: number;
   endTime: number;
-}
-
-export interface DemoTimelineItem extends TimelineItem {
-  type: 'demo';
-  stepCount: number;
-  steps: DemoStep[];
-  // Timing for individual demo steps
-  animationDuration: number;
-  captionFadeInDuration: number;
-  captionVisibleTime: number;
-  captionFadeOutDuration: number;
-  animationOffset: number;
-}
-
-export interface DemoStep {
-  id: string;
-  order: number;
-  animationStartTime: number;
-  animationDuration: number;
-  captionStartTime: number;
-  captionFadeInDuration: number;
-  captionVisibleTime: number;
-  captionFadeOutDuration: number;
-  captionEndTime: number;
 }
 
 export class TimelineBuilder {
-  private items: TimelineItem[] = [];
-  private currentTime: number = 0;
-
-  // Default timing configuration - can be customized
-  private timingConfig = {
-    // List timing
-    listItemFadeInDuration: 0.5,
-    listItemVisibleTime: 2.0,
-    listItemFadeOutDuration: 0.5,
-    
-    // Demo timing [[memory:7833618]]
-    animationDuration: 1.5,
-    captionFadeInDuration: 0.5,
-    captionVisibleTime: 3.0,
-    captionFadeOutDuration: 0.5,
-    animationOffset: 0.5, // Animation starts when caption becomes visible
-    
-    // Codeblock timing
-    codeblockFadeInDuration: 0.5,
-    codeblockVisibleTime: 2.0,
-    codeblockFadeOutDuration: 0.5,
-    
-    // Heading timing (static)
-    headingFadeInDuration: 0.5,
-    headingVisibleTime: 1.0
+  private contentItems: ContentItem[] = [];
+  private currentTime = 0;
+  
+  
+  // Type-specific timing - using the better values from previous system
+  private readonly TIMING = {
+    heading: { fadeIn: 1.0, visible: 2.0, fadeOut: 1.0 },
+    list: { fadeIn: 1.0, visible: 2.0, fadeOut: 1.0 },
+    codeblock: { fadeIn: 1.0, visible: 3.0, fadeOut: 1.0 },
+    demo: { fadeIn: 1.0, visible: 2.0, fadeOut: 1.0 }
   };
 
-  /**
-   * Add a list content item
-   * List timing = items fade in sequentially, then entire list fades out together
-   */
-  addList(
-    itemCount: number,
-    customTiming?: {
-      itemFadeInDuration?: number;
-      itemVisibleTime?: number;  
-      itemFadeOutDuration?: number;
-    }
-  ): ListTimelineItem {
-    const listId = `list-${this.items.length}`;
-    const listStartTime = this.currentTime;
+  addHeading(): void {
+    this.addContentItem('heading');
+  }
+
+  addList(itemCount: number): void {
+    const contentItem = this.addContentItem('list', itemCount);
     
-    // Use custom timing or defaults
-    const itemFadeInDuration = customTiming?.itemFadeInDuration ?? this.timingConfig.listItemFadeInDuration;
-    const itemVisibleTime = customTiming?.itemVisibleTime ?? this.timingConfig.listItemVisibleTime;
-    const itemFadeOutDuration = customTiming?.itemFadeOutDuration ?? this.timingConfig.listItemFadeOutDuration;
+    // Add internal animations for list items - only fade in sequentially
+    const itemFadeIn = 1.0;      // elementFadeInDuration
+    const itemSpacing = 0.1;      // elementStaggerDelay
     
-    // Create individual item timings - each item fades in sequentially, then all stay visible
-    const items: ListItemTiming[] = [];
-    let itemCurrentTime = listStartTime;
+    contentItem.internalAnimations = [];
+    let itemStartTime = contentItem.startTime;
     
     for (let i = 0; i < itemCount; i++) {
-      const itemOrder = i + 1;
-      const item: ListItemTiming = {
-        id: `${listId}-item-${itemOrder}`,
-        order: itemOrder,
-        fadeInDuration: itemFadeInDuration,
-        visibleTime: itemVisibleTime,
-        fadeOutDuration: 0, // Individual items don't fade out
-        startTime: itemCurrentTime,
-        fadeInEnd: itemCurrentTime + itemFadeInDuration,
-        visibleEnd: itemCurrentTime + itemFadeInDuration + itemVisibleTime,
-        endTime: itemCurrentTime + itemFadeInDuration + itemVisibleTime // No individual fade out
+      const itemAnimation: InternalAnimation = {
+        id: `list-item-${i}`,
+        order: i,
+        fadeInDuration: itemFadeIn,
+        visibleTime: 0, // No individual visible time - controlled by content item
+        fadeOutDuration: 0, // No individual fade out - controlled by content item
+        startTime: itemStartTime,
+        fadeInEnd: itemStartTime + itemFadeIn,
+        visibleEnd: itemStartTime + itemFadeIn, // Same as fadeInEnd since no visible time
+        endTime: itemStartTime + itemFadeIn // Same as fadeInEnd since no fade out
       };
       
-      items.push(item);
-      itemCurrentTime = item.fadeInEnd; // Next item starts when previous finishes fading in
+      contentItem.internalAnimations.push(itemAnimation);
+      itemStartTime += itemFadeIn + itemSpacing;
     }
-    
-    // List duration = time from first item start to when all items are visible + list fade out
-    const allItemsVisibleTime = items.length > 0 ? items[items.length - 1]!.visibleEnd : listStartTime;
-    const listEndTime = allItemsVisibleTime + itemFadeOutDuration; // Entire list fades out together
-    
-    const listItem: ListTimelineItem = {
-      id: listId,
-      type: 'list',
-      fadeInDuration: 0, // List container has instant appearance
-      visibleTime: allItemsVisibleTime - listStartTime, // Time when all items are visible
-      fadeOutDuration: itemFadeOutDuration, // Entire list fades out together
-      startTime: listStartTime,
-      fadeInEnd: listStartTime,
-      visibleEnd: allItemsVisibleTime,
-      endTime: listEndTime,
-      itemCount,
-      items,
-      itemFadeInDuration,
-      itemVisibleTime,
-      itemFadeOutDuration
-    };
-
-    this.items.push(listItem);
-    this.currentTime = listItem.endTime;
-
-    return listItem;
   }
 
-  /**
-   * Add a demo content item
-   * Demo timing = sum of all animation + caption step timings
-   */
-  addDemo(
-    stepCount: number,
-    customTiming?: {
-      animationDuration?: number;
-      captionFadeInDuration?: number;
-      captionVisibleTime?: number;
-      captionFadeOutDuration?: number;
-      animationOffset?: number;
-    }
-  ): DemoTimelineItem {
-    const demoId = `demo-${this.items.length}`;
-    const demoStartTime = this.currentTime;
+  addCodeblock(): void {
+    this.addContentItem('codeblock');
+  }
+
+  addDemo(stepCount: number): void {
+    const contentItem = this.addContentItem('demo', stepCount);
     
-    // Use custom timing or defaults
-    const animationDuration = customTiming?.animationDuration ?? this.timingConfig.animationDuration;
-    const captionFadeInDuration = customTiming?.captionFadeInDuration ?? this.timingConfig.captionFadeInDuration;
-    const captionVisibleTime = customTiming?.captionVisibleTime ?? this.timingConfig.captionVisibleTime;
-    const captionFadeOutDuration = customTiming?.captionFadeOutDuration ?? this.timingConfig.captionFadeOutDuration;
-    const animationOffset = customTiming?.animationOffset ?? this.timingConfig.animationOffset;
+    // Add internal animations for demo steps (captions) - using better values
+    const stepFadeIn = 0.5;       // captionFadeInDuration
+    const stepVisible = 3.0;      // captionVisibleTime
+    const stepFadeOut = 0.5;      // captionFadeOutDuration
+    const stepSpacing = 0.5;      // Gap between steps
     
-    // Create demo steps - each step combines animation + caption
-    const steps: DemoStep[] = [];
-    let stepCurrentTime = demoStartTime;
+    contentItem.internalAnimations = [];
+    let stepStartTime = contentItem.startTime;
     
     for (let i = 0; i < stepCount; i++) {
-      const stepOrder = i + 1;
-      const animationStartTime = stepCurrentTime;
-      const captionStartTime = animationStartTime + animationOffset;
-      const captionEndTime = captionStartTime + captionFadeInDuration + captionVisibleTime + captionFadeOutDuration;
-      
-      // Step ends when both animation and caption are complete
-      const stepEndTime = Math.max(
-        animationStartTime + animationDuration,
-        captionEndTime
-      );
-      
-      const step: DemoStep = {
-        id: `${demoId}-step-${stepOrder}`,
-        order: stepOrder,
-        animationStartTime,
-        animationDuration,
-        captionStartTime,
-        captionFadeInDuration,
-        captionVisibleTime,
-        captionFadeOutDuration,
-        captionEndTime
+      const stepAnimation: InternalAnimation = {
+        id: `demo-step-${i}`,
+        order: i,
+        fadeInDuration: stepFadeIn,
+        visibleTime: stepVisible,
+        fadeOutDuration: stepFadeOut,
+        startTime: stepStartTime,
+        fadeInEnd: stepStartTime + stepFadeIn,
+        visibleEnd: stepStartTime + stepFadeIn + stepVisible,
+        endTime: stepStartTime + stepFadeIn + stepVisible + stepFadeOut
       };
       
-      steps.push(step);
-      stepCurrentTime = stepEndTime;
+      contentItem.internalAnimations.push(stepAnimation);
+      stepStartTime += stepFadeIn + stepVisible + stepFadeOut + stepSpacing;
     }
-    
-    // Demo duration = time from first step start to last step end
-    const demoEndTime = steps.length > 0 ? steps[steps.length - 1]!.captionEndTime : demoStartTime;
-    
-    const demoItem: DemoTimelineItem = {
-      id: demoId,
-      type: 'demo',
-      fadeInDuration: 0, // Demo container has instant appearance
-      visibleTime: demoEndTime - demoStartTime,
-      fadeOutDuration: 0, // Demo container doesn't fade out
-      startTime: demoStartTime,
-      fadeInEnd: demoStartTime,
-      visibleEnd: demoEndTime,
-      endTime: demoEndTime,
-      stepCount,
-      steps,
-      animationDuration,
-      captionFadeInDuration,
-      captionVisibleTime,
-      captionFadeOutDuration,
-      animationOffset
-    };
-
-    this.items.push(demoItem);
-    this.currentTime = demoItem.endTime;
-
-    return demoItem;
   }
 
-  /**
-   * Add a codeblock content item  
-   * Simple fade in/out timing
-   */
-  addCodeblock(customTiming?: {
-    fadeInDuration?: number;
-    visibleTime?: number;
-    fadeOutDuration?: number;
-  }): TimelineItem {
-    const codeblockFadeInDuration = customTiming?.fadeInDuration ?? this.timingConfig.codeblockFadeInDuration;
-    const codeblockVisibleTime = customTiming?.visibleTime ?? this.timingConfig.codeblockVisibleTime;  
-    const codeblockFadeOutDuration = customTiming?.fadeOutDuration ?? this.timingConfig.codeblockFadeOutDuration;
+  private addContentItem(type: 'heading' | 'list' | 'codeblock' | 'demo', _itemCount?: number): ContentItem {
+    const timing = this.TIMING[type];
     
-    const item: TimelineItem = {
-      id: `codeblock-${this.items.length}`,
-      fadeInDuration: codeblockFadeInDuration,
-      visibleTime: codeblockVisibleTime,
-      fadeOutDuration: codeblockFadeOutDuration,
+    const contentItem: ContentItem = {
+      id: `${type}-${this.contentItems.length}`,
+      type,
+      order: this.contentItems.length,
+      fadeInDuration: timing.fadeIn,
+      visibleTime: timing.visible,
+      fadeOutDuration: timing.fadeOut,
       startTime: this.currentTime,
-      fadeInEnd: this.currentTime + codeblockFadeInDuration,
-      visibleEnd: this.currentTime + codeblockFadeInDuration + codeblockVisibleTime,
-      endTime: this.currentTime + codeblockFadeInDuration + codeblockVisibleTime + codeblockFadeOutDuration,
-      type: 'codeblock'
+      fadeInEnd: this.currentTime + timing.fadeIn,
+      visibleEnd: this.currentTime + timing.fadeIn + timing.visible,
+      endTime: this.currentTime + timing.fadeIn + timing.visible + timing.fadeOut
     };
-
-    this.items.push(item);
-    this.currentTime = item.endTime;
-
-    return item;
+    
+    this.contentItems.push(contentItem);
+    
+    // Move to next content item start time
+    this.currentTime = contentItem.endTime + 0.2; // Small gap between content items
+    
+    return contentItem;
   }
 
-  /**
-   * Add a heading content item
-   * Static positioning, no fade transitions
-   */
-  addHeading(): TimelineItem {
-    const item: TimelineItem = {
-      id: `heading-${this.items.length}`,
-      fadeInDuration: this.timingConfig.headingFadeInDuration,
-      visibleTime: this.timingConfig.headingVisibleTime,
-      fadeOutDuration: 0, // Headings stay visible
-      startTime: this.currentTime,
-      fadeInEnd: this.currentTime + this.timingConfig.headingFadeInDuration,
-      visibleEnd: this.currentTime + this.timingConfig.headingFadeInDuration + this.timingConfig.headingVisibleTime,
-      endTime: this.currentTime + this.timingConfig.headingFadeInDuration + this.timingConfig.headingVisibleTime,
-      type: 'heading'
-    };
-
-    this.items.push(item);
-    this.currentTime = item.endTime;
-
-    return item;
+  // Get timing for a specific content item by order
+  getContentItemTiming(order: number): ContentItem | undefined {
+    return this.contentItems.find(item => item.order === order);
   }
 
-  /**
-   * Add a wait duration (no content, just advances timeline)
-   */
-  addWaitDuration(duration: number): void {
-    this.currentTime += duration;
+  // Get timing for internal animation (list item, demo step, etc.)
+  getInternalAnimationTiming(contentOrder: number, internalOrder: number): InternalAnimation | undefined {
+    const contentItem = this.getContentItemTiming(contentOrder);
+    return contentItem?.internalAnimations?.find(anim => anim.order === internalOrder);
   }
 
-  /**
-   * Get a timeline item by ID
-   */
-  getItem(id: string): TimelineItem | undefined {
-    return this.items.find(item => item.id === id);
+  // Get all content items
+  getAllContentItems(): ContentItem[] {
+    return [...this.contentItems];
   }
 
-  /**
-   * Get all timeline items
-   */
-  getAllItems(): TimelineItem[] {
-    return [...this.items];
-  }
-
-  /**
-   * Get the total duration of the timeline
-   */
+  // Get total duration
   getTotalDuration(): number {
-    return this.currentTime;
+    if (this.contentItems.length === 0) return 0;
+    const lastItem = this.contentItems[this.contentItems.length - 1]!;
+    return lastItem.endTime;
   }
 
-  /**
-   * Get the current time position
-   */
-  getCurrentTime(): number {
-    return this.currentTime;
+  // Get content item by type and order within that type
+  getContentItemByType(type: 'heading' | 'list' | 'codeblock' | 'demo', typeOrder: number): ContentItem | undefined {
+    const itemsOfType = this.contentItems.filter(item => item.type === type);
+    return itemsOfType[typeOrder];
   }
 
-  /**
-   * Reset the timeline builder
-   */
-  reset(): void {
-    this.items = [];
-    this.currentTime = 0;
+  // Get list item timing (for backward compatibility)
+  getListTiming(listOrder: number): ContentItem | undefined {
+    return this.getContentItemByType('list', listOrder);
   }
 
-  /**
-   * Get all list timeline items
-   */
-  getAllListItems(): ListTimelineItem[] {
-    return this.items.filter(item => item.type === 'list') as ListTimelineItem[];
-  }
-
-  /**
-   * Get all demo timeline items
-   */
-  getAllDemoItems(): DemoTimelineItem[] {
-    return this.items.filter(item => item.type === 'demo') as DemoTimelineItem[];
-  }
-
-  /**
-   * Get a specific list item timing by list ID and item order
-   */
-  getListItemTiming(listId: string, itemOrder: number): ListItemTiming | undefined {
-    const list = this.items.find(item => item.id === listId && item.type === 'list') as ListTimelineItem;
-    return list?.items.find(item => item.order === itemOrder);
-  }
-
-  /**
-   * Update timing configuration
-   */
-  updateTimingConfig(newConfig: Partial<typeof this.timingConfig>): void {
-    this.timingConfig = { ...this.timingConfig, ...newConfig };
-  }
-
-  /**
-   * Get list title timing (similar to subtitle timing)
-   * List titles appear individually with proper timing
-   */
-  getListTitleTiming(listOrder: number): {
-    startTime: number;
-    fadeInDuration: number;
-    visibleTime: number;
-    fadeOutDuration: number;
-    fadeOutStartTime: number;
-  } | null {
-    // Find the list item by order (assuming lists are added in order)
-    const listItems = this.getAllListItems();
-    const listItem = listItems[listOrder - 1]; // 0-based index
+  // Get demo step timing (for backward compatibility)  
+  getDemoStepTiming(stepOrder: number): InternalAnimation | undefined {
+    const demoItems = this.contentItems.filter(item => item.type === 'demo');
+    if (demoItems.length === 0) return undefined;
     
-    if (!listItem) return null;
-    
-    return {
-      startTime: listItem.startTime,
-      fadeInDuration: this.timingConfig.listItemFadeInDuration,
-      visibleTime: listItem.visibleTime,
-      fadeOutDuration: listItem.fadeOutDuration,
-      fadeOutStartTime: listItem.visibleEnd
-    };
-  }
-
-  /**
-   * Get debug information
-   */
-  getDebugInfo(): object {
-    return {
-      totalDuration: this.getTotalDuration(),
-      itemCount: this.items.length,
-      items: this.items.map(item => ({
-        id: item.id,
-        type: item.type,
-        startTime: item.startTime,
-        endTime: item.endTime,
-        duration: item.endTime - item.startTime
-      })),
-      timingConfig: this.timingConfig
-    };
+    const demoItem = demoItems[0]!; // Get first demo
+    return demoItem.internalAnimations?.[stepOrder];
   }
 }

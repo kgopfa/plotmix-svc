@@ -24,7 +24,6 @@ export function executeScene(scene: any): Scene {
         timelineBuilder.addHeading();
         break;
       case "list":
-        listOrder++;
         timelineBuilder.addList(item.data.length);
         break;
       case "codeblock":
@@ -46,12 +45,12 @@ export function executeScene(scene: any): Scene {
         break;
 
       case "list":
-        listOrder++;
         const listElements = ElementFactory.createList({
           data: item.data,
           title: item.title
         }, style, timelineBuilder, listOrder);
         elements.push(...listElements);
+        listOrder++;
         break;
 
       case "codeblock":

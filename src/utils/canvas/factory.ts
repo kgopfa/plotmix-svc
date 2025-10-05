@@ -208,17 +208,15 @@ export class ElementFactory {
     caption.fill = style.palette.text;
 
     // Get timing for this specific caption order from demo steps
-    const demoItems = timelineBuilder.getAllDemoItems();
-    const demoItem = demoItems[0]; // Get the first (and main) demo
-    if (demoItem && demoItem.steps[data.order - 1]) {
-      const step = demoItem.steps[data.order - 1]!;
+    const demoStepTiming = timelineBuilder.getDemoStepTiming(data.order - 1);
+    if (demoStepTiming) {
       
       // Add fade-in animation for caption
       caption.animations.push({
         id: randomUUID(),
         type: "fade",
-        startTime: step.captionStartTime,
-        duration: step.captionFadeInDuration,
+        startTime: demoStepTiming.startTime,
+        duration: demoStepTiming.fadeInDuration,
         properties: { alpha: 1 },
         easing: "power1.inOut",
         yoyo: false,
@@ -231,8 +229,8 @@ export class ElementFactory {
       caption.animations.push({
         id: randomUUID(),
         type: "fade",
-        startTime: step.captionStartTime + step.captionFadeInDuration + step.captionVisibleTime,
-        duration: step.captionFadeOutDuration,
+        startTime: demoStepTiming.visibleEnd,
+        duration: demoStepTiming.fadeOutDuration,
         properties: { alpha: 0 },
         easing: "power1.inOut",
         yoyo: false,
@@ -297,8 +295,11 @@ export class ElementFactory {
     const { x: startX, y: startY } = getCanvasGrid().getNextPosition('list', 'CONTENT_START');
     const itemSpacing = 50; // Vertical spacing between items
     
+    // Get timing for this list content item
+    const listTiming = timelineBuilder.getListTiming(listOrder || 0);
+    
     // Add title if present - with proper timing like subtitles
-    if (data.title && listOrder) {
+    if (data.title) {
       const titleFontSize = style.typography.size * 0.9;
       const titleWidth = getCappedTextWidth(
         data.title, 
@@ -320,52 +321,46 @@ export class ElementFactory {
         textAlign: 'left',
         zIndex: 5,
         opacity: 0, // Start invisible for fade-in
-        name: `List Title ${listOrder}`,
+        name: `List Title ${listOrder || 'Unknown'}`,
         animations: []
       });
 
       // Set fill color from style
       title.fill = style.palette.text;
       
-      // Get timing for this specific list title order
-      const titleTiming = timelineBuilder.getListTitleTiming(listOrder);
-      
-      if (titleTiming) {
-        // Add fade-in animation for title
+      // Add content item fade animations if timing is available
+      if (listTiming) {
+        // Fade in title with content item
         title.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: titleTiming.startTime,
-          duration: titleTiming.fadeInDuration,
+          startTime: listTiming.startTime,
+          duration: listTiming.fadeInDuration,
           properties: { alpha: 1 },
           easing: "power1.inOut",
           yoyo: false,
           repeat: 0,
-          displayName: `list-title-${listOrder}-fade-in`,
+          displayName: `list-title-fade-in`,
           repeatDelay: 0
         });
 
-        // Add fade-out animation for title
+        // Fade out title with content item
         title.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: titleTiming.fadeOutStartTime,
-          duration: titleTiming.fadeOutDuration,
+          startTime: listTiming.visibleEnd,
+          duration: listTiming.fadeOutDuration,
           properties: { alpha: 0 },
           easing: "power1.inOut",
           yoyo: false,
           repeat: 0,
-          displayName: `list-title-${listOrder}-fade-out`,
+          displayName: `list-title-fade-out`,
           repeatDelay: 0
         });
       }
       
       elements.push(title);
     }
-    
-    // Add list items with timing from TimelineBuilder
-    const listItems = timelineBuilder.getAllListItems();
-    const listItem = listItems.find(item => item.itemCount === data.data.length);
     
     data.data.forEach((item, index) => {
       const itemFontSize = style.typography.size * 0.8;
@@ -397,11 +392,11 @@ export class ElementFactory {
       // Set fill color from style
       listItemElement.fill = style.palette.text;
 
-      // Add timing animations if list timing is available
-      if (listItem && listItem.items[index]) {
-        const itemTiming = listItem.items[index]!;
+      // Add internal animation timing if available
+      if (listTiming?.internalAnimations?.[index]) {
+        const itemTiming = listTiming.internalAnimations[index]!;
         
-        // Add fade-in animation (items appear sequentially)
+        // Add fade-in animation (sequential timing)
         listItemElement.animations.push({
           id: randomUUID(),
           type: "fade",
@@ -414,22 +409,22 @@ export class ElementFactory {
           displayName: `list-item-${index}-fade-in`,
           repeatDelay: 0
         });
+      }
 
-        // Add fade-out animation for entire list (all items fade out together)
-        if (listItem.fadeOutDuration > 0) {
-          listItemElement.animations.push({
-            id: randomUUID(),
-            type: "fade",
-            startTime: listItem.visibleEnd, // When entire list starts fading out
-            duration: listItem.fadeOutDuration,
-            properties: { alpha: 0 },
-            easing: "power1.inOut",
-            yoyo: false,
-            repeat: 0,
-            displayName: `list-item-${index}-fade-out`,
-            repeatDelay: 0
-          });
-        }
+      // Add fade-out animation using content item timing (all items fade out together)
+      if (listTiming) {
+        listItemElement.animations.push({
+          id: randomUUID(),
+          type: "fade",
+          startTime: listTiming.visibleEnd,
+          duration: listTiming.fadeOutDuration,
+          properties: { alpha: 0 },
+          easing: "power1.inOut",
+          yoyo: false,
+          repeat: 0,
+          displayName: `list-item-${index}-fade-out`,
+          repeatDelay: 0
+        });
       }
       
       elements.push(listItemElement);
@@ -439,29 +434,23 @@ export class ElementFactory {
   }
 
   static createCodeblock(
-    data: { data: string[]; title?: string },
+    data: { data: string[] | string; title?: string },
     style: StylePack,
     timelineBuilder: TimelineBuilder
   ): { groups: Group[]; elements: (Rect | TextEl | CodeEditorEl)[] } {
     const groups: Group[] = [];
     const elements: (Rect | TextEl | CodeEditorEl)[] = [];
     
-    // Get codeblock timing from TimelineBuilder
-    const codeblockItems = timelineBuilder.getAllItems().filter(item => item.type === 'codeblock');
-    const codeblockItem = codeblockItems[codeblockItems.length - 1]; // Get the last (most recent) codeblock
+    const codeblockTiming = timelineBuilder.getContentItemByType('codeblock', 0);
     
-    // Position codeblock using grid system
     const { x: codeblockX, y: codeblockY } = getCanvasGrid().getNextPosition('codeblock', 'CONTENT_START');
     
-    // Create group and element IDs
     const groupId = randomUUID();
     
-    // Join all code lines into single text
-    const codeText = data.data.join('\n');
-    const codeLines = data.data;
+    const codeText = Array.isArray(data.data) ? data.data.join('\n') : data.data;
+    const codeLines = Array.isArray(data.data) ? data.data : data.data.split('\n');
     
-    // Calculate code block dimensions based on content
-    const codeBlockPadding = 40; // 40px padding around the code editor
+    const codeBlockPadding = 40;
     const lineHeight = 1.5;
     const fontSize = 26;
     const fontFamily = 'Monaco, Consolas, "Courier New", monospace';
@@ -478,8 +467,8 @@ export class ElementFactory {
     const codeEditorHeight = Math.max(codeLines.length * lineHeight * fontSize, 200);
     
     // Calculate rectangle dimensions (outer) with 40px padding
-    const codeBlockWidth = codeEditorWidth + (codeBlockPadding * 2); // 40px on each side
-    const codeBlockHeight = codeEditorHeight + (codeBlockPadding * 2); // 40px top and bottom
+    const codeBlockWidth = codeEditorWidth + (codeBlockPadding * 2);
+    const codeBlockHeight = codeEditorHeight + (codeBlockPadding * 2);
     
     // Create background rectangle using helper function
     const rectangle = createRect({
@@ -497,11 +486,10 @@ export class ElementFactory {
       animations: []
     });
     
-    // Create code text element using helper function
     const codeTextElement = createCodeEditorEl({
       text: codeText,
-      x: codeblockX,
-      y: codeblockY,
+      x: codeblockX + codeBlockPadding, 
+      y: codeblockY + codeBlockPadding,
       width: codeEditorWidth,
       height: codeEditorHeight,
       fontSize: fontSize,
@@ -512,22 +500,19 @@ export class ElementFactory {
       animations: []
     });
     
-    // Create group for code block using helper function
     const codeGroup = createGroup({
       elementIds: [rectangle.id, codeTextElement.id],
       name: "Code Block",
-      opacity: 0, // Start invisible for fade-in animation
+      opacity: 0,
       animations: []
     });
     
-    // Add timing animations if codeblock timing is available
-    if (codeblockItem) {
-      // Add fade-in animation to the group
+    if (codeblockTiming) {
       codeGroup.animations.push({
         id: randomUUID(),
         type: "fade",
-        startTime: codeblockItem.startTime,
-        duration: codeblockItem.fadeInDuration,
+        startTime: codeblockTiming.startTime,
+        duration: codeblockTiming.fadeInDuration,
         properties: { alpha: 1 },
         easing: "power1.inOut",
         yoyo: false,
@@ -536,12 +521,11 @@ export class ElementFactory {
         repeatDelay: 0
       });
       
-      // Add fade-out animation to the group
       codeGroup.animations.push({
         id: randomUUID(),
         type: "fade",
-        startTime: codeblockItem.startTime + codeblockItem.fadeInDuration + codeblockItem.visibleTime,
-        duration: codeblockItem.fadeOutDuration,
+        startTime: codeblockTiming.visibleEnd,
+        duration: codeblockTiming.fadeOutDuration,
         properties: { alpha: 0 },
         easing: "power1.inOut",
         yoyo: false,
@@ -551,7 +535,6 @@ export class ElementFactory {
       });
     }
     
-    // Add title if present (positioned above the code block)
     if (data.title) {
       const titleFontSize = style.typography.size * 0.9;
       const titleWidth = getCappedTextWidth(
@@ -565,7 +548,7 @@ export class ElementFactory {
       const title = createTextEl({
         text: data.title,
         x: codeblockX,
-        y: codeblockY - (codeBlockHeight / 2) - 40, // Above the code block
+        y: codeblockY - (codeBlockHeight / 2) - 40,
         width: titleWidth,
         height: style.typography.size * 1.2,
         fontSize: titleFontSize,
@@ -573,22 +556,19 @@ export class ElementFactory {
         fontWeight: 'bold',
         textAlign: 'center',
         zIndex: 3,
-        opacity: 0, // Start invisible for fade-in
+        opacity: 0,
         name: 'Codeblock Title',
         animations: []
       });
 
-      // Set fill color from style
       title.fill = style.palette.text;
       
-      // Add timing animations for title if codeblock timing is available
-      if (codeblockItem) {
-        // Add fade-in animation
+      if (codeblockTiming) {
         title.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: codeblockItem.startTime,
-          duration: codeblockItem.fadeInDuration,
+          startTime: codeblockTiming.startTime,
+          duration: codeblockTiming.fadeInDuration,
           properties: { alpha: 1 },
           easing: "power1.inOut",
           yoyo: false,
@@ -597,12 +577,11 @@ export class ElementFactory {
           repeatDelay: 0
         });
         
-        // Add fade-out animation
         title.animations.push({
           id: randomUUID(),
           type: "fade",
-          startTime: codeblockItem.startTime + codeblockItem.fadeInDuration + codeblockItem.visibleTime,
-          duration: codeblockItem.fadeOutDuration,
+          startTime: codeblockTiming.visibleEnd,
+          duration: codeblockTiming.fadeOutDuration,
           properties: { alpha: 0 },
           easing: "power1.inOut",
           yoyo: false,
@@ -615,7 +594,6 @@ export class ElementFactory {
       elements.push(title);
     }
     
-    // Add elements and group to scene
     elements.push(rectangle, codeTextElement);
     groups.push(codeGroup);
     
