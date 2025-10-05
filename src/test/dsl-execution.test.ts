@@ -49,7 +49,7 @@ describe('DSL Execution Tests', () => {
       expect(result.sceneCanvas.timeline.duration).toBeCloseTo(12.4, 1);
     });
 
-    test('should have list titles with animations', () => {
+    test('should have list titles with fade-in animations', () => {
       const result = executeScene(scene1);
       
       const titles = result.sceneCanvas.elements.filter(el => 
@@ -61,9 +61,30 @@ describe('DSL Execution Tests', () => {
       // Both titles should have fade animations
       titles.forEach(title => {
         expect(title.animations).toHaveLength(2); // fade in + fade out
-        expect(title.animations?.[0]?.type).toBe('fade');
-        expect(title.animations?.[1]?.type).toBe('fade');
+        
+        // Check fade-in animation
+        const fadeInAnimation = title.animations?.[0];
+        expect(fadeInAnimation?.type).toBe('fade');
+        expect((fadeInAnimation?.properties as any)?.alpha).toBe(1); // Fade to visible
+        expect(fadeInAnimation?.duration).toBe(1.0); // 1 second fade in
+        expect(fadeInAnimation?.easing).toBe('power1.inOut');
+        
+        // Check fade-out animation
+        const fadeOutAnimation = title.animations?.[1];
+        expect(fadeOutAnimation?.type).toBe('fade');
+        expect((fadeOutAnimation?.properties as any)?.alpha).toBe(0); // Fade to invisible
+        expect(fadeOutAnimation?.duration).toBe(1.0); // 1 second fade out
+        expect(fadeOutAnimation?.easing).toBe('power1.inOut');
+        
+        // Verify timing: fade-out should start after fade-in + visible time
+        expect(fadeOutAnimation?.startTime).toBeGreaterThan(fadeInAnimation?.startTime!);
       });
+      
+      // Check that titles have different timing (different lists)
+      const title1FadeIn = titles[0]?.animations?.[0]?.startTime;
+      const title2FadeIn = titles[1]?.animations?.[0]?.startTime;
+      
+      expect(title2FadeIn).toBeGreaterThan(title1FadeIn!);
     });
 
     test('should have list items with sequential animations', () => {
@@ -78,6 +99,20 @@ describe('DSL Execution Tests', () => {
       // All list items should have animations
       listItems.forEach(item => {
         expect(item.animations).toHaveLength(2); // fade in + fade out
+        
+        // Check fade-in animation properties
+        const fadeInAnimation = item.animations?.[0];
+        expect(fadeInAnimation?.type).toBe('fade');
+        expect((fadeInAnimation?.properties as any)?.alpha).toBe(1); // Fade to visible
+        expect(fadeInAnimation?.duration).toBe(1.0); // 1 second fade in
+        expect(fadeInAnimation?.easing).toBe('power1.inOut');
+        
+        // Check fade-out animation properties
+        const fadeOutAnimation = item.animations?.[1];
+        expect(fadeOutAnimation?.type).toBe('fade');
+        expect((fadeOutAnimation?.properties as any)?.alpha).toBe(0); // Fade to invisible
+        expect(fadeOutAnimation?.duration).toBe(1.0); // 1 second fade out
+        expect(fadeOutAnimation?.easing).toBe('power1.inOut');
       });
 
       // Check sequential timing for first list
@@ -86,6 +121,12 @@ describe('DSL Execution Tests', () => {
       
       for (let i = 1; i < fadeInTimes.length; i++) {
         expect(fadeInTimes[i]).toBeGreaterThan(fadeInTimes[i - 1]!);
+      }
+      
+      // Verify stagger delay between items (should be 0.1s)
+      for (let i = 1; i < fadeInTimes.length; i++) {
+        const timeDiff = fadeInTimes[i]! - fadeInTimes[i - 1]!;
+        expect(timeDiff).toBeCloseTo(1.1, 1); // 1.0s fade duration + 0.1s stagger delay
       }
     });
   });
