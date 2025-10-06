@@ -84,6 +84,74 @@ export function executeScene(scene: any): Scene {
     }
   }
 
+  const allContentItems = timelineBuilder.getAllContentItems();
+  
+  allContentItems.forEach((contentItem, contentIndex) => {
+    timelineAnimations.push({
+      id: `content-${contentIndex}-fade-in`,
+      name: `${contentItem.type} fade-in`,
+      type: "fade",
+      target: { type: "group", id: `content-group-${contentIndex}` },
+      tracks: [
+        {
+          property: "opacity",
+          from: 0,
+          to: 1
+        }
+      ],
+      startTime: contentItem.startTime,
+      duration: contentItem.fadeInDuration,
+      easing: "power1.inOut",
+      repeat: 0,
+      repeatDelay: 0,
+      yoyo: false
+    });
+
+    timelineAnimations.push({
+      id: `content-${contentIndex}-fade-out`,
+      name: `${contentItem.type} fade-out`,
+      type: "fade",
+      target: { type: "group", id: `content-group-${contentIndex}` },
+      tracks: [
+        {
+          property: "opacity",
+          from: 1,
+          to: 0
+        }
+      ],
+      startTime: contentItem.visibleEnd,
+      duration: contentItem.fadeOutDuration,
+      easing: "power1.inOut",
+      repeat: 0,
+      repeatDelay: 0,
+      yoyo: false
+    });
+
+    if (contentItem.internalAnimations) {
+      contentItem.internalAnimations.forEach((internalAnim, animIndex) => {
+        timelineAnimations.push({
+          id: `content-${contentIndex}-internal-${animIndex}`,
+          name: `${internalAnim.id} fade-in`,
+          type: "fade",
+          target: { type: "element", id: `${internalAnim.id}-element` },
+          tracks: [
+            {
+              property: "opacity",
+              from: 0,
+              to: 1
+            }
+          ],
+          startTime: internalAnim.startTime,
+          duration: internalAnim.fadeInDuration,
+          easing: "power1.inOut",
+          repeat: 0,
+          repeatDelay: 0,
+          yoyo: false
+        });
+      });
+    }
+  });
+
   return {
     sceneId: scene.id,
     sceneName: scene.name,
