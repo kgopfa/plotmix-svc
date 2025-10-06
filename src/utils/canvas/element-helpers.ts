@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import type { Group, Rect, TextEl, CodeEditorEl } from '../../types';
+import type { CanvasElement, CanvasGroup } from '../../types';
 
 // Helper functions for creating elements with configurable parameters
 
@@ -17,10 +17,9 @@ export interface TextElConfig {
   opacity?: number;
   groupId?: string;
   name?: string;
-  animations?: any[];
 }
 
-export function createTextEl(config: TextElConfig): TextEl {
+export function createTextEl(config: TextElConfig): CanvasElement {
   const {
     text,
     x,
@@ -34,12 +33,10 @@ export function createTextEl(config: TextElConfig): TextEl {
     zIndex = 1,
     opacity = 1,
     groupId = '',
-    name = 'Text',
-    animations = []
+    name = 'Text'
   } = config;
 
   return {
-    animations,
     fill: '#000000', // Will be overridden by style
     x,
     y,
@@ -60,7 +57,7 @@ export function createTextEl(config: TextElConfig): TextEl {
     fontStyle: 'normal',
     textAlign,
     fontFamily,
-    fontWeight,
+    fontWeight: fontWeight as any,
     lineHeight: 1.2,
     shadowBlur: 0,
     shadowColor: '#000000',
@@ -91,10 +88,9 @@ export interface RectConfig {
   opacity?: number;
   groupId?: string;
   name?: string;
-  animations?: any[];
 }
 
-export function createRect(config: RectConfig): Rect {
+export function createRect(config: RectConfig): CanvasElement {
   const {
     x,
     y,
@@ -107,12 +103,10 @@ export function createRect(config: RectConfig): Rect {
     zIndex = 1,
     opacity = 1,
     groupId = '',
-    name = 'Rectangle',
-    animations = []
+    name = 'Rectangle'
   } = config;
 
   return {
-    animations,
     fill,
     x,
     y,
@@ -146,23 +140,20 @@ export interface GroupConfig {
   y: number;
   name: string;
   opacity?: number;
-  animations?: any[];
   id?: string; // Allow custom ID
 }
 
-export function createGroup(config: GroupConfig): Group {
+export function createGroup(config: GroupConfig): CanvasGroup {
   const {
     elementIds,
     x,
     y,
     name,
     opacity = 1,
-    animations = [],
     id
   } = config;
 
   return {
-    animations,
     elementIds,
     x,
     y,
@@ -187,10 +178,9 @@ export interface CodeEditorElConfig {
   opacity?: number;
   groupId?: string;
   name?: string;
-  animations?: any[];
 }
 
-export function createCodeEditorEl(config: CodeEditorElConfig): CodeEditorEl {
+export function createCodeEditorEl(config: CodeEditorElConfig): CanvasElement {
   const {
     text,
     x,
@@ -202,12 +192,10 @@ export function createCodeEditorEl(config: CodeEditorElConfig): CodeEditorEl {
     zIndex = 2,
     opacity = 1,
     groupId = '',
-    name = 'Code Editor',
-    animations = []
+    name = 'Code Editor'
   } = config;
 
   return {
-    animations,
     fill: '#1e1e1e',
     x,
     y,
@@ -242,11 +230,6 @@ export function createCodeEditorEl(config: CodeEditorElConfig): CodeEditorEl {
     wordWrapWidth: width,
     textStrokeJoin: 'round',
     isAnimationPath: false,
-    textStrokeWidth: 0,
-    tabSize: 4,
-    language: 'javascript',
-    syntaxTheme: 'light',
-    showLineNumbers: false,
-    showLineHighlight: true
+    textStrokeWidth: 0
   };
 }

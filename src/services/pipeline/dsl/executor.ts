@@ -1,4 +1,4 @@
-import type { Group, Rect, TextEl, CodeEditorEl, CanvasElement } from '../../../types';
+import type { CanvasElement, CanvasGroup, TimelineAnimation } from '../../../types';
 import type { StylePack } from '../../../types';
 import STYLES from '../procedural/layout/styles';
 import { TimelineBuilder } from './timeline';
@@ -8,8 +8,9 @@ import { Scene } from '../../../types';
 export function executeScene(scene: any): Scene {
   let style: StylePack = STYLES[0]!;
 
-  const groups: Group[] = [];
-  const elements: (Rect | TextEl | CodeEditorEl)[] = [];
+  const groups: CanvasGroup[] = [];
+  const elements: CanvasElement[] = [];
+  const timelineAnimations: TimelineAnimation[] = [];
 
   const timelineBuilder = new TimelineBuilder();
 
@@ -48,7 +49,7 @@ export function executeScene(scene: any): Scene {
         const listResult = ElementFactory.createList({
           data: item.data,
           title: item.title
-        }, style, timelineBuilder, listOrder);
+        }, style, listOrder);
         groups.push(...listResult.groups);
         elements.push(...listResult.elements);
         listOrder++;
@@ -58,7 +59,7 @@ export function executeScene(scene: any): Scene {
         const codeblockResult = ElementFactory.createCodeblock({
           data: item.data,
           title: item.title
-        }, style, timelineBuilder);
+        }, style);
         groups.push(...codeblockResult.groups);
         elements.push(...codeblockResult.elements);
         break;
@@ -72,10 +73,10 @@ export function executeScene(scene: any): Scene {
 
         item.steps.forEach((step: any, stepIndex: number) => {
           if (step.caption) {
-            const caption = ElementFactory.createCaption({
-              order: stepIndex + 1,
-              text: step.caption
-            }, style, timelineBuilder);
+        const caption = ElementFactory.createCaption({
+          order: stepIndex + 1,
+          text: step.caption
+        }, style);
             elements.push(caption);
           }
         });
@@ -90,7 +91,7 @@ export function executeScene(scene: any): Scene {
       groups,
       elements: elements as CanvasElement[],
       timeline: {
-        animations: []
+        animations: timelineAnimations
       },
       playback: {
         scale: 1,

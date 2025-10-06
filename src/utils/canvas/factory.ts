@@ -1,4 +1,4 @@
-import type { Group, Rect, TextEl, CodeEditorEl } from '../../types';
+import type { CanvasElement, CanvasGroup } from '../../types';
 import type { StylePack } from '../../types';
 import { randomUUID } from 'crypto';
 import { 
@@ -9,7 +9,6 @@ import {
   CanvasGrid,
   ZONES
 } from './canvas-grid';
-import { TimelineBuilder } from '../../services/pipeline/dsl/timeline';
 import { 
   createTextEl, 
   createRect, 
@@ -41,7 +40,7 @@ function makeCell(
   cellWidth: number,
   cellHeight: number,
   index: number
-): { group: Group; rect: Rect; text: TextEl; indexText: TextEl; indexGroup: Group } {
+): { group: CanvasGroup; rect: CanvasElement; text: CanvasElement; indexText: CanvasElement; indexGroup: CanvasGroup } {
   const gid = randomUUID();
   const indexGroupId = randomUUID();
 
@@ -57,8 +56,7 @@ function makeCell(
     cornerRadius: style.cell.radius,
     zIndex: 1,
     groupId: gid,
-    name: `Rectangle ${value}`,
-    animations: []
+    name: `Rectangle ${value}`
   });
 
   // Calculate text dimensions
@@ -82,8 +80,7 @@ function makeCell(
     textAlign: 'center',
     zIndex: 2,
     groupId: gid,
-    name: `Text ${value}`,
-    animations: []
+    name: `Text ${value}`
   });
 
   // Create index text
@@ -105,8 +102,7 @@ function makeCell(
     textAlign: 'center',
     zIndex: 3,
     groupId: indexGroupId,
-    name: `Index ${index}`,
-    animations: []
+    name: `Index ${index}`
   });
 
   // Create groups using helper function
@@ -115,8 +111,7 @@ function makeCell(
     x: centerX,
     y: indexY,
     name: `Index Group ${index}`,
-    opacity: 1,
-    animations: []
+    opacity: 1
   });
 
   const group = createGroup({
@@ -124,8 +119,7 @@ function makeCell(
     x: centerX,
     y: centerY,
     name: `Array Cell ${index}`,
-    opacity: 1,
-    animations: []
+    opacity: 1
   });
 
   return { group, rect, text, indexText, indexGroup };
@@ -135,9 +129,9 @@ export class ElementFactory {
   static createArray(
     data: { values: (string | number)[]; cell?: number; gap?: number },
     style: StylePack,
-  ): { groups: Group[]; elements: (Rect | TextEl)[] } {
-    const groups: Group[] = [];
-    const elements: (Rect | TextEl)[] = [];
+  ): { groups: CanvasGroup[]; elements: CanvasElement[] } {
+    const groups: CanvasGroup[] = [];
+    const elements: CanvasElement[] = [];
 
     // Use grid system for consistent positioning
     const minCellSize = data.cell ?? style.cell.w;
@@ -176,9 +170,8 @@ export class ElementFactory {
 
   static createCaption(
     data: { text: string; order: number },
-    style: StylePack,
-    timelineBuilder: TimelineBuilder
-  ): TextEl {
+    style: StylePack
+  ): CanvasElement {
     // Position caption using grid system
     const { x: captionX, y: captionY } = getCanvasGrid().getNextPosition('caption', 'CAPTION');
     
@@ -204,45 +197,11 @@ export class ElementFactory {
       textAlign: 'center',
       zIndex: 10,
       opacity: 0, // Start invisible for fade-in
-      name: `Caption ${data.order}`,
-      animations: []
+      name: `Caption ${data.order}`
     });
 
     // Set fill color from style
     caption.fill = style.palette.text;
-
-    // Get timing for this specific caption order from demo steps
-    const demoStepTiming = timelineBuilder.getDemoStepTiming(data.order - 1);
-    if (demoStepTiming) {
-      
-      // Add fade-in animation for caption
-      caption.animations.push({
-        id: randomUUID(),
-        type: "fade",
-        startTime: demoStepTiming.startTime,
-        duration: demoStepTiming.fadeInDuration,
-        properties: { alpha: 1 },
-        easing: "power1.inOut",
-        yoyo: false,
-        repeat: 0,
-        displayName: `caption-${data.order}-fade-in`,
-        repeatDelay: 0
-      });
-
-      // Add fade-out animation for caption
-      caption.animations.push({
-        id: randomUUID(),
-        type: "fade",
-        startTime: demoStepTiming.visibleEnd,
-        duration: demoStepTiming.fadeOutDuration,
-        properties: { alpha: 0 },
-        easing: "power1.inOut",
-        yoyo: false,
-        repeat: 0,
-        displayName: `caption-${data.order}-fade-out`,
-        repeatDelay: 0
-      });
-    }
 
     return caption;
   }
@@ -250,7 +209,7 @@ export class ElementFactory {
   static createHeading(
     data: { text: string },
     style: StylePack,
-  ): TextEl {
+  ): CanvasElement {
     // Position heading using grid system
     const { x: headingX, y: headingY } = getCanvasGrid().getNextPosition('heading', 'TOP');
     
@@ -277,8 +236,7 @@ export class ElementFactory {
       textAlign: 'center',
       zIndex: 15,
       opacity: 1, // Always visible
-      name: 'Heading',
-      animations: []
+      name: 'Heading'
     });
 
     // Set fill color from style
@@ -290,18 +248,14 @@ export class ElementFactory {
   static createList(
     data: { data: string[]; title?: string },
     style: StylePack,
-    timelineBuilder: TimelineBuilder,
     listOrder?: number
-  ): { groups: Group[]; elements: TextEl[] } {
-    const elements: TextEl[] = [];
-    const groups: Group[] = [];
+  ): { groups: CanvasGroup[]; elements: CanvasElement[] } {
+    const elements: CanvasElement[] = [];
+    const groups: CanvasGroup[] = [];
     
     // Position lists using grid system
     const { x: startX, y: startY } = getCanvasGrid().getNextPosition('list', 'CONTENT_START');
     const itemSpacing = 50; // Vertical spacing between items
-    
-    // Get timing for this list content item
-    const listTiming = timelineBuilder.getListTiming(listOrder || 0);
     
     // Create content item group for fade-out animation
     const contentGroupId = randomUUID();
@@ -311,25 +265,8 @@ export class ElementFactory {
       y: startY,
       name: `List Content Item ${listOrder || 'Unknown'}`,
       opacity: 1, // Start visible, group handles fade-out
-      animations: [],
       id: contentGroupId // Use the same ID
     });
-    
-    // Add group-level fade-out animation
-    if (listTiming) {
-      contentGroup.animations.push({
-        id: randomUUID(),
-        type: "fade",
-        startTime: listTiming.visibleEnd,
-        duration: listTiming.fadeOutDuration,
-        properties: { alpha: 0 },
-        easing: "power1.inOut",
-        yoyo: false,
-        repeat: 0,
-        displayName: `list-content-fade-out`,
-        repeatDelay: 0
-      });
-    }
     
     groups.push(contentGroup);
     
@@ -357,30 +294,11 @@ export class ElementFactory {
         zIndex: 5,
         opacity: 0, // Start invisible for fade-in
         groupId: contentGroupId,
-        name: `List Title ${listOrder || 'Unknown'}`,
-        animations: []
+        name: `List Title ${listOrder || 'Unknown'}`
       });
 
       // Set fill color from style
       title.fill = style.palette.text;
-      
-      // Add title fade-in animation (appears first)
-      if (listTiming?.internalAnimations?.[0]?.id === 'list-title') {
-        const titleTiming = listTiming.internalAnimations[0];
-        
-        title.animations.push({
-          id: randomUUID(),
-          type: "fade",
-          startTime: titleTiming.startTime,
-          duration: titleTiming.fadeInDuration,
-          properties: { alpha: 1 },
-          easing: "power1.inOut",
-          yoyo: false,
-          repeat: 0,
-          displayName: `list-title-fade-in`,
-          repeatDelay: 0
-        });
-      }
       
       elements.push(title);
       contentGroup.elementIds.push(title.id);
@@ -410,33 +328,11 @@ export class ElementFactory {
         zIndex: 5,
         opacity: 0, // Start invisible for fade-in
         groupId: contentGroupId,
-        name: `List Item ${index}`,
-        animations: []
+        name: `List Item ${index}`
       });
 
       // Set fill color from style
       listItemElement.fill = style.palette.text;
-
-      // Add internal animation timing if available (items appear after title)
-      if (listTiming?.internalAnimations) {
-        const itemAnimation = listTiming.internalAnimations.find(anim => anim.id === `list-item-${index}`);
-        
-        if (itemAnimation) {
-          // Add fade-in animation (sequential timing)
-          listItemElement.animations.push({
-            id: randomUUID(),
-            type: "fade",
-            startTime: itemAnimation.startTime,
-            duration: itemAnimation.fadeInDuration,
-            properties: { alpha: 1 },
-            easing: "power1.inOut",
-            yoyo: false,
-            repeat: 0,
-            displayName: `list-item-${index}-fade-in`,
-            repeatDelay: 0
-          });
-        }
-      }
       
       elements.push(listItemElement);
       contentGroup.elementIds.push(listItemElement.id);
@@ -447,13 +343,10 @@ export class ElementFactory {
 
   static createCodeblock(
     data: { data: string[] | string; title?: string },
-    style: StylePack,
-    timelineBuilder: TimelineBuilder
-  ): { groups: Group[]; elements: (Rect | TextEl | CodeEditorEl)[] } {
-    const groups: Group[] = [];
-    const elements: (Rect | TextEl | CodeEditorEl)[] = [];
-    
-    const codeblockTiming = timelineBuilder.getContentItemByType('codeblock', 0);
+    style: StylePack
+  ): { groups: CanvasGroup[]; elements: CanvasElement[] } {
+    const groups: CanvasGroup[] = [];
+    const elements: CanvasElement[] = [];
     
     const { x: codeblockX, y: codeblockY } = getCanvasGrid().getNextPosition('codeblock', 'CONTENT_START');
     
@@ -494,8 +387,7 @@ export class ElementFactory {
       cornerRadius: 13,
       zIndex: 1,
       groupId: groupId,
-      name: "Code Block Background",
-      animations: []
+      name: "Code Block Background"
     });
     
     const codeTextElement = createCodeEditorEl({
@@ -508,8 +400,7 @@ export class ElementFactory {
       fontFamily: fontFamily,
       zIndex: 2,
       groupId: groupId,
-      name: "Code Editor",
-      animations: []
+      name: "Code Editor"
     });
     
     const codeGroup = createGroup({
@@ -517,37 +408,8 @@ export class ElementFactory {
       x: codeblockX,
       y: codeblockY,
       name: "Code Block",
-      opacity: 0,
-      animations: []
+      opacity: 0
     });
-    
-    if (codeblockTiming) {
-      codeGroup.animations.push({
-        id: randomUUID(),
-        type: "fade",
-        startTime: codeblockTiming.startTime,
-        duration: codeblockTiming.fadeInDuration,
-        properties: { alpha: 1 },
-        easing: "power1.inOut",
-        yoyo: false,
-        repeat: 0,
-        displayName: "codeblock-fade-in",
-        repeatDelay: 0
-      });
-      
-      codeGroup.animations.push({
-        id: randomUUID(),
-        type: "fade",
-        startTime: codeblockTiming.visibleEnd,
-        duration: codeblockTiming.fadeOutDuration,
-        properties: { alpha: 0 },
-        easing: "power1.inOut",
-        yoyo: false,
-        repeat: 0,
-        displayName: "codeblock-fade-out",
-        repeatDelay: 0
-      });
-    }
     
     if (data.title) {
       const titleFontSize = style.typography.size * 0.9;
@@ -571,39 +433,10 @@ export class ElementFactory {
         textAlign: 'center',
         zIndex: 3,
         opacity: 0,
-        name: 'Codeblock Title',
-        animations: []
+        name: 'Codeblock Title'
       });
 
       title.fill = style.palette.text;
-      
-      if (codeblockTiming) {
-        title.animations.push({
-          id: randomUUID(),
-          type: "fade",
-          startTime: codeblockTiming.startTime,
-          duration: codeblockTiming.fadeInDuration,
-          properties: { alpha: 1 },
-          easing: "power1.inOut",
-          yoyo: false,
-          repeat: 0,
-          displayName: "codeblock-title-fade-in",
-          repeatDelay: 0
-        });
-        
-        title.animations.push({
-          id: randomUUID(),
-          type: "fade",
-          startTime: codeblockTiming.visibleEnd,
-          duration: codeblockTiming.fadeOutDuration,
-          properties: { alpha: 0 },
-          easing: "power1.inOut",
-          yoyo: false,
-          repeat: 0,
-          displayName: "codeblock-title-fade-out",
-          repeatDelay: 0
-        });
-      }
       
       elements.push(title);
     }

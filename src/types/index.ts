@@ -274,6 +274,19 @@ export type {
   DSLSceneStructure,
 } from './dsl';
 
+// Canvas types
+export type {
+  TimelineAnimation,
+  CanvasElement,
+  CanvasGroup,
+  Scene,
+  SceneCanvas,
+  Timeline,
+  PlaybackConfig,
+  MainState,
+  ProjectDocument
+} from './canvas';
+
 // Procedural types
 export * from './procedural';
 
