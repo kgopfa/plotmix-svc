@@ -96,67 +96,51 @@ describe('Timeline System Tests', () => {
   });
 
   describe('List Animations', () => {
-    test('should create list with sequential fade-in animations', () => {
+    test('should create list with sequential fade-in animations in timeline', () => {
       timelineBuilder.addList(3);
       
       const listResult = ElementFactory.createList({
         data: ['Item 1', 'Item 2', 'Item 3'],
         title: 'Test List'
-      }, style, timelineBuilder, 0);
+      }, style, 0);
 
       const listElements = listResult.elements;
       expect(listElements).toHaveLength(4); // 1 title + 3 items
 
-      // Check title has content item timing
-      const title = listElements[0];
-      expect(title?.animations).toHaveLength(1); // Only fade-in animation (fade-out handled by group)
-      expect(title?.animations?.[0]?.type).toBe('fade');
-      expect(title?.animations?.[0]?.properties?.alpha).toBe(1);
-
-      // Check list items have sequential timing
-      const item1 = listElements[1];
-      const item2 = listElements[2];
-      const item3 = listElements[3];
-
-      expect(item1?.animations).toHaveLength(1); // Only fade-in animation (fade-out handled by group)
-      expect(item2?.animations).toHaveLength(1);
-      expect(item3?.animations).toHaveLength(1);
-
-      // Fade-in times should be sequential
-      const item1FadeIn = item1?.animations?.[0]?.startTime;
-      const item2FadeIn = item2?.animations?.[0]?.startTime;
-      const item3FadeIn = item3?.animations?.[0]?.startTime;
-
-      expect(item2FadeIn).toBeGreaterThan(item1FadeIn!);
-      expect(item3FadeIn).toBeGreaterThan(item2FadeIn!);
+      // Check that timeline animations exist for list items
+      const allContentItems = timelineBuilder.getAllContentItems();
+      const listItem = allContentItems[0];
+      
+      expect(listItem?.internalAnimations).toHaveLength(4); // title + 3 items
+      
+      // Title should start at list start time
+      expect(listItem?.internalAnimations?.[0]?.id).toBe('list-title');
+      expect(listItem?.internalAnimations?.[0]?.startTime).toBe(listItem?.startTime);
+      
+      // First item should start after title
+      expect(listItem?.internalAnimations?.[1]?.id).toBe('list-item-0');
+      expect(listItem?.internalAnimations?.[1]?.startTime).toBeGreaterThan(listItem?.startTime!);
+      expect(listItem?.internalAnimations?.[0]?.fadeInDuration).toBe(1.0);
+      
+      // Second item should start after first item + spacing
+      expect(listItem?.internalAnimations?.[2]?.id).toBe('list-item-1');
+      expect(listItem?.internalAnimations?.[2]?.startTime).toBeCloseTo(listItem?.startTime! + 2.0 + 0.2, 1);
+      
+      // Third item should start after second item + spacing
+      expect(listItem?.internalAnimations?.[3]?.id).toBe('list-item-2');
+      expect(listItem?.internalAnimations?.[3]?.startTime).toBeCloseTo(listItem?.startTime! + 3.0 + 0.3, 1);
     });
 
-    test('should have same fade-out timing for all list items', () => {
+    test('should have same fade-out timing for all list items in timeline', () => {
       timelineBuilder.addList(3);
+
+      // Check that timeline animations exist for content group fade-outs
+      const allContentItems = timelineBuilder.getAllContentItems();
+      const listItem = allContentItems[0];
       
-      const listResult = ElementFactory.createList({
-        data: ['Item 1', 'Item 2', 'Item 3'],
-        title: 'Test List'
-      }, style, timelineBuilder, 0);
-
-      const listElements = listResult.elements;
-      const listGroups = listResult.groups;
-
-      const item1 = listElements[1];
-      const item2 = listElements[2];
-      const item3 = listElements[3];
-
-      // All items should only have fade-in animations (fade-out handled by group)
-      expect(item1?.animations).toHaveLength(1);
-      expect(item2?.animations).toHaveLength(1);
-      expect(item3?.animations).toHaveLength(1);
-
-      // Check that the group has the fade-out animation
-      expect(listGroups).toHaveLength(1);
-      const contentGroup = listGroups[0];
-      expect(contentGroup?.animations).toHaveLength(1);
-      expect(contentGroup?.animations?.[0]?.type).toBe('fade');
-      expect(contentGroup?.animations?.[0]?.properties?.alpha).toBe(0);
+      // The list content item should have proper timing for fade-out
+      expect(listItem?.fadeOutDuration).toBe(1.5);
+      expect(listItem?.visibleEnd).toBeDefined();
     });
   });
 
@@ -200,7 +184,7 @@ describe('Timeline System Tests', () => {
       const codeblockString = ElementFactory.createCodeblock({
         data: "function test():\n    return true",
         title: "Test Code"
-      }, style, timelineBuilder);
+      }, style);
 
       expect(codeblockString.groups).toHaveLength(1);
       expect(codeblockString.elements).toHaveLength(3); // title + rectangle + code editor
@@ -209,7 +193,7 @@ describe('Timeline System Tests', () => {
       const codeblockArray = ElementFactory.createCodeblock({
         data: ["function test():", "    return true"],
         title: "Test Code"
-      }, style, timelineBuilder);
+      }, style);
 
       expect(codeblockArray.groups).toHaveLength(1);
       expect(codeblockArray.elements).toHaveLength(3);
@@ -221,7 +205,7 @@ describe('Timeline System Tests', () => {
       const codeblock = ElementFactory.createCodeblock({
         data: "function test():\n    return true\n    end",
         title: "Test Code"
-      }, style, timelineBuilder);
+      }, style);
 
       const rectangle = codeblock.elements[1]; // Skip title
       const codeEditor = codeblock.elements[2];
@@ -237,27 +221,24 @@ describe('Timeline System Tests', () => {
   });
 
   describe('Demo Tests', () => {
-    test('should create demo with proper caption timing', () => {
+    test('should create demo with proper caption timing in timeline', () => {
       timelineBuilder.addDemo(3);
 
-      const caption1 = ElementFactory.createCaption({
-        text: "Step 1",
-        order: 1
-      }, style, timelineBuilder);
-
-      const caption2 = ElementFactory.createCaption({
-        text: "Step 2", 
-        order: 2
-      }, style, timelineBuilder);
-
-      expect(caption1?.animations).toHaveLength(2); // fade in + fade out
-      expect(caption2?.animations).toHaveLength(2);
-
-      // Captions should have sequential timing
-      const caption1FadeIn = caption1?.animations?.[0]?.startTime;
-      const caption2FadeIn = caption2?.animations?.[0]?.startTime;
-
-      expect(caption2FadeIn).toBeGreaterThan(caption1FadeIn!);
+      // Check that timeline animations exist for demo steps
+      const allContentItems = timelineBuilder.getAllContentItems();
+      const demoItem = allContentItems[0];
+      
+      expect(demoItem?.internalAnimations).toHaveLength(3);
+      
+      // First step should start at demo start time
+      expect(demoItem?.internalAnimations?.[0]?.startTime).toBe(demoItem?.startTime);
+      expect(demoItem?.internalAnimations?.[0]?.fadeInDuration).toBe(0.5);
+      expect(demoItem?.internalAnimations?.[0]?.visibleTime).toBe(3.0);
+      expect(demoItem?.internalAnimations?.[0]?.fadeOutDuration).toBe(0.5);
+      
+      // Second step should start after first step completes + spacing
+      const firstStepEnd = demoItem?.startTime! + 0.5 + 3.0 + 0.5;
+      expect(demoItem?.internalAnimations?.[1]?.startTime).toBe(firstStepEnd + 0.5);
     });
   });
 
@@ -273,7 +254,7 @@ describe('Timeline System Tests', () => {
       const listResult = ElementFactory.createList({
         data: ['Item 1', 'Item 2'],
         title: 'Test List'
-      }, style, timelineBuilder, 0);
+      }, style, 0);
 
       const listElements = listResult.elements;
 
@@ -290,7 +271,7 @@ describe('Timeline System Tests', () => {
       const listResult = ElementFactory.createList({
         data: ['Item 1', 'Item 2', 'Item 3'],
         title: 'Test List'
-      }, style, timelineBuilder, 0);
+      }, style, 0);
 
       const listElements = listResult.elements;
 
