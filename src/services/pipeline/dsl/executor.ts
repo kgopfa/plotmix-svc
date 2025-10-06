@@ -12,12 +12,12 @@ export function executeScene(scene: any): Scene {
   const elements: (Rect | TextEl | CodeEditorEl)[] = [];
 
   const timelineBuilder = new TimelineBuilder();
-  
+
   resetCanvasGrid();
-  
+
   // Track list order for proper title timing
   let listOrder = 0;
-  
+
   for (const item of scene.content) {
     switch (item.type) {
       case "heading":
