@@ -1,10 +1,8 @@
 import type {
   CanvasElement,
   AnimationType,
-  ElementAnimation,
   LineOptions,
 } from '../types/canvas';
-import { validateElementAnimation } from './animations';
 import { logger } from '../utils/logger';
 
 export interface ValidationResult<T> {
@@ -274,24 +272,6 @@ export function validateAnimatedCanvasObject(obj: unknown): ValidationResult<Can
     default:
       // Unknown type already handled in common fields
       break;
-  }
-
-  // Animations
-  if (!Array.isArray(o.animations)) {
-    errors.push('animations must be an array');
-  } else {
-    for (let i = 0; i < o.animations.length; i++) {
-      const res = validateElementAnimation(o.animations[i] as ElementAnimation);
-      if (!res.valid) {
-        logger.error('Animation failed validation', {
-          elementId: o.id,
-          animationIndex: i,
-          animation: o.animations[i],
-          errors: res.errors,
-        });
-        errors.push(`animations[${i}] invalid: ${res.errors.join('; ')}`);
-      }
-    }
   }
 
   // Defaults for line/path: ensure width/height exist as numbers

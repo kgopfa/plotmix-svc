@@ -1,5 +1,3 @@
-// Canvas Types based on frontend Pixi + GSAP schema
-// These types ensure compatibility between the chained generation pipeline and frontend rendering
 
 export type ElementType = 
   | "rectangle" 
@@ -45,7 +43,6 @@ export type AnimationType =
   | "textScale" 
   | "physics";
 
-// Line-specific options
 export interface LineOptions {
   points: {
     start: { x: number; y: number };
@@ -57,19 +54,16 @@ export interface LineOptions {
   isCurved?: boolean;
 }
 
-// Path-specific options
 export interface PathPoints {
   x: number;
   y: number;
 }
 
-// Polygon-specific options
 export interface PolygonOptions {
   points: PathPoints[];
   isClosed: boolean;
 }
 
-// Text-specific options
 export interface TextDropShadow {
   color: string;
   blur: number;
@@ -91,76 +85,16 @@ export interface TextGradient {
   radius?: number;
 }
 
-// Animation properties by type
-export interface MoveProperties {
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-}
-
-export interface ScaleProperties {
-  scaleX?: number;
-  scaleY?: number;
-}
-
-export interface RotateProperties {
-  rotation?: number;
-  pivotX?: number;
-  pivotY?: number;
-}
-
-export interface FadeProperties {
-  alpha?: number;
-}
-
-export interface ColorProperties {
-  fillColor?: string;
-}
-
-export interface PathProperties {
-  pathPoints?: PathPoints[];
-  pathDirection?: PathDirection;
-}
-
-export interface TypewriterProperties {
-  text?: string;
-  letterSpacing?: number;
-  fontSize?: number;
-}
-
-export interface TextScaleProperties {
-  fontSize?: number;
-  letterSpacing?: number;
-}
-
-export interface PhysicsProperties {
-  velocity?: number;
-  angle?: number;
-  gravity?: number;
-  acceleration?: number;
-  accelerationAngle?: number;
-  friction?: number;
-  xProp?: string;
-  yProp?: string;
-}
-
-export type AnimatableProperties = 
-  | MoveProperties 
-  | ScaleProperties 
-  | RotateProperties 
-  | FadeProperties 
-  | ColorProperties 
-  | PathProperties 
-  | TypewriterProperties 
-  | TextScaleProperties 
-  | PhysicsProperties;
-
-// Element animation
-export interface ElementAnimation {
+export interface TimelineAnimation {
   id: string;
-  displayName: string;
+  name: string;
   type: AnimationType;
+  target: { type: "element" | "group"; id: string };
+  tracks: Array<{
+    property: string;
+    from: number;
+    to: number;
+  }>;
   startTime: number;
   duration: number;
   easing?: GsapEase;
@@ -171,10 +105,8 @@ export interface ElementAnimation {
   stagger?: number;
   staggerFrom?: StaggerFrom;
   staggerEase?: GsapEase;
-  properties: AnimatableProperties;
 }
 
-// Base canvas element
 export interface CanvasElement {
   id: string;
   name: string;
@@ -225,10 +157,9 @@ export interface CanvasElement {
   groupId?: string;
   parent?: string | null;
   isAnimationPath?: boolean;
-  animations: ElementAnimation[];
 }
 
-// Canvas group
+
 export interface CanvasGroup {
   id: string;
   name: string;
@@ -250,56 +181,47 @@ export interface CanvasGroup {
   textAlign?: TextAlign;
   letterSpacing?: number;
   parent?: string | null;
-  animations: ElementAnimation[];
 }
 
-// Animation states for performance optimization
-export interface AnimationState {
-  baseDuration: number;
-  repeat?: number;
-  repeatDelay?: number;
-  yoyo?: boolean;
-  effectiveDuration: number;
-  effectiveEndTime: number;
+
+export interface PlaybackConfig {
+  scale: number;
+  duration: number;
+  currentTime: number;
+  isPlaying: boolean;
 }
 
-// Timeline configuration
+
 export interface Timeline {
-  scale: number; // 10-1000 pixels per second
-  duration: number; // 1-120 seconds per scene
-  currentTime: number; // start at 0
-  animationStates: Record<string, AnimationState>; // leave empty for frontend to populate
+  animations: TimelineAnimation[];
 }
 
-// Scene canvas structure
 export interface SceneCanvas {
   elements: CanvasElement[];
   groups: CanvasGroup[];
   timeline: Timeline;
+  playback: PlaybackConfig;
 }
 
-// Scene structure
 export interface Scene {
-  sceneId: string; // format: "scene-{id}"
+  sceneId: string;
   sceneName: string;
   sceneCanvas: SceneCanvas;
 }
 
-// Project dimensions
 export interface ProjectDimensions {
   width: number;
   height: number;
 }
 
-// Main project state - flat schema
 export interface MainState {
   elements: CanvasElement[];
   groups: CanvasGroup[];
   timeline: Timeline;
+  playback: PlaybackConfig;
   dimensions: ProjectDimensions;
 }
 
-// Complete project document
 export interface ProjectDocument {
   name: string;
   title: string;
@@ -307,7 +229,6 @@ export interface ProjectDocument {
   mainState: MainState;
 }
 
-// Validation helpers
 export const isValidElementType = (type: string): type is ElementType => {
   return ["rectangle", "circle", "triangle", "arc", "line", "path", "image", "text", "code-editor", "polygon"].includes(type);
 };

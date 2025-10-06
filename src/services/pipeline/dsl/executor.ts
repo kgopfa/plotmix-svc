@@ -90,10 +90,13 @@ export function executeScene(scene: any): Scene {
       groups,
       elements: elements as CanvasElement[],
       timeline: {
+        animations: []
+      },
+      playback: {
         scale: 1,
         duration: timelineBuilder.getTotalDuration(),
         currentTime: 0,
-        animationStates: {}
+        isPlaying: false
       }
     }
   };

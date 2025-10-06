@@ -11,11 +11,12 @@ export interface PipelineResult {
     scenes: Array<{
       sceneId: string;
       sceneName: string;
-      sceneCanvas: {
-        elements: any[];
-        groups: any[];
-        timeline: any;
-      };
+        sceneCanvas: {
+          elements: any[];
+          groups: any[];
+          timeline: any;
+          playback: any;
+        };
     }>;
   };
   error?: string;
@@ -86,16 +87,10 @@ export class Orchestrator {
           sceneCanvas: {
             elements: scene.sceneCanvas.elements,
             groups: scene.sceneCanvas.groups,
-            timeline: scene.sceneCanvas.timeline
+            timeline: scene.sceneCanvas.timeline,
+            playback: scene.sceneCanvas.playback
           }
-        })),
-        currentSceneId: executedScenes[0]?.sceneId || "scene-1",
-        globalTimeline: {
-          scale: 1,
-          duration: Math.max(...executedScenes.map((s: Scene) => s.sceneCanvas.timeline.duration)),
-          currentTime: 0,
-          animationStates: {}
-        }
+        }))
       };
       
       return { success: true, mainState, summary: this.generateSummary(jsonProgram.scenes, executedScenes) };
@@ -112,7 +107,7 @@ export class Orchestrator {
       sum + scene.sceneCanvas.elements.filter((el: any) => el.type === 'rectangle').length, 0);
     const textElements = executedScenes.reduce((sum, scene) => 
       sum + scene.sceneCanvas.elements.filter((el: any) => el.type === 'text').length, 0);
-    const totalDuration = Math.max(...executedScenes.map(s => s.sceneCanvas.timeline.duration));
+    const totalDuration = Math.max(...executedScenes.map(s => s.sceneCanvas.playback.duration));
 
     return `Generated visualization with ${arrayElements} array elements and ${textElements} text elements across ${executedScenes.length} scenes. Total duration: ${totalDuration}s.`;
   }

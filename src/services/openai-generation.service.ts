@@ -1,7 +1,6 @@
 import { OpenAIClient, LlmJsonParseError } from '../clients/openai.client';
 import { logger } from '../utils/logger';
 import { validateElementsArray } from '../schema/elements';
-import { validateAnimationArrayWithNaming } from '../schema/animations';
 import { ENGINE_SPEC } from '../specs/engine-spec';
 import { sanitizeMovePropertiesInPlace } from '../utils/sanitize';
 
@@ -316,41 +315,12 @@ ${historyContext}
 
     // Animation naming enforcement per element
     // Allowlist fallbacks
-    const easingAllow = Array.isArray(specFacts?.easingAllowlist) && specFacts.easingAllowlist.length
-      ? specFacts.easingAllowlist
-      : [
-          'none',
-          'power1.in','power1.out','power1.inOut',
-          'power2.in','power2.out','power2.inOut',
-          'power3.in','power3.out','power3.inOut',
-          'power4.in','power4.out','power4.inOut',
-          'back.in','back.out','back.inOut',
-          'elastic.in','elastic.out','elastic.inOut',
-          'bounce.in','bounce.out','bounce.inOut',
-          'sine.in','sine.out','sine.inOut',
-          'expo.in','expo.out','expo.inOut',
-          'circ.in','circ.out','circ.inOut',
-        ];
     const fontAllow = Array.isArray(specFacts?.fontAllowlist) && specFacts.fontAllowlist.length
       ? specFacts.fontAllowlist
       : ['Inter','Roboto','Open Sans','Lato','Arial'];
 
     if (Array.isArray(allElements)) {
       for (let i = 0; i < allElements.length; i++) {
-        const anims = allElements[i]?.animations || [];
-        const res = validateAnimationArrayWithNaming(anims);
-        if (!res.valid) {
-          errors.push(...res.errors.map((e) => `elements[${i}]: ${e}`));
-          hints.push('Ensure displayName matches "<type>-<n>" and ids are non-empty');
-        }
-        // Easing allowlist
-        for (let j = 0; j < anims.length; j++) {
-          const ez = anims[j]?.easing;
-          if (ez && !easingAllow.includes(ez)) {
-            errors.push(`elements[${i}].animations[${j}].easing not in allowlist`);
-            hints.push('Use "power2.out" or "none" for linear');
-          }
-        }
         // Font allowlist for text elements
         if (allElements[i]?.type === 'text' && allElements[i]?.fontFamily) {
           if (!fontAllow.includes(allElements[i].fontFamily)) {
@@ -383,8 +353,6 @@ ${historyContext}
         hints.push(`Set groups[${i}].type to "${suggested}" (allowed: "text","custom","polygon")`);
       }
       if (typeof g.isDefaultGroup !== 'boolean') errors.push(`groups[${i}].isDefaultGroup must be boolean`);
-      const res = validateAnimationArrayWithNaming(g.animations || []);
-      if (!res.valid) errors.push(...res.errors.map((e) => `groups[${i}]: ${e}`));
     }
 
     // Timeline validation for each scene
