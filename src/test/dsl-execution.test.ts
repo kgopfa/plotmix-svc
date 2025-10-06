@@ -46,10 +46,10 @@ describe('DSL Execution Tests', () => {
       const result = executeScene(scene1);
       
       // Heading: 4.0s, List 1: 4.0s, List 2: 4.0s = 13.9s total (with gaps and 1.5s fade-out)
-      expect(result.sceneCanvas.timeline.duration).toBeCloseTo(13.9, 1);
+      expect(result.sceneCanvas.playback.duration).toBeCloseTo(13.9, 1);
     });
 
-    test('should have list titles with fade-in animations', () => {
+    test('should have list titles with fade-in animations in timeline', () => {
       const result = executeScene(scene1);
       
       const titles = result.sceneCanvas.elements.filter(el => 
@@ -58,26 +58,32 @@ describe('DSL Execution Tests', () => {
       
       expect(titles).toHaveLength(2);
       
-      // Both titles should have fade-in animations (fade-out handled by group)
-      titles.forEach(title => {
-        expect(title.animations).toHaveLength(1); // Only fade-in animation
-        
-        // Check fade-in animation
-        const fadeInAnimation = title.animations?.[0];
-        expect(fadeInAnimation?.type).toBe('fade');
-        expect((fadeInAnimation?.properties as any)?.alpha).toBe(1); // Fade to visible
-        expect(fadeInAnimation?.duration).toBe(1.0); // 1 second fade in
-        expect(fadeInAnimation?.easing).toBe('power1.inOut');
+      
+      // Check that timeline animations exist for list titles
+      const titleAnimations = result.sceneCanvas.timeline.animations.filter(anim => 
+        anim.name.includes('list-title fade-in')
+      );
+      
+      expect(titleAnimations).toHaveLength(2);
+      
+      // Check fade-in animation properties
+      titleAnimations.forEach(anim => {
+        expect(anim.type).toBe('fade');
+        expect(anim.tracks[0]?.property).toBe('opacity');
+        expect(anim.tracks[0]?.from).toBe(0);
+        expect(anim.tracks[0]?.to).toBe(1);
+        expect(anim.duration).toBe(1.0); // 1 second fade in
+        expect(anim.easing).toBe('power1.inOut');
       });
       
       // Check that titles have different timing (different lists)
-      const title1FadeIn = titles[0]?.animations?.[0]?.startTime;
-      const title2FadeIn = titles[1]?.animations?.[0]?.startTime;
+      const title1FadeIn = titleAnimations[0]?.startTime;
+      const title2FadeIn = titleAnimations[1]?.startTime;
       
       expect(title2FadeIn).toBeGreaterThan(title1FadeIn!);
     });
 
-    test('should have list items with sequential animations', () => {
+    test('should have list items with sequential animations in timeline', () => {
       const result = executeScene(scene1);
       
       const listItems = result.sceneCanvas.elements.filter(el => 
@@ -86,34 +92,42 @@ describe('DSL Execution Tests', () => {
       
       expect(listItems).toHaveLength(7); // 3 + 4 items
       
-      // All list items should have fade-in animations (fade-out handled by group)
-      listItems.forEach(item => {
-        expect(item.animations).toHaveLength(1); // Only fade-in animation
-        
-        // Check fade-in animation properties
-        const fadeInAnimation = item.animations?.[0];
-        expect(fadeInAnimation?.type).toBe('fade');
-        expect((fadeInAnimation?.properties as any)?.alpha).toBe(1); // Fade to visible
-        expect(fadeInAnimation?.duration).toBe(1.0); // 1 second fade in
-        expect(fadeInAnimation?.easing).toBe('power1.inOut');
+      
+      // Check that timeline animations exist for list items
+      const itemAnimations = result.sceneCanvas.timeline.animations.filter(anim => 
+        anim.name.includes('list-item') && anim.name.includes('fade-in')
+      );
+      
+      expect(itemAnimations).toHaveLength(7); // 3 + 4 items
+      
+      // Check fade-in animation properties
+      itemAnimations.forEach(anim => {
+        expect(anim.type).toBe('fade');
+        expect(anim.tracks[0]?.property).toBe('opacity');
+        expect(anim.tracks[0]?.from).toBe(0);
+        expect(anim.tracks[0]?.to).toBe(1);
+        expect(anim.duration).toBe(1.0); // 1 second fade in
+        expect(anim.easing).toBe('power1.inOut');
       });
 
-      // Check sequential timing for first list
-      const firstListItems = listItems.slice(0, 3);
-      const fadeInTimes = firstListItems.map(item => item.animations?.[0]?.startTime);
+      // Check sequential timing for first list items
+      const firstListAnimations = itemAnimations.filter(anim => 
+        anim.name.includes('list-item-0') || anim.name.includes('list-item-1') || anim.name.includes('list-item-2')
+      );
+      const fadeInTimes = firstListAnimations.map(anim => anim.startTime);
       
       for (let i = 1; i < fadeInTimes.length; i++) {
         expect(fadeInTimes[i]).toBeGreaterThan(fadeInTimes[i - 1]!);
       }
       
-      // Verify stagger delay between items (should be 0.1s)
+      // Verify stagger delay between items (should be 1.1s)
       for (let i = 1; i < fadeInTimes.length; i++) {
         const timeDiff = fadeInTimes[i]! - fadeInTimes[i - 1]!;
-        expect(timeDiff).toBeCloseTo(1.1, 1); // 1.0s fade duration + 0.1s stagger delay
+        expect(timeDiff).toBeCloseTo(1.1, 1);
       }
     });
 
-    test('should have content item groups with fade-out animations', () => {
+    test('should have content item groups with fade-out animations in timeline', () => {
       const result = executeScene(scene1);
       
       // Check that we have content item groups
@@ -121,18 +135,23 @@ describe('DSL Execution Tests', () => {
         group.name?.includes('List Content Item')
       );
       
-      expect(contentGroups).toHaveLength(2); // Two lists in scene 1
+      expect(contentGroups).toHaveLength(2); 
+      
+      // Check that timeline animations exist for content group fade-outs
+      const groupFadeOutAnimations = result.sceneCanvas.timeline.animations.filter(anim => 
+        anim.name.includes('fade-out') && anim.target.type === 'group'
+      );
+      
+      expect(groupFadeOutAnimations).toHaveLength(3); // heading + 2 lists = 3 content groups
       
       // Each content group should have a fade-out animation
-      contentGroups.forEach(group => {
-        expect(group.animations).toHaveLength(1); // Only fade-out animation
-        
-        const fadeOutAnimation = group.animations[0];
-        expect(fadeOutAnimation?.type).toBe('fade');
-        expect((fadeOutAnimation?.properties as any)?.alpha).toBe(0); // Fade to invisible
-        expect(fadeOutAnimation?.duration).toBe(1.5); // 1.5 second fade out
-        expect(fadeOutAnimation?.easing).toBe('power1.inOut');
-        expect(fadeOutAnimation?.displayName).toBe('list-content-fade-out');
+      groupFadeOutAnimations.forEach(anim => {
+        expect(anim.type).toBe('fade');
+        expect(anim.tracks[0]?.property).toBe('opacity');
+        expect(anim.tracks[0]?.from).toBe(1);
+        expect(anim.tracks[0]?.to).toBe(0); // Fade to invisible
+        expect(anim.duration).toBe(1.5); // 1.5 second fade out
+        expect(anim.easing).toBe('power1.inOut');
       });
       
       // Verify that list elements are grouped properly
@@ -178,8 +197,8 @@ describe('DSL Execution Tests', () => {
       const result = executeScene(scene2);
 
       expect(result.sceneId).toBe('concepts-rotated-array-search');
-      expect(result.sceneCanvas.elements).toHaveLength(8); // 1 list title + 4 list items + 1 codeblock title + 2 codeblock elements
-      expect(result.sceneCanvas.groups).toHaveLength(2); // 1 list group + 1 codeblock group
+      expect(result.sceneCanvas.elements).toHaveLength(8);
+      expect(result.sceneCanvas.groups).toHaveLength(2);
     });
 
     test('should have codeblock with correct dimensions', () => {
@@ -188,7 +207,7 @@ describe('DSL Execution Tests', () => {
       const codeblockGroup = result.sceneCanvas.groups.find(group => 
         group.name === 'Code Block'
       );
-      expect(codeblockGroup?.elementIds).toHaveLength(2); // rectangle + code editor
+      expect(codeblockGroup?.elementIds).toHaveLength(2);
       
       const rectangle = result.sceneCanvas.elements.find(el => 
         el.name === 'Code Block Background'
@@ -265,11 +284,11 @@ describe('DSL Execution Tests', () => {
       const result = executeScene(scene3);
 
       expect(result.sceneId).toBe('demo-rotated-array-search');
-      expect(result.sceneCanvas.elements).toHaveLength(25); // 7 array cells + 7 index texts + 4 captions + 7 array cells
-      expect(result.sceneCanvas.groups).toHaveLength(14); // 7 array groups + 7 index groups
+      expect(result.sceneCanvas.elements).toHaveLength(25);
+      expect(result.sceneCanvas.groups).toHaveLength(14);
     });
 
-    test('should have captions with proper timing', () => {
+    test('should have captions with proper timing in timeline', () => {
       const result = executeScene(scene3);
       
       const captions = result.sceneCanvas.elements.filter(el => 
@@ -278,13 +297,26 @@ describe('DSL Execution Tests', () => {
       
       expect(captions).toHaveLength(4);
       
-      // All captions should have animations
-      captions.forEach(caption => {
-        expect(caption.animations).toHaveLength(2); // fade in + fade out
+      
+      // Check that timeline animations exist for captions
+      const captionAnimations = result.sceneCanvas.timeline.animations.filter(anim => 
+        anim.name.includes('demo-step') && anim.name.includes('fade-in')
+      );
+      
+      expect(captionAnimations).toHaveLength(4);
+      
+      // All captions should have fade-in animations
+      captionAnimations.forEach(anim => {
+        expect(anim.type).toBe('fade');
+        expect(anim.tracks[0]?.property).toBe('opacity');
+        expect(anim.tracks[0]?.from).toBe(0);
+        expect(anim.tracks[0]?.to).toBe(1);
+        expect(anim.duration).toBe(0.5); // Demo step fade-in duration
+        expect(anim.easing).toBe('power1.inOut');
       });
 
       // Check sequential timing
-      const fadeInTimes = captions.map(caption => caption.animations?.[0]?.startTime);
+      const fadeInTimes = captionAnimations.map(anim => anim.startTime);
       for (let i = 1; i < fadeInTimes.length; i++) {
         expect(fadeInTimes[i]).toBeGreaterThan(fadeInTimes[i - 1]!);
       }
@@ -325,12 +357,12 @@ describe('DSL Execution Tests', () => {
       const result2 = executeScene(scene2);
 
       // Each scene should have its own timeline starting from 0
-      expect(result1.sceneCanvas.timeline.duration).toBeGreaterThan(0);
-      expect(result2.sceneCanvas.timeline.duration).toBeGreaterThan(0);
+      expect(result1.sceneCanvas.playback.duration).toBeGreaterThan(0);
+      expect(result2.sceneCanvas.playback.duration).toBeGreaterThan(0);
       
       // Both scenes should have proper durations
-      expect(result1.sceneCanvas.timeline.duration).toBeCloseTo(9.2, 1); // heading + list
-      expect(result2.sceneCanvas.timeline.duration).toBeCloseTo(5.5, 1); // codeblock
+      expect(result1.sceneCanvas.playback.duration).toBeCloseTo(9.2, 1); // heading + list
+      expect(result2.sceneCanvas.playback.duration).toBeCloseTo(5.5, 1); // codeblock
     });
   });
 });
