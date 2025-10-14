@@ -81,7 +81,6 @@ export interface ProjectConfiguration {
 export type { 
   CanvasElement, 
   CanvasGroup, 
-  Timeline,
   Scene,
   SceneCanvas
 } from './canvas';

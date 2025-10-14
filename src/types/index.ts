@@ -281,7 +281,6 @@ export type {
   CanvasGroup,
   Scene,
   SceneCanvas,
-  Timeline,
   PlaybackConfig,
   MainState,
   ProjectDocument

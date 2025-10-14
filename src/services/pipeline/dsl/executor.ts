@@ -19,6 +19,14 @@ export function executeScene(scene: any): Scene {
   // Track list order for proper title timing
   let listOrder = 0;
 
+  // Track content item metadata (group IDs and element IDs) for animation
+  const contentItemsMetadata: Array<{
+    type: string;
+    groupId?: string;
+    elementIds: string[];
+    arrayElementCount?: number; // For demo content items
+  }> = [];
+
   for (const item of scene.content) {
     switch (item.type) {
       case "heading":
@@ -43,6 +51,10 @@ export function executeScene(scene: any): Scene {
           text: item.data[0]
         }, style);
         elements.push(heading);
+        contentItemsMetadata.push({
+          type: 'heading',
+          elementIds: [heading.id]
+        });
         break;
 
       case "list":
@@ -52,6 +64,16 @@ export function executeScene(scene: any): Scene {
         }, style, listOrder);
         groups.push(...listResult.groups);
         elements.push(...listResult.elements);
+        
+        // Find the content group (it's the first group in the list)
+        const contentGroup = listResult.groups[0];
+        if (contentGroup) {
+          contentItemsMetadata.push({
+            type: 'list',
+            groupId: contentGroup.id,
+            elementIds: contentGroup.elementIds
+          });
+        }
         listOrder++;
         break;
 
@@ -62,6 +84,16 @@ export function executeScene(scene: any): Scene {
         }, style);
         groups.push(...codeblockResult.groups);
         elements.push(...codeblockResult.elements);
+        
+        // Find the code block group
+        const codeGroup = codeblockResult.groups[0];
+        if (codeGroup) {
+          contentItemsMetadata.push({
+            type: 'codeblock',
+            groupId: codeGroup.id,
+            elementIds: codeGroup.elementIds
+          });
+        }
         break;
 
       case "demo":
@@ -71,14 +103,24 @@ export function executeScene(scene: any): Scene {
         groups.push(...arrayResult.groups);
         elements.push(...arrayResult.elements);
 
+        const captionIds: string[] = [];
         item.steps.forEach((step: any, stepIndex: number) => {
           if (step.caption) {
-        const caption = ElementFactory.createCaption({
-          order: stepIndex + 1,
-          text: step.caption
-        }, style);
+            const caption = ElementFactory.createCaption({
+              order: stepIndex + 1,
+              text: step.caption
+            }, style);
             elements.push(caption);
+            captionIds.push(caption.id);
           }
+        });
+        
+        contentItemsMetadata.push({
+          type: 'demo',
+          // Store caption IDs separately for internal animations
+          elementIds: captionIds,
+          // Also store array element count for reference
+          arrayElementCount: arrayResult.elements.length
         });
         break;
     }
@@ -87,66 +129,122 @@ export function executeScene(scene: any): Scene {
   const allContentItems = timelineBuilder.getAllContentItems();
   
   allContentItems.forEach((contentItem, contentIndex) => {
-    timelineAnimations.push({
-      id: `content-${contentIndex}-fade-in`,
-      name: `${contentItem.type} fade-in`,
-      type: "fade",
-      target: { type: "group", id: `content-group-${contentIndex}` },
-      tracks: [
-        {
-          property: "opacity",
-          from: 0,
-          to: 1
-        }
-      ],
-      startTime: contentItem.startTime,
-      duration: contentItem.fadeInDuration,
-      easing: "power1.inOut",
-      repeat: 0,
-      repeatDelay: 0,
-      yoyo: false
-    });
+    const metadata = contentItemsMetadata[contentIndex];
+    if (!metadata) return;
 
-    timelineAnimations.push({
-      id: `content-${contentIndex}-fade-out`,
-      name: `${contentItem.type} fade-out`,
-      type: "fade",
-      target: { type: "group", id: `content-group-${contentIndex}` },
-      tracks: [
-        {
-          property: "opacity",
-          from: 1,
-          to: 0
-        }
-      ],
-      startTime: contentItem.visibleEnd,
-      duration: contentItem.fadeOutDuration,
-      easing: "power1.inOut",
-      repeat: 0,
-      repeatDelay: 0,
-      yoyo: false
-    });
+    const targetId = metadata.groupId || metadata.elementIds[0];
+    if (!targetId) return;
 
-    if (contentItem.internalAnimations) {
+    const targetType = metadata.groupId ? "group" : "element";
+    const fadeInTimestamp = Date.now() + contentIndex;
+    const fadeOutTimestamp = Date.now() + contentIndex + 10000;
+
+    // Skip main fade-in/fade-out for demos since they handle animations via internal animations
+    const skipMainAnimations = metadata.type === 'demo';
+
+    // Fade in animation
+    if (!skipMainAnimations) {
+      timelineAnimations.push({
+        id: `${targetId}-fade-${fadeInTimestamp}`,
+        target: { 
+          type: targetType, 
+          id: targetId 
+        },
+        tracks: [
+          {
+            id: `fade-${fadeInTimestamp}`,
+            type: "fade",
+            yoyo: false,
+            easing: "power1.inOut",
+            repeat: 0,
+            duration: contentItem.fadeInDuration,
+            startTime: contentItem.startTime,
+            properties: {
+              opacity: 1
+            },
+            displayName: "fade-in",
+            repeatDelay: 0
+          }
+        ],
+        startAt: contentItem.startTime,
+        displayName: `${contentItem.type} fade-in`
+      });
+    }
+
+    // Fade out animation
+    if (!skipMainAnimations) {
+      timelineAnimations.push({
+        id: `${targetId}-fade-${fadeOutTimestamp}`,
+        target: { 
+          type: targetType, 
+          id: targetId 
+        },
+        tracks: [
+          {
+            id: `fade-${fadeOutTimestamp}`,
+            type: "fade",
+            yoyo: false,
+            easing: "power1.inOut",
+            repeat: 0,
+            duration: contentItem.fadeOutDuration,
+            startTime: contentItem.visibleEnd,
+            properties: {
+              opacity: 0
+            },
+            displayName: "fade-out",
+            repeatDelay: 0
+          }
+        ],
+        startAt: contentItem.visibleEnd,
+        displayName: `${contentItem.type} fade-out`
+      });
+    }
+
+    // Internal animations (for list items, captions, etc.)
+    if (contentItem.internalAnimations && metadata.elementIds.length > 0) {
       contentItem.internalAnimations.forEach((internalAnim, animIndex) => {
+        // Get the corresponding element ID from metadata
+        // For lists with titles: elementIds[0] is title, items start at index 1
+        // For demos: elementIds directly contains caption IDs starting at index 0
+        let elementId: string | undefined;
+        
+        if (metadata.groupId) {
+          // This is a list - if there are more elementIds than animations, skip first one (title)
+          const offset = metadata.elementIds.length > contentItem.internalAnimations!.length ? 1 : 0;
+          elementId = metadata.elementIds[animIndex + offset];
+        } else {
+          // For demos or headings (though headings don't have internal animations)
+          elementId = metadata.elementIds[animIndex];
+        }
+        
+        if (!elementId) return;
+
+        const timestamp = Date.now() + contentIndex + animIndex + 20000;
+        
         timelineAnimations.push({
-          id: `content-${contentIndex}-internal-${animIndex}`,
-          name: `${internalAnim.id} fade-in`,
-          type: "fade",
-          target: { type: "element", id: `${internalAnim.id}-element` },
+          id: `${elementId}-fade-${timestamp}`,
+          target: { 
+            type: "element", 
+            id: elementId 
+          },
           tracks: [
             {
-              property: "opacity",
-              from: 0,
-              to: 1
+              id: `fade-${timestamp}`,
+              type: "fade",
+              yoyo: false,
+              easing: "power1.inOut",
+              repeat: 0,
+              duration: internalAnim.fadeInDuration,
+              startTime: internalAnim.startTime,
+              properties: {
+                opacity: 1
+              },
+              displayName: "fade-in",
+              repeatDelay: 0
             }
           ],
-          startTime: internalAnim.startTime,
-          duration: internalAnim.fadeInDuration,
-          easing: "power1.inOut",
-          repeat: 0,
-          repeatDelay: 0,
-          yoyo: false
+          startAt: internalAnim.startTime,
+          displayName: `element ${animIndex} fade-in`
         });
       });
     }
@@ -158,9 +256,7 @@ export function executeScene(scene: any): Scene {
     sceneCanvas: {
       groups,
       elements: elements as CanvasElement[],
-      timeline: {
-        animations: timelineAnimations
-      },
+      timeline: timelineAnimations,
       playback: {
         scale: 1,
         duration: timelineBuilder.getTotalDuration(),

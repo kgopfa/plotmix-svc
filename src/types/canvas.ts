@@ -87,24 +87,21 @@ export interface TextGradient {
 
 export interface TimelineAnimation {
   id: string;
-  name: string;
-  type: AnimationType;
   target: { type: "element" | "group"; id: string };
   tracks: Array<{
-    property: string;
-    from: number;
-    to: number;
+    id: string;
+    type: AnimationType;
+    yoyo: boolean;
+    easing: GsapEase;
+    repeat: number;
+    duration: number;
+    startTime: number;
+    properties: Record<string, any>;
+    displayName: string;
+    repeatDelay: number;
   }>;
-  startTime: number;
-  duration: number;
-  easing?: GsapEase;
-  repeat?: number;
-  repeatDelay?: number;
-  yoyo?: boolean;
-  yoyoReturnEasing?: GsapEase;
-  stagger?: number;
-  staggerFrom?: StaggerFrom;
-  staggerEase?: GsapEase;
+  startAt: number;
+  displayName: string;
 }
 
 export interface CanvasElement {
@@ -192,14 +189,10 @@ export interface PlaybackConfig {
 }
 
 
-export interface Timeline {
-  animations: TimelineAnimation[];
-}
-
 export interface SceneCanvas {
   elements: CanvasElement[];
   groups: CanvasGroup[];
-  timeline: Timeline;
+  timeline: TimelineAnimation[];
   playback: PlaybackConfig;
 }
 
@@ -217,7 +210,7 @@ export interface ProjectDimensions {
 export interface MainState {
   elements: CanvasElement[];
   groups: CanvasGroup[];
-  timeline: Timeline;
+  timeline: TimelineAnimation[];
   playback: PlaybackConfig;
   dimensions: ProjectDimensions;
 }

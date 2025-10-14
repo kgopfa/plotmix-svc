@@ -54,8 +54,9 @@ export function generateAnimationDisplayName(
   animationType: AnimationType,
   existingAnimations: TimelineAnimation[]
 ): string {
+  // Count animations whose first track has this animation type
   const sameTypeCount = existingAnimations.filter(
-    (a) => a.type === animationType && typeof a.name === 'string' && a.name.startsWith(`${animationType}-`)
+    (a) => a.tracks.length > 0 && a.tracks[0]!.type === animationType
   ).length;
   return `${animationType}-${sameTypeCount + 1}`;
 }
@@ -73,26 +74,12 @@ export function validateTimelineAnimation(obj: unknown): ValidationResult<Timeli
     return { valid: false, errors: ['Animation must be an object'] };
   }
 
+  // Validate top-level animation fields
   if (typeof a.id !== 'string' || a.id.trim() === '') errors.push('id must be a non-empty string');
-  if (typeof a.name !== 'string' || a.name.trim() === '') errors.push('name must be a non-empty string');
+  if (typeof a.displayName !== 'string' || a.displayName.trim() === '') errors.push('displayName must be a non-empty string');
+  if (!isNonNegativeNumber(a.startAt)) errors.push('startAt must be a non-negative number');
 
-  if (!isAnimationType(a.type)) errors.push(`type must be one of: ${Array.from(ANIMATION_TYPES).join(', ')}`);
-  if (!isNonNegativeNumber(a.startTime)) errors.push('startTime must be a non-negative number');
-  if (!isPositiveNumber(a.duration)) errors.push('duration must be a positive number');
-
-  if (a.easing !== undefined && !isGsapEase(a.easing)) errors.push('easing must be a valid GSAP ease');
-  if (a.yoyoReturnEasing !== undefined && !isGsapEase(a.yoyoReturnEasing)) errors.push('yoyoReturnEasing must be a valid GSAP ease');
-
-  if (a.repeat !== undefined && !(isNumber(a.repeat) && a.repeat >= -1)) errors.push('repeat must be a number >= -1');
-  if (a.repeatDelay !== undefined && !isNonNegativeNumber(a.repeatDelay)) errors.push('repeatDelay must be a non-negative number');
-  if (a.yoyo !== undefined && typeof a.yoyo !== 'boolean') errors.push('yoyo must be a boolean');
-
-  if (a.stagger !== undefined && !isNonNegativeNumber(a.stagger)) errors.push('stagger must be a non-negative number');
-  if (a.staggerFrom !== undefined && !['start', 'end', 'center'].includes(String(a.staggerFrom))) {
-    errors.push("staggerFrom must be 'start' | 'end' | 'center'");
-  }
-  if (a.staggerEase !== undefined && !isGsapEase(a.staggerEase)) errors.push('staggerEase must be a valid GSAP ease');
-
+  // Validate target
   if (!a.target || typeof a.target !== 'object') {
     errors.push('target must be an object');
   } else {
@@ -104,21 +91,45 @@ export function validateTimelineAnimation(obj: unknown): ValidationResult<Timeli
     }
   }
 
+  // Validate tracks
   if (!Array.isArray(a.tracks)) {
     errors.push('tracks must be an array');
+  } else if (a.tracks.length === 0) {
+    errors.push('tracks must have at least one track');
   } else {
     a.tracks.forEach((track, index) => {
       if (!track || typeof track !== 'object') {
         errors.push(`tracks[${index}] must be an object`);
       } else {
-        if (typeof track.property !== 'string') {
-          errors.push(`tracks[${index}].property must be a string`);
+        if (typeof track.id !== 'string' || track.id.trim() === '') {
+          errors.push(`tracks[${index}].id must be a non-empty string`);
         }
-        if (!isNumber(track.from)) {
-          errors.push(`tracks[${index}].from must be a number`);
+        if (!isAnimationType(track.type)) {
+          errors.push(`tracks[${index}].type must be one of: ${Array.from(ANIMATION_TYPES).join(', ')}`);
         }
-        if (!isNumber(track.to)) {
-          errors.push(`tracks[${index}].to must be a number`);
+        if (typeof track.yoyo !== 'boolean') {
+          errors.push(`tracks[${index}].yoyo must be a boolean`);
+        }
+        if (!isGsapEase(track.easing)) {
+          errors.push(`tracks[${index}].easing must be a valid GSAP ease`);
+        }
+        if (!(isNumber(track.repeat) && track.repeat >= -1)) {
+          errors.push(`tracks[${index}].repeat must be a number >= -1`);
+        }
+        if (!isPositiveNumber(track.duration)) {
+          errors.push(`tracks[${index}].duration must be a positive number`);
+        }
+        if (!isNonNegativeNumber(track.startTime)) {
+          errors.push(`tracks[${index}].startTime must be a non-negative number`);
+        }
+        if (!track.properties || typeof track.properties !== 'object') {
+          errors.push(`tracks[${index}].properties must be an object`);
+        }
+        if (typeof track.displayName !== 'string' || track.displayName.trim() === '') {
+          errors.push(`tracks[${index}].displayName must be a non-empty string`);
+        }
+        if (!isNonNegativeNumber(track.repeatDelay)) {
+          errors.push(`tracks[${index}].repeatDelay must be a non-negative number`);
         }
       }
     });
@@ -153,12 +164,6 @@ export function validateTimelineAnimationArray(
     if (!res.valid) {
       errors.push(`animations[${i}] invalid: ${res.errors.join('; ')}`);
     } else if (res.value) {
-      // Enforce name matches "<type>-<number>"
-      const { type, name } = res.value;
-      const match = new RegExp(`^${type}-\\d+$`).test(name);
-      if (!match) {
-        errors.push(`animations[${i}].name must match pattern "${type}-<number>"`);
-      }
       validated.push(res.value);
     }
   }
@@ -178,8 +183,12 @@ export function computeExpectedDisplayNames(
   const counts: Partial<Record<AnimationType, number>> = {};
 
   for (const anim of animations) {
-    counts[anim.type] = (counts[anim.type] ?? 0) + 1;
-    expected[anim.id] = `${anim.type}-${counts[anim.type]}`;
+    // Use the first track's type as the animation type
+    if (anim.tracks.length > 0) {
+      const type = anim.tracks[0]!.type;
+      counts[type] = (counts[type] ?? 0) + 1;
+      expected[anim.id] = `${type}-${counts[type]}`;
+    }
   }
   return expected;
 }
@@ -207,17 +216,20 @@ export function assignAnimationIdentifiers(
   const counts: Partial<Record<AnimationType, number>> = {};
 
   return animations.map((anim) => {
-    const type = anim.type;
+    // Use the first track's type as the animation type
+    if (anim.tracks.length === 0) return anim;
+    
+    const type = anim.tracks[0]!.type;
     counts[type] = (counts[type] ?? 0) + 1;
 
     const needNewId = regenerateIds || typeof anim.id !== 'string' || anim.id.trim() === '';
     const id = needNewId ? generateAnimationId(type) : anim.id;
 
-    const expectedName = `${type}-${counts[type]}`;
-    const needName = recomputeDisplayNames || !isValidDisplayNameForType(type, anim.name);
-    const name = needName ? expectedName : anim.name;
+    const expectedDisplayName = `${type}-${counts[type]}`;
+    const needDisplayName = recomputeDisplayNames || !isValidDisplayNameForType(type, anim.displayName);
+    const displayName = needDisplayName ? expectedDisplayName : anim.displayName;
 
-    return { ...anim, id, name };
+    return { ...anim, id, displayName };
   });
 }
 
