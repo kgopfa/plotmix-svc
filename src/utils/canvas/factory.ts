@@ -253,8 +253,8 @@ export class ElementFactory {
     const elements: CanvasElement[] = [];
     const groups: CanvasGroup[] = [];
     
-    // Position lists using grid system
-    const { x: startX, y: startY } = getCanvasGrid().getNextPosition('list', 'CONTENT_START');
+    // Position lists using grid system with larger spacing to prevent overlaps
+    const { x: startX, y: startY } = getCanvasGrid().getNextPosition('list', 'CONTENT_START', 300);
     const itemSpacing = 50; // Vertical spacing between items
     
     // Create content item group for fade-out animation
@@ -348,7 +348,7 @@ export class ElementFactory {
     const groups: CanvasGroup[] = [];
     const elements: CanvasElement[] = [];
     
-    const { x: codeblockX, y: codeblockY } = getCanvasGrid().getNextPosition('codeblock', 'CONTENT_START');
+    const { x: codeblockX, y: codeblockY } = getCanvasGrid().getNextPosition('codeblock', 'CONTENT_START', 300);
     
     const groupId = randomUUID();
     

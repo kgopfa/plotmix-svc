@@ -4,6 +4,177 @@ type LlmMessage = { role: Role; content: string };
 
 export class PromptTemplates {
   /**
+   * Router (LLM #0) - determines which pipeline to execute based on user intent
+   */
+  static router(prompt: string): LlmMessage[] {
+    return [
+      {
+        role: 'system',
+        content: `You are a request router that analyzes user prompts and determines the appropriate pipeline to execute.
+
+TASK:
+Analyze the user's prompt and classify it into one of these pipeline types:
+
+1. "algorithm" - Complex algorithmic/educational content requiring full pipeline
+   Examples: "Binary search", "Two pointer technique", "Explain quicksort"
+   
+2. "simple_scene" - Direct scene creation with specific elements
+   Examples: "Create a scene with a list", "Show a heading and codeblock", "Make an array with 5 elements"
+   
+3. "direct_dsl" - User provides explicit scene structure/DSL
+   Examples: "Create 3 scenes with...", "Scene 1 should have...", structured instructions
+
+RESPONSE FORMAT:
+Return ONLY valid JSON with this exact structure:
+{
+  "pipelineType": "algorithm|simple_scene|direct_dsl",
+  "reasoning": "Brief explanation of why you chose this pipeline (1 sentence)",
+  "extractedIntent": {
+    "topic": "string (for algorithm)",
+    "sceneRequirements": ["array of specific requirements (for simple_scene)"],
+    "structure": "string (for direct_dsl)"
+  }
+}
+
+CLASSIFICATION RULES:
+- If prompt mentions algorithms, data structures, complexity, or educational concepts → "algorithm"
+- If prompt is a simple request for specific elements/scenes without algorithmic context → "simple_scene"
+- If prompt describes explicit scene structure or multiple scenes with specific content → "direct_dsl"
+- Default to "simple_scene" if unclear
+
+OUTPUT REQUIREMENTS:
+- ONLY JSON, no markdown, no explanations outside JSON
+- Must be parseable by JSON.parse()
+- Response must start with { and end with }`
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ];
+  }
+
+  /**
+   * Simple Scene Generator - for direct scene creation requests
+   */
+  static simpleSceneGenerator(prompt: string, extractedIntent?: any): LlmMessage[] {
+    return [
+      {
+        role: 'system',
+        content: `You are a JSON generator that creates simple educational scenes based on user requests.
+
+RESPONSE FORMAT:
+- Output ONLY valid JSON. No prose, no markdown fences, no explanations.
+- Your response must start with { and end with }
+- The JSON must be parseable by JSON.parse() without preprocessing
+
+OUTPUT STRUCTURE:
+{
+  "scenes": [
+    {
+      "id": "scene-id-kebab-case",
+      "name": "Human Friendly Scene Name",
+      "content": [
+        {
+          "type": "heading|list|codeblock|demo",
+          "data": [...],
+          "title": "optional title for lists/codeblocks"
+        }
+      ]
+    }
+  ]
+}
+
+CONTENT ITEM TYPES:
+{
+  "type": "heading",
+  "data": ["Single title string"]
+}
+
+{
+  "type": "list",
+  "data": ["item1", "item2", "item3"],
+  "title": "List Title"
+}
+
+{
+  "type": "codeblock",
+  "data": ["code as single string with \\n for newlines"],
+  "title": "Code Title"
+}
+
+{
+  "type": "demo",
+  "dataStructure": {
+    "type": "array",
+    "data": [1, 2, 3, 4, 5]
+  },
+  "steps": [
+    {
+      "actions": [
+        {"type": "highlight", "indices": [0]}
+      ],
+      "caption": "What's happening"
+    }
+  ]
+}
+
+RULES:
+1. Every scene must have id (kebab-case), name (human-friendly), and content array
+2. Every content item must have a "type" field
+3. heading data is an array with one string
+4. list data is an array of strings (2-5 items)
+5. codeblock data is an array with one string (use \\n for line breaks)
+6. All data fields must be arrays
+7. Keep it simple - create exactly what the user asked for
+8. If user didn't specify content, use placeholder/example content
+9. Use 0-based array indices for demos
+
+EXAMPLES:
+Request: "Create a scene with a list"
+Response:
+{
+  "scenes": [{
+    "id": "simple-list-scene",
+    "name": "Example List",
+    "content": [{
+      "type": "list",
+      "title": "Items",
+      "data": ["First item", "Second item", "Third item"]
+    }]
+  }]
+}
+
+Request: "Show a heading and a list"
+Response:
+{
+  "scenes": [{
+    "id": "heading-and-list",
+    "name": "Example Scene",
+    "content": [
+      {
+        "type": "heading",
+        "data": ["Main Title"]
+      },
+      {
+        "type": "list",
+        "title": "Details",
+        "data": ["Point one", "Point two", "Point three"]
+      }
+    ]
+  }]
+}`
+      },
+      {
+        role: 'user',
+        content: extractedIntent ? 
+          `Create a scene based on this request:\n\nOriginal prompt: ${prompt}\n\nExtracted requirements: ${JSON.stringify(extractedIntent)}` :
+          prompt
+      }
+    ];
+  }
+
+  /**
    * Content Planner (LLM #1) - turns abstract prompt into structured plan
    */
   static contentPlanner(prompt: string): LlmMessage[] {
@@ -197,9 +368,6 @@ export class PromptTemplates {
     ];
   }
 
-  /**
- * JSON Emitter (LLM #3) - turns Content Plan + Animation Plan into JSON structure
- */
   /**
  * JSON Emitter (LLM #3) - turns Content Plan + Animation Plan into JSON structure
  */

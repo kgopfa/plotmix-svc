@@ -186,21 +186,23 @@ export function calculateOptimalCellDimensions(
  * Grid positioning system for canvas elements
  */
 export class CanvasGrid {
-  private elementCounts: Record<string, number> = {};
+  private zoneCounts: Record<string, number> = {};
   
   /**
-   * Get next position for a specific element type
+   * Get next position for a specific zone
+   * Multiple element types can share the same zone
    */
   getNextPosition(
-    elementType: string,
+    _elementType: string,
     zone: keyof typeof ZONES,
     spacing: number = GRID_UNIT
   ): { x: number; y: number } {
-    const count = this.elementCounts[elementType] || 0;
+    // Track by zone, not element type, so elements in the same zone stack properly
+    const count = this.zoneCounts[zone] || 0;
     const y = getStackedPosition(ZONES[zone], count, spacing);
     const x = getCenteredX();
     
-    this.elementCounts[elementType] = count + 1;
+    this.zoneCounts[zone] = count + 1;
     
     return { x, y };
   }
@@ -224,13 +226,13 @@ export class CanvasGrid {
    * Reset counters for new scene
    */
   reset(): void {
-    this.elementCounts = {};
+    this.zoneCounts = {};
   }
   
   /**
-   * Get current count for element type
+   * Get current count for zone
    */
-  getCount(elementType: string): number {
-    return this.elementCounts[elementType] || 0;
+  getCount(zone: keyof typeof ZONES): number {
+    return this.zoneCounts[zone] || 0;
   }
 }
