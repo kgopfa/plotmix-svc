@@ -6,8 +6,10 @@ import {
   getCappedTextWidth, 
   getArrayPositions,
   calculateOptimalCellDimensions,
+  calculateTextHeight,
   CanvasGrid,
-  ZONES
+  ZONES,
+  TEXT_WIDTH_CAPS
 } from './canvas-grid';
 import { 
   createTextEl, 
@@ -177,13 +179,25 @@ export class ElementFactory {
     
     // Create caption text element with proper width calculation
     const captionFontSize = style.typography.size * 0.9;
+    const captionMaxWidth = TEXT_WIDTH_CAPS.CAPTION;
     const captionWidth = getCappedTextWidth(
       data.text, 
       captionFontSize, 
       style.typography.family, 
       'CAPTION'
     );
-    const captionHeight = style.typography.size * 1.5;
+    
+    // Calculate actual height considering wrapping
+    const { height: captionHeight, lineCount: captionLines } = calculateTextHeight(
+      data.text,
+      captionFontSize,
+      style.typography.family,
+      captionMaxWidth,
+      'normal',
+      1.2
+    );
+    
+    const needsWrapping = captionLines > 1;
     
     const caption = createTextEl({
       text: data.text,
@@ -200,6 +214,12 @@ export class ElementFactory {
       name: `Caption ${data.order}`
     });
 
+    // Enable word wrapping if needed
+    if (needsWrapping) {
+      caption.wordWrap = true;
+      caption.wordWrapWidth = captionMaxWidth;
+    }
+
     // Set fill color from style
     caption.fill = style.palette.text;
 
@@ -215,6 +235,7 @@ export class ElementFactory {
     
     // Create heading text element with proper width calculation
     const headingFontSize = style.typography.size * 1.5;
+    const headingMaxWidth = TEXT_WIDTH_CAPS.HEADING;
     const headingWidth = getCappedTextWidth(
       data.text, 
       headingFontSize, 
@@ -222,7 +243,18 @@ export class ElementFactory {
       'HEADING',
       'bold'
     );
-    const headingHeight = style.typography.size * 2;
+    
+    // Calculate actual height considering wrapping
+    const { height: headingHeight, lineCount: headingLines } = calculateTextHeight(
+      data.text,
+      headingFontSize,
+      style.typography.family,
+      headingMaxWidth,
+      'bold',
+      1.2
+    );
+    
+    const needsWrapping = headingLines > 1;
     
     const heading = createTextEl({
       text: data.text,
@@ -238,6 +270,12 @@ export class ElementFactory {
       opacity: 1, // Always visible
       name: 'Heading'
     });
+
+    // Enable word wrapping if needed
+    if (needsWrapping) {
+      heading.wordWrap = true;
+      heading.wordWrapWidth = headingMaxWidth;
+    }
 
     // Set fill color from style
     heading.fill = style.palette.text;
@@ -255,7 +293,7 @@ export class ElementFactory {
     
     // Position lists using grid system with larger spacing to prevent overlaps
     const { x: startX, y: startY } = getCanvasGrid().getNextPosition('list', 'CONTENT_START', 300);
-    const itemSpacing = 50; // Vertical spacing between items
+    const baseItemSpacing = 10; // Base spacing between items
     
     // Create content item group for fade-out animation
     const contentGroupId = randomUUID();
@@ -270,9 +308,13 @@ export class ElementFactory {
     
     groups.push(contentGroup);
     
+    // Track cumulative Y position for proper spacing
+    let currentY = startY;
+    
     // Add title if present - with proper timing (appears first)
     if (data.title) {
       const titleFontSize = style.typography.size * 0.9;
+      const titleMaxWidth = TEXT_WIDTH_CAPS.LIST_TITLE;
       const titleWidth = getCappedTextWidth(
         data.title, 
         titleFontSize, 
@@ -281,12 +323,24 @@ export class ElementFactory {
         'bold'
       );
       
+      // Calculate actual height considering wrapping
+      const { height: titleHeight, lineCount: titleLines } = calculateTextHeight(
+        data.title,
+        titleFontSize,
+        style.typography.family,
+        titleMaxWidth,
+        'bold',
+        1.2
+      );
+      
+      const needsWrapping = titleLines > 1;
+      
       const title = createTextEl({
         text: data.title,
         x: startX,
-        y: startY - 40, // Above the list items
+        y: currentY,
         width: titleWidth,
-        height: style.typography.size * 1.2,
+        height: titleHeight,
         fontSize: titleFontSize,
         fontFamily: style.typography.family,
         fontWeight: 'bold',
@@ -297,30 +351,52 @@ export class ElementFactory {
         name: `List Title ${listOrder || 'Unknown'}`
       });
 
+      // Enable word wrapping if needed
+      if (needsWrapping) {
+        title.wordWrap = true;
+        title.wordWrapWidth = titleMaxWidth;
+      }
+
       // Set fill color from style
       title.fill = style.palette.text;
       
       elements.push(title);
       contentGroup.elementIds.push(title.id);
+      
+      // Move Y position down by title height plus spacing
+      currentY += titleHeight + 30; // Extra spacing after title
     }
     
     data.data.forEach((item, index) => {
       const itemFontSize = style.typography.size * 0.8;
-      const itemY = startY + (index * itemSpacing);
+      const itemText = `• ${item}`;
+      const itemMaxWidth = TEXT_WIDTH_CAPS.LIST_ITEM;
       
       const itemWidth = getCappedTextWidth(
-        `• ${item}`, 
+        itemText, 
         itemFontSize, 
         style.typography.family, 
         'LIST_ITEM'
       );
       
+      // Calculate actual height considering wrapping
+      const { height: itemHeight, lineCount: itemLines } = calculateTextHeight(
+        itemText,
+        itemFontSize,
+        style.typography.family,
+        itemMaxWidth,
+        'normal',
+        1.2
+      );
+      
+      const needsWrapping = itemLines > 1;
+      
       const listItemElement = createTextEl({
-        text: `• ${item}`, // Add bullet point
+        text: itemText,
         x: startX,
-        y: itemY,
+        y: currentY,
         width: itemWidth,
-        height: style.typography.size * 1.1,
+        height: itemHeight,
         fontSize: itemFontSize,
         fontFamily: style.typography.family,
         fontWeight: 'normal',
@@ -331,12 +407,25 @@ export class ElementFactory {
         name: `List Item ${index}`
       });
 
+      // Enable word wrapping if needed
+      if (needsWrapping) {
+        listItemElement.wordWrap = true;
+        listItemElement.wordWrapWidth = itemMaxWidth;
+      }
+
       // Set fill color from style
       listItemElement.fill = style.palette.text;
       
       elements.push(listItemElement);
       contentGroup.elementIds.push(listItemElement.id);
+      
+      // Move Y position down by item height plus base spacing
+      currentY += itemHeight + baseItemSpacing;
     });
+    
+    // Calculate total height of list content and advance the zone
+    const totalListHeight = currentY - startY;
+    getCanvasGrid().advanceZone('CONTENT_START', totalListHeight, 20);
     
     return { groups, elements };
   }
@@ -443,6 +532,9 @@ export class ElementFactory {
     
     elements.push(rectangle, codeTextElement);
     groups.push(codeGroup);
+    
+    // Advance the zone by the codeblock height (title is above, so just account for block)
+    getCanvasGrid().advanceZone('CONTENT_START', codeBlockHeight, 20);
     
     return { groups, elements };
   }

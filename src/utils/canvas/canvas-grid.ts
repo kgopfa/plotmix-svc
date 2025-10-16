@@ -49,6 +49,56 @@ export function calculateTextWidth(
 }
 
 /**
+ * Calculate the height of text accounting for word wrapping
+ * Returns the actual height the text will occupy when rendered
+ */
+export function calculateTextHeight(
+  text: string,
+  fontSize: number,
+  fontFamily: string,
+  maxWidth: number,
+  fontWeight: string = 'normal',
+  lineHeight: number = 1.2
+): { height: number; lineCount: number } {
+  // Calculate actual text width
+  const actualWidth = calculateTextWidth(text, fontSize, fontFamily, fontWeight);
+  
+  // If text fits within maxWidth, it's single line
+  if (actualWidth <= maxWidth) {
+    return {
+      height: fontSize * lineHeight,
+      lineCount: 1
+    };
+  }
+  
+  // Estimate number of lines needed by word wrapping
+  // This is an approximation: split by words and measure
+  const words = text.split(/\s+/);
+  let currentLineWidth = 0;
+  let lineCount = 1;
+  const spaceWidth = calculateTextWidth(' ', fontSize, fontFamily, fontWeight);
+  
+  for (const word of words) {
+    const wordWidth = calculateTextWidth(word, fontSize, fontFamily, fontWeight);
+    
+    // Check if adding this word would exceed maxWidth
+    if (currentLineWidth + wordWidth + (currentLineWidth > 0 ? spaceWidth : 0) > maxWidth) {
+      // Start new line
+      lineCount++;
+      currentLineWidth = wordWidth;
+    } else {
+      // Add to current line
+      currentLineWidth += wordWidth + (currentLineWidth > 0 ? spaceWidth : 0);
+    }
+  }
+  
+  return {
+    height: fontSize * lineHeight * lineCount,
+    lineCount
+  };
+}
+
+/**
  * Calculate word wrap width for text elements
  * This determines the maximum width before text should wrap
  */
@@ -187,6 +237,7 @@ export function calculateOptimalCellDimensions(
  */
 export class CanvasGrid {
   private zoneCounts: Record<string, number> = {};
+  private zoneCurrentY: Record<string, number> = {};
   
   /**
    * Get next position for a specific zone
@@ -197,14 +248,31 @@ export class CanvasGrid {
     zone: keyof typeof ZONES,
     spacing: number = GRID_UNIT
   ): { x: number; y: number } {
-    // Track by zone, not element type, so elements in the same zone stack properly
-    const count = this.zoneCounts[zone] || 0;
-    const y = getStackedPosition(ZONES[zone], count, spacing);
+    // Use cumulative Y position if available, otherwise use base zone Y
+    const currentY = this.zoneCurrentY[zone];
+    const y = currentY !== undefined ? currentY : ZONES[zone];
     const x = getCenteredX();
     
-    this.zoneCounts[zone] = count + 1;
+    // Update cumulative Y for next element (will be overridden by advanceZone if height is known)
+    this.zoneCurrentY[zone] = y + spacing;
+    this.zoneCounts[zone] = (this.zoneCounts[zone] || 0) + 1;
     
     return { x, y };
+  }
+  
+  /**
+   * Advance the Y position in a zone by a specific height
+   * Call this after creating an element to account for its actual height
+   */
+  advanceZone(
+    zone: keyof typeof ZONES,
+    height: number,
+    spacing: number = GRID_UNIT
+  ): void {
+    const currentY = this.zoneCurrentY[zone];
+    if (currentY !== undefined) {
+      this.zoneCurrentY[zone] = currentY + height + spacing;
+    }
   }
   
   /**
@@ -227,6 +295,7 @@ export class CanvasGrid {
    */
   reset(): void {
     this.zoneCounts = {};
+    this.zoneCurrentY = {};
   }
   
   /**
