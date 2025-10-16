@@ -197,5 +197,69 @@ describe('Simple Scene Tests - Router & Positioning', () => {
       expect(verticalGap).toBeGreaterThanOrEqual(60); // GRID_UNIT
     });
   });
+
+  describe('List Item Alignment', () => {
+    const listAlignmentScene = {
+      "id": "list-alignment-test",
+      "name": "List Alignment Test",
+      "content": [
+        {
+          "type": "list",
+          "title": "Alignment Test",
+          "data": ["Short", "This is a much longer list item", "Medium length"]
+        }
+      ]
+    };
+
+    test('list items should be left-aligned using pivotX', () => {
+      const result = executeScene(listAlignmentScene);
+      
+      const listItems = result.sceneCanvas.elements.filter(el => 
+        el.name?.includes('List Item')
+      );
+      
+      expect(listItems.length).toBe(3);
+      
+      // All list items should have pivotX = 0 (left-aligned)
+      listItems.forEach(item => {
+        expect(item.pivotX).toBe(0);
+      });
+      
+      // All list items should have the same x position
+      const xPositions = listItems.map(item => item.x);
+      const uniqueXPositions = new Set(xPositions);
+      expect(uniqueXPositions.size).toBe(1);
+      
+      // Calculate left edge for each item (x - pivotX)
+      const leftEdges = listItems.map(item => item.x - (item.pivotX ?? 0));
+      const uniqueLeftEdges = new Set(leftEdges);
+      
+      // All items should have the same left edge
+      expect(uniqueLeftEdges.size).toBe(1);
+    });
+
+    test('list title should be left-aligned with items', () => {
+      const result = executeScene(listAlignmentScene);
+      
+      const listTitle = result.sceneCanvas.elements.find(el => 
+        el.name?.includes('List Title')
+      );
+      const listItems = result.sceneCanvas.elements.filter(el => 
+        el.name?.includes('List Item')
+      );
+      
+      expect(listTitle).toBeDefined();
+      expect(listItems.length).toBeGreaterThan(0);
+      
+      // Title should also have pivotX = 0
+      expect(listTitle!.pivotX).toBe(0);
+      
+      // Title and items should have the same left edge
+      const titleLeftEdge = listTitle!.x - (listTitle!.pivotX ?? 0);
+      const itemLeftEdge = listItems[0]!.x - (listItems[0]!.pivotX ?? 0);
+      
+      expect(titleLeftEdge).toBe(itemLeftEdge);
+    });
+  });
 });
 

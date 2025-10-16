@@ -17,6 +17,8 @@ export interface TextElConfig {
   opacity?: number;
   groupId?: string;
   name?: string;
+  pivotX?: number;
+  pivotY?: number;
 }
 
 export function createTextEl(config: TextElConfig): CanvasElement {
@@ -33,7 +35,9 @@ export function createTextEl(config: TextElConfig): CanvasElement {
     zIndex = 1,
     opacity = 1,
     groupId = '',
-    name = 'Text'
+    name = 'Text',
+    pivotX = width / 2,
+    pivotY = height / 2
   } = config;
 
   return {
@@ -46,8 +50,8 @@ export function createTextEl(config: TextElConfig): CanvasElement {
     type: 'text',
     width,
     height,
-    pivotX: width / 2,
-    pivotY: height / 2,
+    pivotX,
+    pivotY,
     zIndex,
     groupId,
     opacity,

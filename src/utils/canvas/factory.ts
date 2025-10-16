@@ -348,7 +348,9 @@ export class ElementFactory {
         zIndex: 5,
         opacity: 0, // Start invisible for fade-in
         groupId: contentGroupId,
-        name: `List Title ${listOrder || 'Unknown'}`
+        name: `List Title ${listOrder || 'Unknown'}`,
+        pivotX: 0, // Left-align the text
+        pivotY: titleHeight / 2
       });
 
       // Enable word wrapping if needed
@@ -404,7 +406,9 @@ export class ElementFactory {
         zIndex: 5,
         opacity: 0, // Start invisible for fade-in
         groupId: contentGroupId,
-        name: `List Item ${index}`
+        name: `List Item ${index}`,
+        pivotX: 0, // Left-align the text
+        pivotY: itemHeight / 2
       });
 
       // Enable word wrapping if needed
