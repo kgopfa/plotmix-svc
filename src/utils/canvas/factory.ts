@@ -280,6 +280,9 @@ export class ElementFactory {
     // Set fill color from style
     heading.fill = style.palette.text;
 
+    // Advance the TOP zone by heading height plus spacing (100px gap before next content)
+    getCanvasGrid().advanceZone('TOP', headingHeight, 100);
+
     return heading;
   }
 
@@ -291,8 +294,13 @@ export class ElementFactory {
     const elements: CanvasElement[] = [];
     const groups: CanvasGroup[] = [];
     
-    // Position lists using grid system with larger spacing to prevent overlaps
-    const { x: startX, y: startY } = getCanvasGrid().getNextPosition('list', 'CONTENT_START', 300);
+    // Check if we should use TOP zone (continued from heading) or SUBTITLE zone
+    const grid = getCanvasGrid();
+    const topZoneY = grid['zoneCurrentY']['TOP'];
+    const useTopZone = topZoneY !== undefined; // TOP zone has been used (heading exists)
+    
+    const listZone = useTopZone ? 'TOP' : 'SUBTITLE';
+    const { x: startX, y: startY } = grid.getNextPosition('list', listZone, 300);
     const baseItemSpacing = 10; // Base spacing between items
     
     // Create content item group for fade-out animation
@@ -315,16 +323,9 @@ export class ElementFactory {
     if (data.title) {
       const titleFontSize = style.typography.size * 0.9;
       const titleMaxWidth = TEXT_WIDTH_CAPS.LIST_TITLE;
-      const titleWidth = getCappedTextWidth(
-        data.title, 
-        titleFontSize, 
-        style.typography.family, 
-        'LIST_TITLE',
-        'bold'
-      );
       
       // Calculate actual height considering wrapping
-      const { height: titleHeight, lineCount: titleLines } = calculateTextHeight(
+      const { height: titleHeight } = calculateTextHeight(
         data.title,
         titleFontSize,
         style.typography.family,
@@ -333,13 +334,11 @@ export class ElementFactory {
         1.2
       );
       
-      const needsWrapping = titleLines > 1;
-      
       const title = createTextEl({
         text: data.title,
         x: startX,
         y: currentY,
-        width: titleWidth,
+        width: titleMaxWidth, // Use max width for consistent alignment
         height: titleHeight,
         fontSize: titleFontSize,
         fontFamily: style.typography.family,
@@ -353,11 +352,9 @@ export class ElementFactory {
         pivotY: titleHeight / 2
       });
 
-      // Enable word wrapping if needed
-      if (needsWrapping) {
-        title.wordWrap = true;
-        title.wordWrapWidth = titleMaxWidth;
-      }
+      // Always enable word wrapping for consistent left-alignment
+      title.wordWrap = true;
+      title.wordWrapWidth = titleMaxWidth;
 
       // Set fill color from style
       title.fill = style.palette.text;
@@ -365,8 +362,8 @@ export class ElementFactory {
       elements.push(title);
       contentGroup.elementIds.push(title.id);
       
-      // Move Y position down by title height plus spacing
-      currentY += titleHeight + 30; // Extra spacing after title
+      // Move Y position down by title height plus spacing (100px gap before first item)
+      currentY += titleHeight + 100;
     }
     
     data.data.forEach((item, index) => {
@@ -374,15 +371,8 @@ export class ElementFactory {
       const itemText = `• ${item}`;
       const itemMaxWidth = TEXT_WIDTH_CAPS.LIST_ITEM;
       
-      const itemWidth = getCappedTextWidth(
-        itemText, 
-        itemFontSize, 
-        style.typography.family, 
-        'LIST_ITEM'
-      );
-      
       // Calculate actual height considering wrapping
-      const { height: itemHeight, lineCount: itemLines } = calculateTextHeight(
+      const { height: itemHeight } = calculateTextHeight(
         itemText,
         itemFontSize,
         style.typography.family,
@@ -391,13 +381,11 @@ export class ElementFactory {
         1.2
       );
       
-      const needsWrapping = itemLines > 1;
-      
       const listItemElement = createTextEl({
         text: itemText,
         x: startX,
         y: currentY,
-        width: itemWidth,
+        width: itemMaxWidth, // Use max width for consistent alignment
         height: itemHeight,
         fontSize: itemFontSize,
         fontFamily: style.typography.family,
@@ -411,11 +399,9 @@ export class ElementFactory {
         pivotY: itemHeight / 2
       });
 
-      // Enable word wrapping if needed
-      if (needsWrapping) {
-        listItemElement.wordWrap = true;
-        listItemElement.wordWrapWidth = itemMaxWidth;
-      }
+      // Always enable word wrapping for consistent left-alignment
+      listItemElement.wordWrap = true;
+      listItemElement.wordWrapWidth = itemMaxWidth;
 
       // Set fill color from style
       listItemElement.fill = style.palette.text;
@@ -429,7 +415,18 @@ export class ElementFactory {
     
     // Calculate total height of list content and advance the zone
     const totalListHeight = currentY - startY;
-    getCanvasGrid().advanceZone('CONTENT_START', totalListHeight, 20);
+    
+    // Advance the zone that was used
+    grid.advanceZone(listZone, totalListHeight, 20);
+    
+    // Synchronize CONTENT_START zone so subsequent content knows where to continue
+    // Copy the advanced zone's position to CONTENT_START
+    const advancedZoneY = grid['zoneCurrentY'][listZone];
+    const contentStartCurrentY = grid['zoneCurrentY']['CONTENT_START'];
+    
+    if (advancedZoneY !== undefined && (contentStartCurrentY === undefined || advancedZoneY > contentStartCurrentY)) {
+      grid['zoneCurrentY']['CONTENT_START'] = advancedZoneY;
+    }
     
     return { groups, elements };
   }
