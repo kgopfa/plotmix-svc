@@ -9,7 +9,6 @@ describe('Simple Scene Tests - Router & Positioning', () => {
       "content": [
         {
           "type": "list",
-          "title": "Test List",
           "data": ["Item 1", "Item 2", "Item 3"]
         }
       ]
@@ -30,15 +29,26 @@ describe('Simple Scene Tests - Router & Positioning', () => {
         el.name?.includes('List')
       );
       
-      expect(listElements.length).toBe(4); // Title + 3 items
+      expect(listElements.length).toBe(3); // 3 items (no title)
       
-      // All list elements should have the same x position (centered)
+      // All list elements should have the same x position
       const xPositions = listElements.map(el => el.x);
       expect(new Set(xPositions).size).toBe(1); // All x positions should be the same
       
       // List items should have different y positions (stacked vertically)
       const yPositions = listElements.map(el => el.y);
-      expect(new Set(yPositions).size).toBe(4); // All y positions should be different
+      expect(new Set(yPositions).size).toBe(3); // All y positions should be different
+    });
+
+    test('first list item should start at -360 when no heading present', () => {
+      const result = executeScene(singleListScene);
+      
+      const firstListItem = result.sceneCanvas.elements.find(el => 
+        el.name === 'List Item 0'
+      );
+      
+      expect(firstListItem).toBeDefined();
+      expect(firstListItem!.y).toBe(-360);
     });
   });
 
@@ -53,7 +63,6 @@ describe('Simple Scene Tests - Router & Positioning', () => {
         },
         {
           "type": "list",
-          "title": "Details",
           "data": ["Point 1", "Point 2"]
         }
       ]
@@ -70,28 +79,48 @@ describe('Simple Scene Tests - Router & Positioning', () => {
       );
       
       expect(heading).toBeDefined();
-      expect(listElements.length).toBe(3); // Title + 2 items
+      expect(listElements.length).toBe(2); // 2 items (no title)
     });
 
     test('heading and list should not overlap', () => {
       const result = executeScene(headingListScene);
       
       const heading = result.sceneCanvas.elements.find(el => el.name === 'Heading');
-      const listTitle = result.sceneCanvas.elements.find(el => 
-        el.name?.includes('List Title')
+      const firstListItem = result.sceneCanvas.elements.find(el => 
+        el.name === 'List Item 0'
       );
       
       expect(heading).toBeDefined();
-      expect(listTitle).toBeDefined();
+      expect(firstListItem).toBeDefined();
       
       // Heading should be above list (more negative y)
-      expect(heading!.y).toBeLessThan(listTitle!.y);
+      expect(heading!.y).toBeLessThan(firstListItem!.y);
       
       // They should not overlap vertically
       const headingBottom = heading!.y + (heading!.height / 2);
-      const listTop = listTitle!.y - (listTitle!.height / 2);
+      const listTop = firstListItem!.y - (firstListItem!.height / 2);
       
       expect(headingBottom).toBeLessThan(listTop);
+    });
+
+    test('heading and list should have 100px gap', () => {
+      const result = executeScene(headingListScene);
+      
+      const heading = result.sceneCanvas.elements.find(el => el.name === 'Heading');
+      const firstListItem = result.sceneCanvas.elements.find(el => 
+        el.name === 'List Item 0'
+      );
+      
+      expect(heading).toBeDefined();
+      expect(firstListItem).toBeDefined();
+      
+      // Calculate the gap between heading bottom and first list item top
+      const headingBottom = heading!.y + (heading!.height / 2);
+      const listTop = firstListItem!.y - (firstListItem!.height / 2);
+      const verticalGap = listTop - headingBottom;
+      
+      // Gap should be at least 100px
+      expect(verticalGap).toBeGreaterThanOrEqual(100);
     });
   });
 
@@ -102,7 +131,6 @@ describe('Simple Scene Tests - Router & Positioning', () => {
       "content": [
         {
           "type": "list",
-          "title": "Key Points",
           "data": ["Point 1", "Point 2", "Point 3"]
         },
         {
@@ -167,12 +195,10 @@ describe('Simple Scene Tests - Router & Positioning', () => {
       "content": [
         {
           "type": "list",
-          "title": "First List",
           "data": ["Item 1", "Item 2"]
         },
         {
           "type": "list",
-          "title": "Second List",
           "data": ["Item A", "Item B"]
         }
       ]
@@ -181,20 +207,19 @@ describe('Simple Scene Tests - Router & Positioning', () => {
     test('multiple lists should stack without overlapping', () => {
       const result = executeScene(multiListScene);
       
-      const listTitles = result.sceneCanvas.elements.filter(el => 
-        el.name?.includes('List Title')
+      const allListItems = result.sceneCanvas.elements.filter(el => 
+        el.name?.includes('List Item')
       );
       
-      expect(listTitles.length).toBe(2);
+      // Should have 4 items total (2 from each list)
+      expect(allListItems.length).toBe(4);
       
-      const [firstTitle, secondTitle] = listTitles;
+      // Get first items from each list
+      const firstList = allListItems.slice(0, 2);
+      const secondList = allListItems.slice(2, 4);
       
       // Second list should be below first list
-      expect(secondTitle!.y).toBeGreaterThan(firstTitle!.y);
-      
-      // They should be separated by at least the spacing unit
-      const verticalGap = secondTitle!.y - firstTitle!.y;
-      expect(verticalGap).toBeGreaterThanOrEqual(60); // GRID_UNIT
+      expect(secondList[0]!.y).toBeGreaterThan(firstList[firstList.length - 1]!.y);
     });
   });
 
@@ -205,7 +230,6 @@ describe('Simple Scene Tests - Router & Positioning', () => {
       "content": [
         {
           "type": "list",
-          "title": "Alignment Test",
           "data": ["Short", "This is a much longer list item", "Medium length"]
         }
       ]
@@ -236,29 +260,6 @@ describe('Simple Scene Tests - Router & Positioning', () => {
       
       // All items should have the same left edge
       expect(uniqueLeftEdges.size).toBe(1);
-    });
-
-    test('list title should be left-aligned with items', () => {
-      const result = executeScene(listAlignmentScene);
-      
-      const listTitle = result.sceneCanvas.elements.find(el => 
-        el.name?.includes('List Title')
-      );
-      const listItems = result.sceneCanvas.elements.filter(el => 
-        el.name?.includes('List Item')
-      );
-      
-      expect(listTitle).toBeDefined();
-      expect(listItems.length).toBeGreaterThan(0);
-      
-      // Title should also have pivotX = 0
-      expect(listTitle!.pivotX).toBe(0);
-      
-      // Title and items should have the same left edge
-      const titleLeftEdge = listTitle!.x - (listTitle!.pivotX ?? 0);
-      const itemLeftEdge = listItems[0]!.x - (listItems[0]!.pivotX ?? 0);
-      
-      expect(titleLeftEdge).toBe(itemLeftEdge);
     });
   });
 });

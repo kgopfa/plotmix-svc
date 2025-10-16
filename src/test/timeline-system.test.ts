@@ -55,24 +55,20 @@ describe('Timeline System Tests', () => {
       const items = timelineBuilder.getAllContentItems();
       const list = items[0];
       
-      expect(list?.internalAnimations).toHaveLength(4); // title + 3 items
+      expect(list?.internalAnimations).toHaveLength(3);
       
-      // Title should start at list start time
-      expect(list?.internalAnimations?.[0]?.id).toBe('list-title');
+      // First item should start at list start time
+      expect(list?.internalAnimations?.[0]?.id).toBe('list-item-0');
       expect(list?.internalAnimations?.[0]?.startTime).toBe(list?.startTime);
-      
-      // First item should start after title
-      expect(list?.internalAnimations?.[1]?.id).toBe('list-item-0');
-      expect(list?.internalAnimations?.[1]?.startTime).toBeGreaterThan(list?.startTime!);
       expect(list?.internalAnimations?.[0]?.fadeInDuration).toBe(1.0);
       
       // Second item should start after first item + spacing
-      expect(list?.internalAnimations?.[2]?.id).toBe('list-item-1');
-      expect(list?.internalAnimations?.[2]?.startTime).toBeCloseTo(list?.startTime! + 2.0 + 0.2, 1);
+      expect(list?.internalAnimations?.[1]?.id).toBe('list-item-1');
+      expect(list?.internalAnimations?.[1]?.startTime).toBeCloseTo(list?.startTime! + 1.0 + 0.1, 1);
       
       // Third item should start after second item + spacing
-      expect(list?.internalAnimations?.[3]?.id).toBe('list-item-2');
-      expect(list?.internalAnimations?.[3]?.startTime).toBeCloseTo(list?.startTime! + 3.0 + 0.3, 1);
+      expect(list?.internalAnimations?.[2]?.id).toBe('list-item-2');
+      expect(list?.internalAnimations?.[2]?.startTime).toBeCloseTo(list?.startTime! + 2.0 + 0.2, 1);
     });
 
     test('should create internal animations for demo steps', () => {
@@ -100,35 +96,30 @@ describe('Timeline System Tests', () => {
       timelineBuilder.addList(3);
       
       const listResult = ElementFactory.createList({
-        data: ['Item 1', 'Item 2', 'Item 3'],
-        title: 'Test List'
+        data: ['Item 1', 'Item 2', 'Item 3']
       }, style, 0);
 
       const listElements = listResult.elements;
-      expect(listElements).toHaveLength(4); // 1 title + 3 items
+      expect(listElements).toHaveLength(3); // 3 items (no title)
 
       // Check that timeline animations exist for list items
       const allContentItems = timelineBuilder.getAllContentItems();
       const listItem = allContentItems[0];
       
-      expect(listItem?.internalAnimations).toHaveLength(4); // title + 3 items
+      expect(listItem?.internalAnimations).toHaveLength(3); // 3 items (no title)
       
-      // Title should start at list start time
-      expect(listItem?.internalAnimations?.[0]?.id).toBe('list-title');
+      // First item should start at list start time
+      expect(listItem?.internalAnimations?.[0]?.id).toBe('list-item-0');
       expect(listItem?.internalAnimations?.[0]?.startTime).toBe(listItem?.startTime);
-      
-      // First item should start after title
-      expect(listItem?.internalAnimations?.[1]?.id).toBe('list-item-0');
-      expect(listItem?.internalAnimations?.[1]?.startTime).toBeGreaterThan(listItem?.startTime!);
       expect(listItem?.internalAnimations?.[0]?.fadeInDuration).toBe(1.0);
       
       // Second item should start after first item + spacing
-      expect(listItem?.internalAnimations?.[2]?.id).toBe('list-item-1');
-      expect(listItem?.internalAnimations?.[2]?.startTime).toBeCloseTo(listItem?.startTime! + 2.0 + 0.2, 1);
+      expect(listItem?.internalAnimations?.[1]?.id).toBe('list-item-1');
+      expect(listItem?.internalAnimations?.[1]?.startTime).toBeCloseTo(listItem?.startTime! + 1.0 + 0.1, 1);
       
       // Third item should start after second item + spacing
-      expect(listItem?.internalAnimations?.[3]?.id).toBe('list-item-2');
-      expect(listItem?.internalAnimations?.[3]?.startTime).toBeCloseTo(listItem?.startTime! + 3.0 + 0.3, 1);
+      expect(listItem?.internalAnimations?.[2]?.id).toBe('list-item-2');
+      expect(listItem?.internalAnimations?.[2]?.startTime).toBeCloseTo(listItem?.startTime! + 2.0 + 0.2, 1);
     });
 
     test('should have same fade-out timing for all list items in timeline', () => {
@@ -253,7 +244,6 @@ describe('Timeline System Tests', () => {
 
       const listResult = ElementFactory.createList({
         data: ['Item 1', 'Item 2'],
-        title: 'Test List'
       }, style, 0);
 
       const listElements = listResult.elements;
@@ -269,23 +259,19 @@ describe('Timeline System Tests', () => {
       timelineBuilder.addList(3);
 
       const listResult = ElementFactory.createList({
-        data: ['Item 1', 'Item 2', 'Item 3'],
-        title: 'Test List'
+        data: ['Item 1', 'Item 2', 'Item 3']
       }, style, 0);
 
       const listElements = listResult.elements;
+      expect(listElements).toHaveLength(3); // 3 items (no title)
 
-      const title = listElements[0];
-      const item1 = listElements[1];
-      const item2 = listElements[2];
-      const item3 = listElements[3];
+      const item1 = listElements[0];
+      const item2 = listElements[1];
+      const item3 = listElements[2];
 
       // Items should be positioned vertically with spacing
       expect(item1?.y).toBeLessThan(item2?.y!);
       expect(item2?.y).toBeLessThan(item3?.y!);
-      
-      // Title should be above items
-      expect(title?.y).toBeLessThan(item1?.y!);
     });
   });
 });

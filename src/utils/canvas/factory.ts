@@ -287,7 +287,7 @@ export class ElementFactory {
   }
 
   static createList(
-    data: { data: string[]; title?: string },
+    data: { data: string[] },
     style: StylePack,
     listOrder?: number
   ): { groups: CanvasGroup[]; elements: CanvasElement[] } {
@@ -316,55 +316,8 @@ export class ElementFactory {
     
     groups.push(contentGroup);
     
-    // Track cumulative Y position for proper spacing
+    // Track cumulative Y position for proper spacing - start directly at startY
     let currentY = startY;
-    
-    // Add title if present - with proper timing (appears first)
-    if (data.title) {
-      const titleFontSize = style.typography.size * 0.9;
-      const titleMaxWidth = TEXT_WIDTH_CAPS.LIST_TITLE;
-      
-      // Calculate actual height considering wrapping
-      const { height: titleHeight } = calculateTextHeight(
-        data.title,
-        titleFontSize,
-        style.typography.family,
-        titleMaxWidth,
-        'bold',
-        1.2
-      );
-      
-      const title = createTextEl({
-        text: data.title,
-        x: startX,
-        y: currentY,
-        width: titleMaxWidth, // Use max width for consistent alignment
-        height: titleHeight,
-        fontSize: titleFontSize,
-        fontFamily: style.typography.family,
-        fontWeight: 'bold',
-        textAlign: 'left',
-        zIndex: 5,
-        opacity: 0, // Start invisible for fade-in
-        groupId: contentGroupId,
-        name: `List Title ${listOrder || 'Unknown'}`,
-        pivotX: 0, // Left-align the text
-        pivotY: titleHeight / 2
-      });
-
-      // Always enable word wrapping for consistent left-alignment
-      title.wordWrap = true;
-      title.wordWrapWidth = titleMaxWidth;
-
-      // Set fill color from style
-      title.fill = style.palette.text;
-      
-      elements.push(title);
-      contentGroup.elementIds.push(title.id);
-      
-      // Move Y position down by title height plus spacing (100px gap before first item)
-      currentY += titleHeight + 100;
-    }
     
     data.data.forEach((item, index) => {
       const itemFontSize = style.typography.size * 0.8;

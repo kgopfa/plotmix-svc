@@ -38,8 +38,8 @@ describe('DSL Execution Tests', () => {
 
       expect(result.sceneId).toBe('intro-rotated-array-search');
       expect(result.sceneName).toBe('Search in Rotated Sorted Array');
-      expect(result.sceneCanvas.elements).toHaveLength(10); // 1 heading + 2 titles + 7 list items
-      expect(result.sceneCanvas.groups).toHaveLength(2); // 2 content groups for lists
+      expect(result.sceneCanvas.elements).toHaveLength(8);
+      expect(result.sceneCanvas.groups).toHaveLength(2);
     });
 
     test('should have correct timeline duration', () => {
@@ -49,14 +49,14 @@ describe('DSL Execution Tests', () => {
       expect(result.sceneCanvas.playback.duration).toBeCloseTo(13.9, 1);
     });
 
-    test('should have list titles with fade-in animations in timeline', () => {
+    test('should have list items with fade-in animations in timeline', () => {
       const result = executeScene(scene1);
       
-      const titles = result.sceneCanvas.elements.filter(el => 
-        el.name?.includes('List Title')
+      const listItems = result.sceneCanvas.elements.filter(el => 
+        el.name?.includes('List Item')
       );
       
-      expect(titles).toHaveLength(2);
+      expect(listItems).toHaveLength(7);
       
       
       // Check that timeline animations exist for groups (not individual titles)
@@ -147,7 +147,7 @@ describe('DSL Execution Tests', () => {
       
       // Verify that list elements are grouped properly
       const listElements = result.sceneCanvas.elements.filter(el => 
-        el.name?.includes('List Title') || el.name?.includes('List Item')
+        el.name?.includes('List Item')
       );
       
       // All list elements should have the same groupId as their content group
@@ -188,7 +188,7 @@ describe('DSL Execution Tests', () => {
       const result = executeScene(scene2);
 
       expect(result.sceneId).toBe('concepts-rotated-array-search');
-      expect(result.sceneCanvas.elements).toHaveLength(8);
+      expect(result.sceneCanvas.elements).toHaveLength(7); // 4 list items + 3 codeblock elements
       expect(result.sceneCanvas.groups).toHaveLength(2);
     });
 
@@ -324,11 +324,10 @@ describe('DSL Execution Tests', () => {
             "type": "heading",
             "data": ["Test Heading"]
           },
-          {
-            "type": "list",
-            "title": "Test List",
-            "data": ["Item 1", "Item 2"]
-          }
+        {
+          "type": "list",
+          "data": ["Item 1", "Item 2"]
+        }
         ]
       };
 

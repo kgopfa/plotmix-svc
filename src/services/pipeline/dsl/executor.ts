@@ -59,8 +59,7 @@ export function executeScene(scene: any): Scene {
 
       case "list":
         const listResult = ElementFactory.createList({
-          data: item.data,
-          title: item.title
+          data: item.data
         }, style, listOrder);
         groups.push(...listResult.groups);
         elements.push(...listResult.elements);
@@ -204,14 +203,13 @@ export function executeScene(scene: any): Scene {
     if (contentItem.internalAnimations && metadata.elementIds.length > 0) {
       contentItem.internalAnimations.forEach((internalAnim, animIndex) => {
         // Get the corresponding element ID from metadata
-        // For lists with titles: elementIds[0] is title, items start at index 1
+        // For lists: elementIds directly contains list item IDs starting at index 0
         // For demos: elementIds directly contains caption IDs starting at index 0
         let elementId: string | undefined;
         
         if (metadata.groupId) {
-          // This is a list - if there are more elementIds than animations, skip first one (title)
-          const offset = metadata.elementIds.length > contentItem.internalAnimations!.length ? 1 : 0;
-          elementId = metadata.elementIds[animIndex + offset];
+          // This is a list - elementIds are the list items
+          elementId = metadata.elementIds[animIndex];
         } else {
           // For demos or headings (though headings don't have internal animations)
           elementId = metadata.elementIds[animIndex];

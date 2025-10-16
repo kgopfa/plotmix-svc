@@ -78,7 +78,7 @@ OUTPUT STRUCTURE:
         {
           "type": "heading|list|codeblock|demo",
           "data": [...],
-          "title": "optional title for lists/codeblocks"
+          "title": "optional title for codeblocks only"
         }
       ]
     }
@@ -93,8 +93,7 @@ CONTENT ITEM TYPES:
 
 {
   "type": "list",
-  "data": ["item1", "item2", "item3"],
-  "title": "List Title"
+  "data": ["item1", "item2", "item3"]
 }
 
 {
@@ -123,7 +122,7 @@ RULES:
 1. Every scene must have id (kebab-case), name (human-friendly), and content array
 2. Every content item must have a "type" field
 3. heading data is an array with one string
-4. list data is an array of strings (2-5 items)
+4. list data is an array of strings (2-5 items) - NO title field for lists
 5. codeblock data is an array with one string (use \\n for line breaks)
 6. All data fields must be arrays
 7. Keep it simple - create exactly what the user asked for
@@ -139,7 +138,6 @@ Response:
     "name": "Example List",
     "content": [{
       "type": "list",
-      "title": "Items",
       "data": ["First item", "Second item", "Third item"]
     }]
   }]
@@ -158,7 +156,6 @@ Response:
       },
       {
         "type": "list",
-        "title": "Details",
         "data": ["Point one", "Point two", "Point three"]
       }
     ]
@@ -394,7 +391,7 @@ OUTPUT STRUCTURE:
         {
           "type": "heading|list|codeblock|demo",
           "data": [...],
-          "title": "optional title for lists/codeblocks"
+          "title": "optional title for codeblocks only"
         }
       ]
     }
@@ -404,22 +401,22 @@ OUTPUT STRUCTURE:
 SCENE STRUCTURE (create 4-5 scenes):
 1. Scene "intro" - Introduction
    - heading
-   - explanation list (title: "How It Works")
-   - approach list (title: "Step-by-Step Approach")
+   - list with explanation items
+   - list with step-by-step approach items
 
 2. Scene "concepts" - Key Concepts  
-   - key ideas list (title: "Key Ideas")
-   - pseudocode (title: "Pseudocode")
+   - list with key ideas
+   - codeblock with pseudocode (title: "Pseudocode")
 
 3. Scene "demo" - Iteration Walkthrough
    - demo with animated steps
 
 4. Scene "edge-cases" - Edge Cases & Performance
-   - edge cases list (title: "Edge Cases")
-   - performance list (title: "Performance")
+   - list with edge cases
+   - list with performance notes
 
 5. Scene "alternatives" - Alternative Approaches
-   - alternatives list (title: "Alternatives")
+   - list with alternative approaches
 
 CONTENT ITEM TYPES:
 {
@@ -429,8 +426,7 @@ CONTENT ITEM TYPES:
 
 {
   "type": "list",
-  "data": ["item1", "item2", "item3"],
-  "title": "List Title"
+  "data": ["item1", "item2", "item3"]
 }
 
 {
