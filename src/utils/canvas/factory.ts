@@ -294,37 +294,34 @@ export class ElementFactory {
     const elements: CanvasElement[] = [];
     const groups: CanvasGroup[] = [];
     
-    // Check if we should use TOP zone (continued from heading) or SUBTITLE zone
+    // Start at SUBTITLE zone (-360) or continue from TOP zone if heading exists
     const grid = getCanvasGrid();
     const topZoneY = grid['zoneCurrentY']['TOP'];
-    const useTopZone = topZoneY !== undefined; // TOP zone has been used (heading exists)
+    const listZone = topZoneY !== undefined ? 'TOP' : 'SUBTITLE';
+    const { x: startX, y: startY } = grid.getNextPosition('list', listZone);
     
-    const listZone = useTopZone ? 'TOP' : 'SUBTITLE';
-    const { x: startX, y: startY } = grid.getNextPosition('list', listZone, 300);
-    const baseItemSpacing = 10; // Base spacing between items
-    
-    // Create content item group for fade-out animation
+    // Create content item group
     const contentGroupId = randomUUID();
     const contentGroup = createGroup({
-      elementIds: [], // Will be populated as we add elements
+      elementIds: [],
       x: startX,
       y: startY,
       name: `List Content Item ${listOrder || 'Unknown'}`,
-      opacity: 1, // Start visible, group handles fade-out
-      id: contentGroupId // Use the same ID
+      opacity: 1,
+      id: contentGroupId
     });
-    
     groups.push(contentGroup);
     
-    // Track cumulative Y position for proper spacing - start directly at startY
+    // Position items sequentially
     let currentY = startY;
+    const itemSpacing = 10; // Spacing between items
+    const itemMaxWidth = TEXT_WIDTH_CAPS.LIST_ITEM;
+    const itemFontSize = style.typography.size * 0.8;
     
     data.data.forEach((item, index) => {
-      const itemFontSize = style.typography.size * 0.8;
       const itemText = `• ${item}`;
-      const itemMaxWidth = TEXT_WIDTH_CAPS.LIST_ITEM;
       
-      // Calculate actual height considering wrapping
+      // Calculate height (accounts for wrapping)
       const { height: itemHeight } = calculateTextHeight(
         itemText,
         itemFontSize,
@@ -338,48 +335,35 @@ export class ElementFactory {
         text: itemText,
         x: startX,
         y: currentY,
-        width: itemMaxWidth, // Use max width for consistent alignment
+        width: itemMaxWidth,
         height: itemHeight,
         fontSize: itemFontSize,
         fontFamily: style.typography.family,
         fontWeight: 'normal',
         textAlign: 'left',
         zIndex: 5,
-        opacity: 0, // Start invisible for fade-in
+        opacity: 0,
         groupId: contentGroupId,
         name: `List Item ${index}`,
-        pivotX: 0, // Left-align the text
+        pivotX: 0,
         pivotY: itemHeight / 2
       });
 
-      // Always enable word wrapping for consistent left-alignment
       listItemElement.wordWrap = true;
       listItemElement.wordWrapWidth = itemMaxWidth;
-
-      // Set fill color from style
       listItemElement.fill = style.palette.text;
       
       elements.push(listItemElement);
       contentGroup.elementIds.push(listItemElement.id);
       
-      // Move Y position down by item height plus base spacing
-      currentY += itemHeight + baseItemSpacing;
+      // Next item starts after this one
+      currentY += itemHeight + itemSpacing;
     });
     
-    // Calculate total height of list content and advance the zone
-    const totalListHeight = currentY - startY;
-    
-    // Advance the zone that was used
-    grid.advanceZone(listZone, totalListHeight, 20);
-    
-    // Synchronize CONTENT_START zone so subsequent content knows where to continue
-    // Copy the advanced zone's position to CONTENT_START
-    const advancedZoneY = grid['zoneCurrentY'][listZone];
-    const contentStartCurrentY = grid['zoneCurrentY']['CONTENT_START'];
-    
-    if (advancedZoneY !== undefined && (contentStartCurrentY === undefined || advancedZoneY > contentStartCurrentY)) {
-      grid['zoneCurrentY']['CONTENT_START'] = advancedZoneY;
-    }
+    // Set zone to where next element's center should be
+    // Account for large elements (codeblocks ~280px) that extend upward from center
+    grid['zoneCurrentY'][listZone] = currentY + 150;
+    grid['zoneCurrentY']['CONTENT_START'] = currentY + 150;
     
     return { groups, elements };
   }
