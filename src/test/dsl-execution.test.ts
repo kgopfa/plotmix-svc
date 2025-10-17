@@ -70,8 +70,8 @@ describe('DSL Execution Tests', () => {
       fadeInAnimations.forEach(anim => {
         expect(anim.tracks).toHaveLength(1);
         expect(anim.tracks[0]?.type).toBe('fade');
-        expect(anim.tracks[0]?.properties['opacity']).toBe(1);
-        expect(anim.tracks[0]?.duration).toBe(1.0); // 1 second fade in
+        expect(anim.tracks[0]?.properties['alpha']).toBe(1);
+        expect(anim.tracks[0]?.duration).toBe(1.0);
         expect(anim.tracks[0]?.easing).toBe('power1.inOut');
       });
       
@@ -106,7 +106,7 @@ describe('DSL Execution Tests', () => {
       itemAnimations.forEach(anim => {
         expect(anim.tracks).toHaveLength(1);
         expect(anim.tracks[0]?.type).toBe('fade');
-        expect(anim.tracks[0]?.properties['opacity']).toBe(1);
+        expect(anim.tracks[0]?.properties['alpha']).toBe("1");
         expect(anim.tracks[0]?.duration).toBe(1.0); // 1 second fade in
         expect(anim.tracks[0]?.easing).toBe('power1.inOut');
       });
@@ -140,7 +140,7 @@ describe('DSL Execution Tests', () => {
       groupFadeOutAnimations.forEach(anim => {
         expect(anim.tracks).toHaveLength(1);
         expect(anim.tracks[0]?.type).toBe('fade');
-        expect(anim.tracks[0]?.properties['opacity']).toBe(0); // Fade to invisible
+        expect(anim.tracks[0]?.properties['alpha']).toBe(0); // Fade to invisible
         expect(anim.tracks[0]?.duration).toBe(1.5); // 1.5 second fade out
         expect(anim.tracks[0]?.easing).toBe('power1.inOut');
       });
@@ -276,7 +276,7 @@ describe('DSL Execution Tests', () => {
 
       expect(result.sceneId).toBe('demo-rotated-array-search');
       expect(result.sceneCanvas.elements).toHaveLength(25);
-      expect(result.sceneCanvas.groups).toHaveLength(14);
+      expect(result.sceneCanvas.groups).toHaveLength(7); // 7 array cells, each properly grouped
     });
 
     test('should have captions with proper timing in timeline', () => {
@@ -289,21 +289,29 @@ describe('DSL Execution Tests', () => {
       expect(captions).toHaveLength(4);
       
       
-      // Check that timeline animations exist for captions
+      // Check that timeline animations exist for captions (displayName starts with "Caption")
       const captionAnimations = result.sceneCanvas.timeline.filter(anim => 
-        anim.target.type === 'element' && anim.displayName.includes('fade-in')
+        anim.target.type === 'element' && anim.displayName.startsWith('Caption')
       );
       
       // We expect caption animations among element animations
       expect(captionAnimations.length).toBeGreaterThan(0);
       
-      // All captions should have fade-in animations
+      // All captions should have ONE animation with TWO tracks (fade-in + fade-out)
       captionAnimations.forEach(anim => {
-        expect(anim.tracks).toHaveLength(1);
+        expect(anim.tracks).toHaveLength(2);
+        
+        // Track 1: Fade-in
         expect(anim.tracks[0]?.type).toBe('fade');
-        expect(anim.tracks[0]?.properties['opacity']).toBe(1);
+        expect(anim.tracks[0]?.properties['alpha']).toBe("1");
         expect(anim.tracks[0]?.duration).toBe(0.5); // Demo step fade-in duration
         expect(anim.tracks[0]?.easing).toBe('power1.inOut');
+        
+        // Track 2: Fade-out
+        expect(anim.tracks[1]?.type).toBe('fade');
+        expect(anim.tracks[1]?.properties['alpha']).toBe(0);
+        expect(anim.tracks[1]?.duration).toBe(0.5); // Demo step fade-out duration
+        expect(anim.tracks[1]?.easing).toBe('power1.inOut');
       });
 
       // Check sequential timing

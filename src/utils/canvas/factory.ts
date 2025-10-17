@@ -42,9 +42,8 @@ function makeCell(
   cellWidth: number,
   cellHeight: number,
   index: number
-): { group: CanvasGroup; rect: CanvasElement; text: CanvasElement; indexText: CanvasElement; indexGroup: CanvasGroup } {
+): { group: CanvasGroup; rect: CanvasElement; text: CanvasElement; indexText: CanvasElement } {
   const gid = randomUUID();
-  const indexGroupId = randomUUID();
 
   // Create rectangle using helper function
   const rect = createRect({
@@ -85,7 +84,7 @@ function makeCell(
     name: `Text ${value}`
   });
 
-  // Create index text
+  // Create index text - should be part of the same cell group
   const indexStr = String(index);
   const indexFontSize = style.typography.size * 0.7;
   const indexTextWidth = calculateTextWidth(indexStr, indexFontSize, style.typography.family);
@@ -103,28 +102,21 @@ function makeCell(
     fontWeight: 'normal',
     textAlign: 'center',
     zIndex: 3,
-    groupId: indexGroupId,
+    groupId: gid,
     name: `Index ${index}`
   });
 
-  // Create groups using helper function
-  const indexGroup = createGroup({
-    elementIds: [indexText.id],
-    x: centerX,
-    y: indexY,
-    name: `Index Group ${index}`,
-    opacity: 1
-  });
-
+  // Create single group with all cell elements: rect, text, and index
   const group = createGroup({
-    elementIds: [rect.id, text.id],
+    id: gid,
+    elementIds: [rect.id, text.id, indexText.id],
     x: centerX,
     y: centerY,
     name: `Array Cell ${index}`,
     opacity: 1
   });
 
-  return { group, rect, text, indexText, indexGroup };
+  return { group, rect, text, indexText };
 }
 
 export class ElementFactory {
@@ -153,7 +145,7 @@ export class ElementFactory {
 
     data.values.forEach((v, i) => {
       const centerX = centerXs[i]!;
-      const { group, rect, text, indexText, indexGroup } = makeCell(
+      const { group, rect, text, indexText } = makeCell(
         style,
         v,
         centerX,
@@ -163,7 +155,7 @@ export class ElementFactory {
         i
       );
 
-      groups.push(group, indexGroup);
+      groups.push(group);
       elements.push(rect, text, indexText);
     });
 

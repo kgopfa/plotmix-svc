@@ -19,12 +19,13 @@ export function executeScene(scene: any): Scene {
   // Track list order for proper title timing
   let listOrder = 0;
 
-  // Track content item metadata (group IDs and element IDs) for animation
   const contentItemsMetadata: Array<{
     type: string;
     groupId?: string;
     elementIds: string[];
-    arrayElementCount?: number; // For demo content items
+    arrayElementCount?: number;
+    arrayCellGroupIds?: string[];
+    demoSteps?: any[];
   }> = [];
 
   for (const item of scene.content) {
@@ -102,6 +103,10 @@ export function executeScene(scene: any): Scene {
         groups.push(...arrayResult.groups);
         elements.push(...arrayResult.elements);
 
+        const arrayCellGroups = arrayResult.groups.filter(g => 
+          g.name.includes('Array Cell')
+        );
+
         const captionIds: string[] = [];
         item.steps.forEach((step: any, stepIndex: number) => {
           if (step.caption) {
@@ -109,6 +114,7 @@ export function executeScene(scene: any): Scene {
               order: stepIndex + 1,
               text: step.caption
             }, style);
+            caption.y = 320;
             elements.push(caption);
             captionIds.push(caption.id);
           }
@@ -116,10 +122,10 @@ export function executeScene(scene: any): Scene {
         
         contentItemsMetadata.push({
           type: 'demo',
-          // Store caption IDs separately for internal animations
           elementIds: captionIds,
-          // Also store array element count for reference
-          arrayElementCount: arrayResult.elements.length
+          arrayElementCount: arrayCellGroups.length,
+          arrayCellGroupIds: arrayCellGroups.map(g => g.id),
+          demoSteps: item.steps
         });
         break;
     }
@@ -138,10 +144,8 @@ export function executeScene(scene: any): Scene {
     const fadeInTimestamp = Date.now() + contentIndex;
     const fadeOutTimestamp = Date.now() + contentIndex + 10000;
 
-    // Skip main fade-in/fade-out for demos since they handle animations via internal animations
     const skipMainAnimations = metadata.type === 'demo';
 
-    // Fade in animation
     if (!skipMainAnimations) {
       timelineAnimations.push({
         id: `${targetId}-fade-${fadeInTimestamp}`,
@@ -159,7 +163,7 @@ export function executeScene(scene: any): Scene {
             duration: contentItem.fadeInDuration,
             startTime: contentItem.startTime,
             properties: {
-              opacity: 1
+              alpha: "1"
             },
             displayName: "fade-in",
             repeatDelay: 0
@@ -170,7 +174,6 @@ export function executeScene(scene: any): Scene {
       });
     }
 
-    // Fade out animation
     if (!skipMainAnimations) {
       timelineAnimations.push({
         id: `${targetId}-fade-${fadeOutTimestamp}`,
@@ -188,7 +191,7 @@ export function executeScene(scene: any): Scene {
             duration: contentItem.fadeOutDuration,
             startTime: contentItem.visibleEnd,
             properties: {
-              opacity: 0
+              alpha: 0
             },
             displayName: "fade-out",
             repeatDelay: 0
@@ -199,19 +202,13 @@ export function executeScene(scene: any): Scene {
       });
     }
 
-    // Internal animations (for list items, captions, etc.)
     if (contentItem.internalAnimations && metadata.elementIds.length > 0) {
       contentItem.internalAnimations.forEach((internalAnim, animIndex) => {
-        // Get the corresponding element ID from metadata
-        // For lists: elementIds directly contains list item IDs starting at index 0
-        // For demos: elementIds directly contains caption IDs starting at index 0
         let elementId: string | undefined;
         
         if (metadata.groupId) {
-          // This is a list - elementIds are the list items
           elementId = metadata.elementIds[animIndex];
         } else {
-          // For demos or headings (though headings don't have internal animations)
           elementId = metadata.elementIds[animIndex];
         }
         
@@ -219,30 +216,154 @@ export function executeScene(scene: any): Scene {
 
         const timestamp = Date.now() + contentIndex + animIndex + 20000;
         
-        timelineAnimations.push({
-          id: `${elementId}-fade-${timestamp}`,
-          target: { 
-            type: "element", 
-            id: elementId 
-          },
-          tracks: [
-            {
-              id: `fade-${timestamp}`,
-              type: "fade",
-              yoyo: false,
-              easing: "power1.inOut",
-              repeat: 0,
-              duration: internalAnim.fadeInDuration,
-              startTime: internalAnim.startTime,
-              properties: {
-                opacity: 1
+        const isDemoCaption = metadata.type === 'demo';
+        
+        if (isDemoCaption) {
+          // For demo captions: one animation with two tracks (fade in + fade out)
+          timelineAnimations.push({
+            id: `${elementId}-timeline-${timestamp}`,
+            target: { 
+              type: "element", 
+              id: elementId 
+            },
+            tracks: [
+              {
+                id: `fade-in-${timestamp}`,
+                type: "fade",
+                yoyo: false,
+                easing: "power1.inOut",
+                repeat: 0,
+                duration: internalAnim.fadeInDuration,
+                startTime: internalAnim.startTime,
+                properties: {
+                  alpha: 1
+                },
+                displayName: "fade-in",
+                repeatDelay: 0
               },
-              displayName: "fade-in",
-              repeatDelay: 0
+              {
+                id: `fade-out-${timestamp}`,
+                type: "fade",
+                yoyo: false,
+                easing: "power1.inOut",
+                repeat: 0,
+                duration: internalAnim.fadeOutDuration,
+                startTime: internalAnim.visibleEnd,
+                properties: {
+                  alpha: 0
+                },
+                displayName: "fade-out",
+                repeatDelay: 0
+              }
+            ],
+            startAt: internalAnim.startTime,
+            displayName: `Caption ${animIndex + 1}`
+          });
+        } else {
+          // For list items: single track fade-in only
+          timelineAnimations.push({
+            id: `${elementId}-fade-${timestamp}`,
+            target: { 
+              type: "element", 
+              id: elementId 
+            },
+            tracks: [
+              {
+                id: `fade-${timestamp}`,
+                type: "fade",
+                yoyo: false,
+                easing: "power1.inOut",
+                repeat: 0,
+                duration: internalAnim.fadeInDuration,
+                startTime: internalAnim.startTime,
+                properties: {
+                  alpha: "1"
+                },
+                displayName: "fade-in",
+                repeatDelay: 0
+              }
+            ],
+            startAt: internalAnim.startTime,
+            displayName: `element ${animIndex} fade-in`
+          });
+        }
+      });
+    }
+
+    if (metadata.type === 'demo' && metadata.demoSteps && metadata.arrayCellGroupIds) {
+      metadata.demoSteps.forEach((step: any, stepIndex: number) => {
+        const stepTiming = contentItem.internalAnimations?.[stepIndex];
+        if (!stepTiming || !step.actions) return;
+
+        const actionStartTime = stepTiming.startTime;
+        const actionDuration = 0.5;
+        
+        step.actions.forEach((action: any, actionIndex: number) => {
+          if (!action.type || !action.indices) return;
+
+          action.indices.forEach((cellIndex: number) => {
+            const cellGroupId = metadata.arrayCellGroupIds![cellIndex];
+            if (!cellGroupId) return;
+
+            const timestamp = Date.now() + contentIndex + stepIndex + actionIndex + cellIndex + 30000;
+            
+            let animationProperties: any = {};
+            let animationType: string = 'color';
+
+            switch (action.type) {
+              case 'highlight':
+                animationProperties = { fillColor: '#e1d799' }; // Light yellow
+                break;
+              case 'unhighlight':
+                animationProperties = { fillColor: '#8a7cf4' }; // Original purple
+                break;
+              case 'select':
+                animationProperties = { fillColor: '#d94338' }; // Red
+                break;
+              case 'deselect':
+                animationProperties = { fillColor: '#8a7cf4' }; // Original purple
+                break;
+              case 'focus':
+                animationProperties = { fillColor: '#f4a261' }; // Orange
+                break;
+              case 'compare':
+                animationProperties = { fillColor: '#ff6b6b' }; // Soft red
+                break;
+              default:
+                return;
             }
-          ],
-          startAt: internalAnim.startTime,
-          displayName: `element ${animIndex} fade-in`
+
+            // Find the rectangle element within this cell group for color animations
+            const cellGroup = groups.find(g => g.id === cellGroupId);
+            if (!cellGroup) return;
+
+            const rectElementId = cellGroup.elementIds[0];
+            if (!rectElementId) return;
+
+            timelineAnimations.push({
+              id: `${rectElementId}-${action.type}-${timestamp}`,
+              target: { 
+                type: "element", 
+                id: rectElementId 
+              },
+              tracks: [
+                {
+                  id: `${action.type}-${timestamp}`,
+                  type: animationType as any,
+                  yoyo: false,
+                  easing: "power1.inOut",
+                  repeat: 0,
+                  duration: actionDuration,
+                  startTime: actionStartTime,
+                  properties: animationProperties,
+                  displayName: action.type,
+                  repeatDelay: 0
+                }
+              ],
+              startAt: actionStartTime,
+              displayName: `array[${cellIndex}] ${action.type}`
+            });
+          });
         });
       });
     }

@@ -97,11 +97,10 @@ export class TimelineBuilder {
   addDemo(stepCount: number): void {
     const contentItem = this.addContentItem('demo', stepCount);
     
-    // Add internal animations for demo steps (captions) - using better values
     const stepFadeIn = 0.5;       // captionFadeInDuration
-    const stepVisible = 3.0;      // captionVisibleTime
+    const stepVisible = 2.0;      // captionVisibleTime
     const stepFadeOut = 0.5;      // captionFadeOutDuration
-    const stepSpacing = 0.5;      // Gap between steps
+    const transitionGap = 0.1;    // Small gap between fade-out ending and next fade-in starting
     
     contentItem.internalAnimations = [];
     let stepStartTime = contentItem.startTime;
@@ -120,7 +119,7 @@ export class TimelineBuilder {
       };
       
       contentItem.internalAnimations.push(stepAnimation);
-      stepStartTime += stepFadeIn + stepVisible + stepFadeOut + stepSpacing;
+      stepStartTime += stepFadeIn + stepVisible + stepFadeOut + transitionGap;
     }
   }
 
