@@ -70,7 +70,7 @@ describe('DSL Execution Tests', () => {
       fadeInAnimations.forEach(anim => {
         expect(anim.tracks).toHaveLength(1);
         expect(anim.tracks[0]?.type).toBe('fade');
-        expect(anim.tracks[0]?.properties['alpha']).toBe(1);
+        expect(anim.tracks[0]?.properties['alpha']).toBe("1");
         expect(anim.tracks[0]?.duration).toBe(1.0);
         expect(anim.tracks[0]?.easing).toBe('power1.inOut');
       });
@@ -107,7 +107,7 @@ describe('DSL Execution Tests', () => {
         expect(anim.tracks).toHaveLength(1);
         expect(anim.tracks[0]?.type).toBe('fade');
         expect(anim.tracks[0]?.properties['alpha']).toBe("1");
-        expect(anim.tracks[0]?.duration).toBe(1.0); // 1 second fade in
+        expect(anim.tracks[0]?.duration).toBe(1.0);
         expect(anim.tracks[0]?.easing).toBe('power1.inOut');
       });
 
@@ -303,7 +303,7 @@ describe('DSL Execution Tests', () => {
         
         // Track 1: Fade-in
         expect(anim.tracks[0]?.type).toBe('fade');
-        expect(anim.tracks[0]?.properties['alpha']).toBe("1");
+        expect(anim.tracks[0]?.properties['alpha']).toBe(1);
         expect(anim.tracks[0]?.duration).toBe(0.5); // Demo step fade-in duration
         expect(anim.tracks[0]?.easing).toBe('power1.inOut');
         
