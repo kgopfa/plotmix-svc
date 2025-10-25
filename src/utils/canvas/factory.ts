@@ -202,7 +202,7 @@ export class ElementFactory {
       fontWeight: 'normal',
       textAlign: 'center',
       zIndex: 10,
-      opacity: 0, // Start invisible for fade-in
+      opacity: 0,
       name: `Caption ${data.order}`
     });
 
@@ -261,7 +261,7 @@ export class ElementFactory {
       fontWeight: 'bold',
       textAlign: 'center',
       zIndex: 15,
-      opacity: headingOrder === 0 ? 1 : 0, // First heading visible, subsequent start invisible
+      opacity: headingOrder === 0 ? 1 : 0,
       name: 'Heading'
     });
 
@@ -302,7 +302,7 @@ export class ElementFactory {
       x: startX,
       y: startY,
       name: `List Content Item ${listOrder || 'Unknown'}`,
-      opacity: 0, // Start invisible, will be animated to visible
+      opacity: 0,
       id: contentGroupId
     });
     groups.push(contentGroup);
@@ -374,8 +374,8 @@ export class ElementFactory {
     // Use sequential positioning for codeblocks - they should appear in the same location
     // since previous codeblocks fade out before new ones fade in
     const grid = getCanvasGrid();
-    const topZoneY = grid['zoneCurrentY']['TOP'];
-    const codeblockZone = topZoneY !== undefined ? 'TOP' : 'SUBTITLE';
+    const contentStartY = grid['zoneCurrentY']['CONTENT_START'];
+    const codeblockZone = contentStartY !== undefined ? 'CONTENT_START' : 'CONTENT_START';
     const { x: codeblockX, y: codeblockY } = grid.getSequentialPosition('codeblock', codeblockZone, codeblockOrder || 0);
     
     const codeText = Array.isArray(data.data) ? data.data.join('\n') : data.data;
@@ -416,7 +416,8 @@ export class ElementFactory {
       cornerRadius: 13,
       zIndex: 1,
       groupId: contentGroupId,
-      name: "Code Block Background"
+      name: "Code Block Background",
+      opacity: 1
     });
     
     const codeTextElement = createCodeEditorEl({
@@ -429,7 +430,8 @@ export class ElementFactory {
       fontFamily: fontFamily,
       zIndex: 2,
       groupId: contentGroupId,
-      name: "Code Editor"
+      name: "Code Editor",
+      opacity: 1
     });
     
     // Create content item group - start invisible for sequential content
@@ -438,7 +440,7 @@ export class ElementFactory {
       x: codeblockX,
       y: codeblockY,
       name: `Codeblock Content Item ${codeblockOrder || 'Unknown'}`,
-      opacity: 0, // Start invisible, will be animated to visible
+      opacity: 0,
       id: contentGroupId
     });
     
@@ -458,7 +460,7 @@ export class ElementFactory {
       const title = createTextEl({
         text: data.title,
         x: codeblockX,
-        y: codeblockY - (codeBlockHeight / 2) - 40,
+        y: codeblockY - (codeBlockHeight / 2) - 20,
         width: titleWidth,
         height: style.typography.size * 1.2,
         fontSize: titleFontSize,
@@ -466,7 +468,7 @@ export class ElementFactory {
         fontWeight: 'bold',
         textAlign: 'center',
         zIndex: 3,
-        opacity: 1, // Title will be controlled by group opacity
+        opacity: 1,
         name: 'Codeblock Title',
         groupId: contentGroupId
       });
