@@ -379,7 +379,7 @@ export class ElementFactory {
     const { x: codeblockX, y: codeblockY } = grid.getSequentialPosition('codeblock', codeblockZone, codeblockOrder || 0);
     
     const codeText = Array.isArray(data.data) ? data.data.join('\n') : data.data;
-    const codeLines = Array.isArray(data.data) ? data.data : data.data.split('\n');
+    const codeLines = codeText.split('\n');
     
     const codeBlockPadding = 40;
     const lineHeight = 1.5;
