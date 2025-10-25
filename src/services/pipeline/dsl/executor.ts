@@ -16,8 +16,10 @@ export function executeScene(scene: any): Scene {
 
   resetCanvasGrid();
 
-  // Track list order for proper title timing
+  // Track order for each content type for proper positioning and timing
+  let headingOrder = 0;
   let listOrder = 0;
+  let codeblockOrder = 0;
 
   const contentItemsMetadata: Array<{
     type: string;
@@ -50,12 +52,13 @@ export function executeScene(scene: any): Scene {
       case "heading":
         const heading = ElementFactory.createHeading({
           text: item.data[0]
-        }, style);
+        }, style, headingOrder);
         elements.push(heading);
         contentItemsMetadata.push({
           type: 'heading',
           elementIds: [heading.id]
         });
+        headingOrder++;
         break;
 
       case "list":
@@ -81,7 +84,7 @@ export function executeScene(scene: any): Scene {
         const codeblockResult = ElementFactory.createCodeblock({
           data: item.data,
           title: item.title
-        }, style);
+        }, style, codeblockOrder);
         groups.push(...codeblockResult.groups);
         elements.push(...codeblockResult.elements);
         
@@ -94,6 +97,7 @@ export function executeScene(scene: any): Scene {
             elementIds: codeGroup.elementIds
           });
         }
+        codeblockOrder++;
         break;
 
       case "demo":

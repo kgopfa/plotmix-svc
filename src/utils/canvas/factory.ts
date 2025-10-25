@@ -221,9 +221,11 @@ export class ElementFactory {
   static createHeading(
     data: { text: string },
     style: StylePack,
+    headingOrder?: number
   ): CanvasElement {
-    // Position heading using grid system
-    const { x: headingX, y: headingY } = getCanvasGrid().getNextPosition('heading', 'TOP');
+    // Use sequential positioning for headings - they should appear in the same location
+    // since previous headings fade out before new ones fade in
+    const { x: headingX, y: headingY } = getCanvasGrid().getSequentialPosition('heading', 'TOP', headingOrder || 0);
     
     // Create heading text element with proper width calculation
     const headingFontSize = style.typography.size * 1.5;
@@ -259,7 +261,7 @@ export class ElementFactory {
       fontWeight: 'bold',
       textAlign: 'center',
       zIndex: 15,
-      opacity: 1, // Always visible
+      opacity: headingOrder === 0 ? 1 : 0, // First heading visible, subsequent start invisible
       name: 'Heading'
     });
 
@@ -286,20 +288,21 @@ export class ElementFactory {
     const elements: CanvasElement[] = [];
     const groups: CanvasGroup[] = [];
     
-    // Start at SUBTITLE zone (-360) or continue from TOP zone if heading exists
+    // Use sequential positioning for lists - they should appear in the same location
+    // since previous lists fade out before new ones fade in
     const grid = getCanvasGrid();
     const topZoneY = grid['zoneCurrentY']['TOP'];
     const listZone = topZoneY !== undefined ? 'TOP' : 'SUBTITLE';
-    const { x: startX, y: startY } = grid.getNextPosition('list', listZone);
+    const { x: startX, y: startY } = grid.getSequentialPosition('list', listZone, listOrder || 0);
     
-    // Create content item group
+    // Create content item group - start invisible for sequential content
     const contentGroupId = randomUUID();
     const contentGroup = createGroup({
       elementIds: [],
       x: startX,
       y: startY,
       name: `List Content Item ${listOrder || 'Unknown'}`,
-      opacity: 1,
+      opacity: 0, // Start invisible, will be animated to visible
       id: contentGroupId
     });
     groups.push(contentGroup);
@@ -362,12 +365,15 @@ export class ElementFactory {
 
   static createCodeblock(
     data: { data: string[] | string; title?: string },
-    style: StylePack
+    style: StylePack,
+    codeblockOrder?: number
   ): { groups: CanvasGroup[]; elements: CanvasElement[] } {
     const groups: CanvasGroup[] = [];
     const elements: CanvasElement[] = [];
     
-    const { x: codeblockX, y: codeblockY } = getCanvasGrid().getNextPosition('codeblock', 'CONTENT_START', 300);
+    // Use sequential positioning for codeblocks - they should appear in the same location
+    // since previous codeblocks fade out before new ones fade in
+    const { x: codeblockX, y: codeblockY } = getCanvasGrid().getSequentialPosition('codeblock', 'CONTENT_START', codeblockOrder || 0);
     
     const groupId = randomUUID();
     

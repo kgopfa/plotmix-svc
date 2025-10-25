@@ -304,4 +304,39 @@ export class CanvasGrid {
   getCount(zone: keyof typeof ZONES): number {
     return this.zoneCounts[zone] || 0;
   }
+
+  /**
+   * Get same position for sequential content items (lists, codeblocks, etc.)
+   * This ensures multiple items of the same type appear in the same location
+   * since previous items fade out before new ones fade in
+   */
+  getSamePosition(
+    _elementType: string,
+    zone: keyof typeof ZONES
+  ): { x: number; y: number } {
+    // For sequential content, we want to use the base zone position
+    // without advancing the Y position
+    const y = ZONES[zone];
+    const x = getCenteredX();
+    
+    return { x, y };
+  }
+
+  /**
+   * Get position for sequential content with type-specific tracking
+   * This allows different content types to have their own sequential positioning
+   */
+  getSequentialPosition(
+    elementType: string,
+    zone: keyof typeof ZONES,
+    _typeOrder: number = 0
+  ): { x: number; y: number } {
+    // For the first item of this type, use base zone position
+    if (_typeOrder === 0) {
+      return this.getSamePosition(elementType, zone);
+    }
+    
+    // For subsequent items, still use same position since they replace each other
+    return this.getSamePosition(elementType, zone);
+  }
 }
