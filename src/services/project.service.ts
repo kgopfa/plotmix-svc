@@ -290,7 +290,7 @@ export class ProjectService {
     filters?: { source?: string }
   ): Promise<(Project & { conversation: { id: string } | null })[]> {
     const page = pagination?.page && pagination.page > 0 ? pagination.page : 1;
-    const limit = pagination?.limit && pagination.limit > 0 ? pagination.limit : 20;
+    const limit = pagination?.limit && pagination.limit > 0 ? pagination.limit : 10;
     const skip = (page - 1) * limit;
 
     return prisma.project.findMany({

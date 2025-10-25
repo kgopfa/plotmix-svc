@@ -36,7 +36,7 @@ Authorization: Bearer <your-jwt-token>
 - **Description**: Get all conversations for the authenticated user
 - **Query Parameters**:
   - `page` (optional): Page number for pagination (default: 1)
-  - `limit` (optional): Number of conversations per page (default: 20)
+  - `limit` (optional): Number of conversations per page (default: 10)
   - `projectId` (optional): Filter conversations by project ID
 - **Response**: Returns an array of conversation objects
 

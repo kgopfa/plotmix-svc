@@ -66,7 +66,7 @@ export class ConversationService {
     userId: string,
     filters: ConversationFilters = {}
   ): Promise<Conversation[]> {
-    const { page = 1, limit = 20, projectId } = filters;
+    const { page = 1, limit = 10, projectId } = filters;
     const skip = (page - 1) * limit;
 
     const whereClause: any = { userId };
@@ -154,13 +154,31 @@ export class ConversationService {
       return false;
     }
 
-    await prisma.conversation.delete({
-      where: { id: conversationId },
+    // Delete conversation and associated project in a transaction
+    await prisma.$transaction(async (tx) => {
+      // First delete the conversation
+      await tx.conversation.delete({
+        where: { id: conversationId },
+      });
+      
+      // Then delete the associated project if it exists
+      if (existingConversation.projectId) {
+        await tx.project.delete({
+          where: { id: existingConversation.projectId },
+        });
+        
+        logger.info('Associated project deleted with conversation', {
+          conversationId,
+          projectId: existingConversation.projectId,
+          userId,
+        });
+      }
     });
 
     logger.info('Conversation deleted successfully', {
       conversationId,
       userId,
+      projectId: existingConversation.projectId,
     });
 
     return true;
