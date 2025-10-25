@@ -373,9 +373,10 @@ export class ElementFactory {
     
     // Use sequential positioning for codeblocks - they should appear in the same location
     // since previous codeblocks fade out before new ones fade in
-    const { x: codeblockX, y: codeblockY } = getCanvasGrid().getSequentialPosition('codeblock', 'CONTENT_START', codeblockOrder || 0);
-    
-    const groupId = randomUUID();
+    const grid = getCanvasGrid();
+    const topZoneY = grid['zoneCurrentY']['TOP'];
+    const codeblockZone = topZoneY !== undefined ? 'TOP' : 'SUBTITLE';
+    const { x: codeblockX, y: codeblockY } = grid.getSequentialPosition('codeblock', codeblockZone, codeblockOrder || 0);
     
     const codeText = Array.isArray(data.data) ? data.data.join('\n') : data.data;
     const codeLines = Array.isArray(data.data) ? data.data : data.data.split('\n');
@@ -400,6 +401,9 @@ export class ElementFactory {
     const codeBlockWidth = codeEditorWidth + (codeBlockPadding * 2);
     const codeBlockHeight = codeEditorHeight + (codeBlockPadding * 2);
     
+    // Create content item group first
+    const contentGroupId = randomUUID();
+    
     // Create background rectangle using helper function
     const rectangle = createRect({
       x: codeblockX,
@@ -411,7 +415,7 @@ export class ElementFactory {
       strokeWidth: 1,
       cornerRadius: 13,
       zIndex: 1,
-      groupId: groupId,
+      groupId: contentGroupId,
       name: "Code Block Background"
     });
     
@@ -424,17 +428,22 @@ export class ElementFactory {
       fontSize: fontSize,
       fontFamily: fontFamily,
       zIndex: 2,
-      groupId: groupId,
+      groupId: contentGroupId,
       name: "Code Editor"
     });
     
-    const codeGroup = createGroup({
-      elementIds: [rectangle.id, codeTextElement.id],
+    // Create content item group - start invisible for sequential content
+    const contentGroup = createGroup({
+      elementIds: [],
       x: codeblockX,
       y: codeblockY,
-      name: "Code Block",
-      opacity: 0
+      name: `Codeblock Content Item ${codeblockOrder || 'Unknown'}`,
+      opacity: 0, // Start invisible, will be animated to visible
+      id: contentGroupId
     });
+    
+    // Add elements to the content group
+    contentGroup.elementIds.push(rectangle.id, codeTextElement.id);
     
     if (data.title) {
       const titleFontSize = style.typography.size * 0.9;
@@ -457,20 +466,20 @@ export class ElementFactory {
         fontWeight: 'bold',
         textAlign: 'center',
         zIndex: 3,
-        opacity: 0,
-        name: 'Codeblock Title'
+        opacity: 1, // Title will be controlled by group opacity
+        name: 'Codeblock Title',
+        groupId: contentGroupId
       });
 
       title.fill = style.palette.text;
       
+      // Add title to the content group
+      contentGroup.elementIds.push(title.id);
       elements.push(title);
     }
     
     elements.push(rectangle, codeTextElement);
-    groups.push(codeGroup);
-    
-    // Advance the zone by the codeblock height (title is above, so just account for block)
-    getCanvasGrid().advanceZone('CONTENT_START', codeBlockHeight, 20);
+    groups.push(contentGroup);
     
     return { groups, elements };
   }
