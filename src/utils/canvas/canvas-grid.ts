@@ -13,10 +13,10 @@ export const GRID_MARGIN = 40; // Margin from canvas edges
 // Vertical zones for different content types
 export const ZONES = {
   TOP: -400,           // Heading area
-  SUBTITLE: -360,      // Subtitle area
+  SUBTITLE: -360,      // Subtitle area (codeblock titles)
   LIST: -280,          // List items
   CAPTION: -280,       // Caption area
-  CONTENT_START: -200, // Start of main content
+  CODEBLOCK: 0,        // Codeblocks
   CONTENT_MID: 0,      // Center content (arrays)
   CONTENT_END: 280,    // End of main content
   BOTTOM: 400          // Bottom area

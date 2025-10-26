@@ -368,9 +368,7 @@ export class ElementFactory {
     // Use sequential positioning for codeblocks - they should appear in the same location
     // since previous codeblocks fade out before new ones fade in
     const grid = getCanvasGrid();
-    const contentStartY = grid['zoneCurrentY']['CONTENT_START'];
-    const codeblockZone = contentStartY !== undefined ? 'CONTENT_START' : 'CONTENT_START';
-    const { x: codeblockX, y: codeblockY } = grid.getSequentialPosition('codeblock', codeblockZone, codeblockOrder || 0);
+    const { x: codeblockX, y: codeblockY } = grid.getSequentialPosition('codeblock', 'CODEBLOCK', codeblockOrder || 0);
     
     const codeText = Array.isArray(data.data) ? data.data.join('\n') : data.data;
     const codeLines = codeText.split('\n');
@@ -451,10 +449,13 @@ export class ElementFactory {
         'bold'
       );
       
+      // Position title at SUBTITLE zone (-360)
+      const { y: titleY } = grid.getSamePosition('codeblock_title', 'SUBTITLE');
+      
       const title = createTextEl({
         text: data.title,
         x: codeblockX,
-        y: codeblockY - (codeBlockHeight / 2) - 20,
+        y: titleY,
         width: titleWidth,
         height: style.typography.size * 1.2,
         fontSize: titleFontSize,
