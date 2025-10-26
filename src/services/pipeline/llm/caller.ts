@@ -83,54 +83,17 @@ export class ChainedCaller {
   }
 
   /**
-   * Execute the full algorithm pipeline (original flow)
+   * Execute the algorithm pipeline (uses contentGenerator)
    */
   private async executeAlgorithmPipeline(prompt: string, routerResult: RouterResult): Promise<ChainedExecutionResult> {
     logger.info('llm-pipeline:executing_algorithm_pipeline');
 
-    // Stage 1: Content Planner
-    const contentPlanResult = await this.executeContentPlanner(prompt);
-    if (!contentPlanResult.success) {
-      logger.error('llm-pipeline:content_planner_failed', { error: contentPlanResult.error });
-      return {
-        success: false,
-        error: `Content Planner failed: ${contentPlanResult.error}`,
-        stage: 'planner',
-        routerResult
-      };
-    }
-
-    const contentPlan = contentPlanResult.content as ContentPlan;
-    logger.info('llm-pipeline:content_planned', { 
-      problemTitle: contentPlan.problem.title,
-      edgeCasesCount: contentPlan.edgeCases.length 
-    });
-
-    // Stage 2: Animation Planner
-    const animationPlanResult = await this.executeAnimationPlanner(contentPlan);
-    if (!animationPlanResult.success) {
-      logger.error('llm-pipeline:animation_planner_failed', { error: animationPlanResult.error });
-      return {
-        success: false,
-        error: `Animation Planner failed: ${animationPlanResult.error}`,
-        stage: 'animation',
-        routerResult
-      };
-    }
-
-    const animationPlan = animationPlanResult.content as AnimationPlan;
-    logger.info('llm-pipeline:animation_planned', { 
-      title: animationPlan.title,
-      steps: animationPlan.steps.length
-    });
-
-    // Stage 3: DSL Emitter
-    const dslResult = await this.executeDslEmitter(contentPlan, animationPlan);
+    const dslResult = await this.executeAlgorithmDslGenerator(prompt);
     if (!dslResult.success) {
-      logger.error('llm-pipeline:dsl_emitter_failed', { error: dslResult.error });
+      logger.error('llm-pipeline:algorithm_dsl_generator_failed', { error: dslResult.error });
       return {
         success: false,
-        error: `DSL Emitter failed: ${dslResult.error}`,
+        error: `Algorithm DSL Generator failed: ${dslResult.error}`,
         stage: 'dsl',
         routerResult
       };
@@ -142,8 +105,6 @@ export class ChainedCaller {
     return {
       success: true,
       routerResult,
-      contentPlan,
-      animationPlan,
       dsl
     };
   }
@@ -205,34 +166,6 @@ export class ChainedCaller {
   }
 
   /**
-   * Execute Stage 1: Content Planner
-   */
-  private async executeContentPlanner(prompt: string): Promise<any> {
-    logger.info('llm-pipeline:executing_content_planner');
-    const messages = PromptTemplates.contentPlanner(prompt);
-    return await this.client.callStage('planner', messages, { temperature: 0.1, json: true });
-  }
-
-
-  /**
-   * Execute Stage 2: Animation Planner
-   */
-  private async executeAnimationPlanner(contentPlan: ContentPlan): Promise<any> {
-    logger.info('llm-pipeline:executing_animation_planner');
-    const messages = PromptTemplates.animationPlanner(contentPlan);
-    return await this.client.callStage('animation', messages, { temperature: 0.1, json: true });
-  }
-
-  /**
-   * Execute Stage 3: DSL Emitter
-   */
-  private async executeDslEmitter(contentPlan: ContentPlan, animationPlan?: AnimationPlan): Promise<any> {
-    logger.info('llm-pipeline:executing_dsl_emitter');
-    const messages = PromptTemplates.dslEmitter(contentPlan, animationPlan);
-    return await this.client.callStage('dsl', messages, { temperature: 0.0, json: false });
-  }
-
-  /**
    * Execute Stage 0: Router
    */
   private async executeRouter(prompt: string): Promise<any> {
@@ -247,6 +180,15 @@ export class ChainedCaller {
   private async executeSimpleSceneGenerator(prompt: string, extractedIntent?: any): Promise<any> {
     logger.info('llm-pipeline:executing_simple_scene_generator');
     const messages = PromptTemplates.simpleSceneGenerator(prompt, extractedIntent);
+    return await this.client.callStage('dsl', messages, { temperature: 0.0, json: false });
+  }
+
+  /**
+   * Execute Algorithm DSL Generator (uses contentGenerator prompt)
+   */
+  private async executeAlgorithmDslGenerator(prompt: string): Promise<any> {
+    logger.info('llm-pipeline:executing_algorithm_dsl_generator');
+    const messages = PromptTemplates.contentGenerator(prompt);
     return await this.client.callStage('dsl', messages, { temperature: 0.0, json: false });
   }
 
