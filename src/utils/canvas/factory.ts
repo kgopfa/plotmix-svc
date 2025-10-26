@@ -291,9 +291,7 @@ export class ElementFactory {
     // Use sequential positioning for lists - they should appear in the same location
     // since previous lists fade out before new ones fade in
     const grid = getCanvasGrid();
-    const topZoneY = grid['zoneCurrentY']['TOP'];
-    const listZone = topZoneY !== undefined ? 'TOP' : 'SUBTITLE';
-    const { x: startX, y: startY } = grid.getSequentialPosition('list', listZone, listOrder || 0);
+    const { x: startX, y: startY } = grid.getSequentialPosition('list', 'LIST', listOrder || 0);
     
     // Create content item group - start invisible for sequential content
     const contentGroupId = randomUUID();
@@ -354,11 +352,6 @@ export class ElementFactory {
       // Next item starts after this one
       currentY += itemHeight + itemSpacing;
     });
-    
-    // Set zone to where next element's center should be
-    // Account for large elements (codeblocks ~280px) that extend upward from center
-    grid['zoneCurrentY'][listZone] = currentY + 150;
-    grid['zoneCurrentY']['CONTENT_START'] = currentY + 150;
     
     return { groups, elements };
   }
