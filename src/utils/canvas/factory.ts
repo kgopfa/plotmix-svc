@@ -324,10 +324,11 @@ export class ElementFactory {
         1.2
       );
       
+      // Set pivotY to 0 so element starts at currentY (top-aligned)
       const listItemElement = createTextEl({
         text: itemText,
         x: startX,
-        y: currentY,
+        y: currentY + itemHeight / 2, // Adjust Y to account for pivotY being at center
         width: itemMaxWidth,
         height: itemHeight,
         fontSize: itemFontSize,
