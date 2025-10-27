@@ -35,21 +35,21 @@ describe('Timeline System Tests', () => {
       const heading = items[0];
       const list = items[1];
 
-      // Heading: 1.0s fade in, 2.0s visible, 1.0s fade out = 4.0s total
+      // Heading: 1.0s fade in, 1.8s visible, 1.5s fade out = 4.3s total
       expect(heading?.startTime).toBe(0);
       expect(heading?.fadeInDuration).toBe(1.0);
-      expect(heading?.visibleTime).toBe(2.0);
+      expect(heading?.visibleTime).toBe(1.8);
       expect(heading?.fadeOutDuration).toBe(1.5);
-      expect(heading?.endTime).toBe(4.5);
+      expect(heading?.endTime).toBe(4.3);
 
       // List should start after heading ends + gap
-      expect(list?.startTime).toBe(4.7); // 4.5 + 0.2 gap
+      expect(list?.startTime).toBe(4.5); // 4.3 + 0.2 gap
       // List fadeInDuration is now calculated based on last item fading in
-      // 3 items: item 0 at 4.7, item 1 at 4.7+1.5+0.1=6.3, item 2 at 6.3+1.5+0.1=7.9
-      // Last item ends at 7.9 + 1.5 = 9.4
-      // So fadeInDuration should be 9.4 - 4.7 = 4.7
-      expect(list?.fadeInDuration).toBeCloseTo(4.7, 1);
-      expect(list?.visibleTime).toBe(2.0);
+      // 3 items: item 0 at 4.5, item 1 at 4.5+1.2=5.7, item 2 at 5.7+1.2=6.9
+      // Last item ends at 6.9 + 1.2 = 8.1
+      // So fadeInDuration should be 8.1 - 4.5 = 3.6
+      expect(list?.fadeInDuration).toBeCloseTo(3.6, 1);
+      expect(list?.visibleTime).toBe(1.8);
       expect(list?.fadeOutDuration).toBe(1.5);
     });
 
@@ -64,15 +64,15 @@ describe('Timeline System Tests', () => {
       // First item should start at list start time
       expect(list?.internalAnimations?.[0]?.id).toBe('list-item-0');
       expect(list?.internalAnimations?.[0]?.startTime).toBe(list?.startTime);
-      expect(list?.internalAnimations?.[0]?.fadeInDuration).toBe(1.5);
+      expect(list?.internalAnimations?.[0]?.fadeInDuration).toBe(1.2);
       
-      // Second item should start after first item + spacing
+      // Second item should start after first item finishes (no spacing)
       expect(list?.internalAnimations?.[1]?.id).toBe('list-item-1');
-      expect(list?.internalAnimations?.[1]?.startTime).toBeCloseTo(list?.startTime! + 1.5 + 0.1, 1);
+      expect(list?.internalAnimations?.[1]?.startTime).toBeCloseTo(list?.startTime! + 1.2, 1);
       
-      // Third item should start after second item + spacing
+      // Third item should start after second item finishes (no spacing)
       expect(list?.internalAnimations?.[2]?.id).toBe('list-item-2');
-      expect(list?.internalAnimations?.[2]?.startTime).toBeCloseTo(list?.startTime! + 3.0 + 0.2, 1);
+      expect(list?.internalAnimations?.[2]?.startTime).toBeCloseTo(list?.startTime! + 2.4, 1);
     });
 
     test('should create internal animations for demo steps', () => {
@@ -115,15 +115,15 @@ describe('Timeline System Tests', () => {
       // First item should start at list start time
       expect(listItem?.internalAnimations?.[0]?.id).toBe('list-item-0');
       expect(listItem?.internalAnimations?.[0]?.startTime).toBe(listItem?.startTime);
-      expect(listItem?.internalAnimations?.[0]?.fadeInDuration).toBe(1.5);
+      expect(listItem?.internalAnimations?.[0]?.fadeInDuration).toBe(1.2);
       
-      // Second item should start after first item + spacing
+      // Second item should start after first item finishes (no spacing)
       expect(listItem?.internalAnimations?.[1]?.id).toBe('list-item-1');
-      expect(listItem?.internalAnimations?.[1]?.startTime).toBeCloseTo(listItem?.startTime! + 1.5 + 0.1, 1);
+      expect(listItem?.internalAnimations?.[1]?.startTime).toBeCloseTo(listItem?.startTime! + 1.2, 1);
       
-      // Third item should start after second item + spacing
+      // Third item should start after second item finishes (no spacing)
       expect(listItem?.internalAnimations?.[2]?.id).toBe('list-item-2');
-      expect(listItem?.internalAnimations?.[2]?.startTime).toBeCloseTo(listItem?.startTime! + 3.0 + 0.2, 1);
+      expect(listItem?.internalAnimations?.[2]?.startTime).toBeCloseTo(listItem?.startTime! + 2.4, 1);
     });
 
     test('should have same fade-out timing for all list items in timeline', () => {

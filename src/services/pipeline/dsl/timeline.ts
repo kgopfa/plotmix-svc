@@ -65,7 +65,7 @@ export class TimelineBuilder {
     
     // Add internal animations for list items - only fade in sequentially
     const itemFadeIn = 1.2;      // elementFadeInDuration
-    const itemSpacing = 0.1;      // elementStaggerDelay
+    const itemSpacing = 0.0;      // elementStaggerDelay - removed stagger, items appear one after another
     const visibleTime = this.TIMING.list.visible;
     const fadeOutDuration = this.TIMING.list.fadeOut;
     
@@ -88,7 +88,8 @@ export class TimelineBuilder {
       };
       
       contentItem.internalAnimations.push(itemAnimation);
-      itemStartTime += itemFadeIn + itemSpacing;
+      // Next item starts after this one finishes fading in, plus spacing
+      itemStartTime = itemStartTime + itemFadeIn + itemSpacing;
     }
     
     // Calculate when the last item finishes fading in
@@ -121,7 +122,8 @@ export class TimelineBuilder {
     const transitionGap = 0.1;    // Small gap between fade-out ending and next fade-in starting
     
     contentItem.internalAnimations = [];
-    let stepStartTime = contentItem.startTime;
+    // Ensure demo steps begin only after the demo fade-in completes
+    let stepStartTime = contentItem.fadeInEnd;
     
     for (let i = 0; i < stepCount; i++) {
       const stepAnimation: InternalAnimation = {

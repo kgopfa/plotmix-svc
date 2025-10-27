@@ -294,6 +294,38 @@ export function executeScene(scene: any): Scene {
       });
     }
 
+    // Add array fade-in animation for demos
+    if (metadata.type === 'demo' && metadata.arrayCellGroupIds) {
+      const arrayFadeInTimestamp = Date.now() + contentIndex + 40000;
+      metadata.arrayCellGroupIds.forEach((cellGroupId: string) => {
+        timelineAnimations.push({
+          id: `${cellGroupId}-array-fade-${arrayFadeInTimestamp}`,
+          target: { 
+            type: "group", 
+            id: cellGroupId 
+          },
+          tracks: [
+            {
+              id: `array-fade-${arrayFadeInTimestamp}`,
+              type: "fade",
+              yoyo: false,
+              easing: "power1.inOut",
+              repeat: 0,
+              duration: contentItem.fadeInDuration,
+              startTime: contentItem.startTime,
+              properties: {
+                alpha: "1"
+              },
+              displayName: "array-fade-in",
+              repeatDelay: 0
+            }
+          ],
+          startAt: contentItem.startTime,
+          displayName: `Array fade-in`
+        });
+      });
+    }
+
     if (metadata.type === 'demo' && metadata.demoSteps && metadata.arrayCellGroupIds) {
       metadata.demoSteps.forEach((step: any, stepIndex: number) => {
         const stepTiming = contentItem.internalAnimations?.[stepIndex];

@@ -107,13 +107,14 @@ function makeCell(
   });
 
   // Create single group with all cell elements: rect, text, and index
+  // Start with opacity 0 for fade-in animation
   const group = createGroup({
     id: gid,
     elementIds: [rect.id, text.id, indexText.id],
     x: centerX,
     y: centerY,
     name: `Array Cell ${index}`,
-    opacity: 1
+    opacity: 0
   });
 
   return { group, rect, text, indexText };
