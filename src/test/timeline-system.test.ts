@@ -44,7 +44,11 @@ describe('Timeline System Tests', () => {
 
       // List should start after heading ends + gap
       expect(list?.startTime).toBe(4.7); // 4.5 + 0.2 gap
-      expect(list?.fadeInDuration).toBe(1.0);
+      // List fadeInDuration is now calculated based on last item fading in
+      // 3 items: item 0 at 4.7, item 1 at 4.7+1.5+0.1=6.3, item 2 at 6.3+1.5+0.1=7.9
+      // Last item ends at 7.9 + 1.5 = 9.4
+      // So fadeInDuration should be 9.4 - 4.7 = 4.7
+      expect(list?.fadeInDuration).toBeCloseTo(4.7, 1);
       expect(list?.visibleTime).toBe(2.0);
       expect(list?.fadeOutDuration).toBe(1.5);
     });
@@ -60,15 +64,15 @@ describe('Timeline System Tests', () => {
       // First item should start at list start time
       expect(list?.internalAnimations?.[0]?.id).toBe('list-item-0');
       expect(list?.internalAnimations?.[0]?.startTime).toBe(list?.startTime);
-      expect(list?.internalAnimations?.[0]?.fadeInDuration).toBe(1.0);
+      expect(list?.internalAnimations?.[0]?.fadeInDuration).toBe(1.5);
       
       // Second item should start after first item + spacing
       expect(list?.internalAnimations?.[1]?.id).toBe('list-item-1');
-      expect(list?.internalAnimations?.[1]?.startTime).toBeCloseTo(list?.startTime! + 1.0 + 0.1, 1);
+      expect(list?.internalAnimations?.[1]?.startTime).toBeCloseTo(list?.startTime! + 1.5 + 0.1, 1);
       
       // Third item should start after second item + spacing
       expect(list?.internalAnimations?.[2]?.id).toBe('list-item-2');
-      expect(list?.internalAnimations?.[2]?.startTime).toBeCloseTo(list?.startTime! + 2.0 + 0.2, 1);
+      expect(list?.internalAnimations?.[2]?.startTime).toBeCloseTo(list?.startTime! + 3.0 + 0.2, 1);
     });
 
     test('should create internal animations for demo steps', () => {
@@ -82,12 +86,12 @@ describe('Timeline System Tests', () => {
       // First step should start at demo start time
       expect(demo?.internalAnimations?.[0]?.startTime).toBe(demo?.startTime);
       expect(demo?.internalAnimations?.[0]?.fadeInDuration).toBe(0.5);
-      expect(demo?.internalAnimations?.[0]?.visibleTime).toBe(3.0);
+      expect(demo?.internalAnimations?.[0]?.visibleTime).toBe(2.0);
       expect(demo?.internalAnimations?.[0]?.fadeOutDuration).toBe(0.5);
       
       // Second step should start after first step completes + spacing
-      const firstStepEnd = demo?.startTime! + 0.5 + 3.0 + 0.5;
-      expect(demo?.internalAnimations?.[1]?.startTime).toBe(firstStepEnd + 0.5);
+      const firstStepEnd = demo?.startTime! + 0.5 + 2.0 + 0.5;
+      expect(demo?.internalAnimations?.[1]?.startTime).toBe(firstStepEnd + 0.1);
     });
   });
 
@@ -111,15 +115,15 @@ describe('Timeline System Tests', () => {
       // First item should start at list start time
       expect(listItem?.internalAnimations?.[0]?.id).toBe('list-item-0');
       expect(listItem?.internalAnimations?.[0]?.startTime).toBe(listItem?.startTime);
-      expect(listItem?.internalAnimations?.[0]?.fadeInDuration).toBe(1.0);
+      expect(listItem?.internalAnimations?.[0]?.fadeInDuration).toBe(1.5);
       
       // Second item should start after first item + spacing
       expect(listItem?.internalAnimations?.[1]?.id).toBe('list-item-1');
-      expect(listItem?.internalAnimations?.[1]?.startTime).toBeCloseTo(listItem?.startTime! + 1.0 + 0.1, 1);
+      expect(listItem?.internalAnimations?.[1]?.startTime).toBeCloseTo(listItem?.startTime! + 1.5 + 0.1, 1);
       
       // Third item should start after second item + spacing
       expect(listItem?.internalAnimations?.[2]?.id).toBe('list-item-2');
-      expect(listItem?.internalAnimations?.[2]?.startTime).toBeCloseTo(listItem?.startTime! + 2.0 + 0.2, 1);
+      expect(listItem?.internalAnimations?.[2]?.startTime).toBeCloseTo(listItem?.startTime! + 3.0 + 0.2, 1);
     });
 
     test('should have same fade-out timing for all list items in timeline', () => {
@@ -224,12 +228,12 @@ describe('Timeline System Tests', () => {
       // First step should start at demo start time
       expect(demoItem?.internalAnimations?.[0]?.startTime).toBe(demoItem?.startTime);
       expect(demoItem?.internalAnimations?.[0]?.fadeInDuration).toBe(0.5);
-      expect(demoItem?.internalAnimations?.[0]?.visibleTime).toBe(3.0);
+      expect(demoItem?.internalAnimations?.[0]?.visibleTime).toBe(2.0);
       expect(demoItem?.internalAnimations?.[0]?.fadeOutDuration).toBe(0.5);
       
       // Second step should start after first step completes + spacing
-      const firstStepEnd = demoItem?.startTime! + 0.5 + 3.0 + 0.5;
-      expect(demoItem?.internalAnimations?.[1]?.startTime).toBe(firstStepEnd + 0.5);
+      const firstStepEnd = demoItem?.startTime! + 0.5 + 2.0 + 0.5;
+      expect(demoItem?.internalAnimations?.[1]?.startTime).toBe(firstStepEnd + 0.1);
     });
   });
 

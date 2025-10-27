@@ -50,10 +50,10 @@ export class TimelineBuilder {
   
   // Type-specific timing - using the better values from previous system
   private readonly TIMING = {
-    heading: { fadeIn: 1.0, visible: 2.0, fadeOut: 1.5 },
-    list: { fadeIn: 1.0, visible: 2.0, fadeOut: 1.5 },
+    heading: { fadeIn: 1.0, visible: 1.8, fadeOut: 1.5 },
+    list: { fadeIn: 1.0, visible: 1.8, fadeOut: 1.5 },
     codeblock: { fadeIn: 1.0, visible: 3.0, fadeOut: 1.5 },
-    demo: { fadeIn: 1.0, visible: 2.0, fadeOut: 1.5 }
+    demo: { fadeIn: 1.0, visible: 1.8, fadeOut: 1.5 }
   };
 
   addHeading(): void {
@@ -61,11 +61,13 @@ export class TimelineBuilder {
   }
 
   addList(itemCount: number): void {
-    const contentItem = this.addContentItem('list', itemCount);
+    const contentItem = this.addContentItem('list', itemCount, false); // Don't update timeline yet
     
     // Add internal animations for list items - only fade in sequentially
-    const itemFadeIn = 1.0;      // elementFadeInDuration
+    const itemFadeIn = 1.2;      // elementFadeInDuration
     const itemSpacing = 0.1;      // elementStaggerDelay
+    const visibleTime = this.TIMING.list.visible;
+    const fadeOutDuration = this.TIMING.list.fadeOut;
     
     contentItem.internalAnimations = [];
     
@@ -88,6 +90,22 @@ export class TimelineBuilder {
       contentItem.internalAnimations.push(itemAnimation);
       itemStartTime += itemFadeIn + itemSpacing;
     }
+    
+    // Calculate when the last item finishes fading in
+    const lastItem = contentItem.internalAnimations[contentItem.internalAnimations.length - 1];
+    const lastItemFadeInEnd = lastItem?.endTime ?? contentItem.startTime;
+    
+    // Now recalculate the content item timing:
+    // - Fade-in ends when last item finishes fading in
+    // - Visible time starts AFTER last item finishes fading in
+    // - Fade-out starts AFTER visible time
+    contentItem.fadeInDuration = lastItemFadeInEnd - contentItem.startTime;
+    contentItem.fadeInEnd = lastItemFadeInEnd;
+    contentItem.visibleEnd = lastItemFadeInEnd + visibleTime;
+    contentItem.endTime = contentItem.visibleEnd + fadeOutDuration;
+    
+    // Update the overall timeline position
+    this.currentTime = contentItem.endTime + 0.2; // Small gap between content items
   }
 
   addCodeblock(): void {
@@ -123,7 +141,7 @@ export class TimelineBuilder {
     }
   }
 
-  private addContentItem(type: 'heading' | 'list' | 'codeblock' | 'demo', _itemCount?: number): ContentItem {
+  private addContentItem(type: 'heading' | 'list' | 'codeblock' | 'demo', _itemCount?: number, updateTimeline: boolean = true): ContentItem {
     const timing = this.TIMING[type];
     
     const contentItem: ContentItem = {
@@ -141,8 +159,10 @@ export class TimelineBuilder {
     
     this.contentItems.push(contentItem);
     
-    // Move to next content item start time
-    this.currentTime = contentItem.endTime + 0.2; // Small gap between content items
+    // Move to next content item start time (only if updateTimeline is true)
+    if (updateTimeline) {
+      this.currentTime = contentItem.endTime + 0.2; // Small gap between content items
+    }
     
     return contentItem;
   }
