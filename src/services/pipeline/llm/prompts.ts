@@ -89,7 +89,7 @@ OUTPUT STRUCTURE:
 CONTENT ITEM TYPES:
 {
   "type": "heading",
-  "data": ["Single title string"]
+  "data": ["Concise Title string (3-5 words)"]
 }
 
 {
@@ -285,7 +285,7 @@ Response:
   CONTENT GUIDELINES:
   
   **Scene 1 - Introduction:**
-  - heading: Clear, descriptive problem title
+  - heading: Short, concise problem title (3-5 words maximum)
   - First list: 2-3 bullet points explaining the problem and its relevance
   - Second list: 2-4 procedural steps showing the algorithmic approach
   
@@ -319,6 +319,7 @@ Response:
   3. Final: highlight or select the result
   
   QUALITY REQUIREMENTS:
+  - Headings must be concise (3-5 words maximum, no descriptions or explanations)
   - Key insights should explain the "why" not just the "what"
   - Demo array should be carefully chosen to show algorithm's strength
   - Each animation step should build understanding, not just show mechanics
