@@ -21,6 +21,7 @@ export interface PipelineResult {
   };
   error?: string;
   summary?: string;
+  name?: string;
 }
 
 export class Orchestrator {
@@ -93,7 +94,12 @@ export class Orchestrator {
         }))
       };
       
-      return { success: true, mainState, summary: this.generateSummary(jsonProgram.scenes, executedScenes) };
+      return { 
+        success: true, 
+        mainState, 
+        summary: this.generateSummary(jsonProgram.scenes, executedScenes),
+        name: jsonProgram.name
+      };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     }

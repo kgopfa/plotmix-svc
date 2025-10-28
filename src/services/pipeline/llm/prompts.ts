@@ -70,6 +70,7 @@ RESPONSE FORMAT:
 
 OUTPUT STRUCTURE:
 {
+  "name": "Short Descriptive Title (3-5 words)",
   "scenes": [
     {
       "id": "scene-id-kebab-case",
@@ -119,20 +120,22 @@ CONTENT ITEM TYPES:
 }
 
 RULES:
-1. Every scene must have id (kebab-case), name (human-friendly), and content array
-2. Every content item must have a "type" field
-3. heading data is an array with one string
-4. list data is an array of strings (2-5 items) - NO title field for lists
-5. codeblock data is an array with one string (use \\n for line breaks)
-6. All data fields must be arrays
-7. Keep it simple - create exactly what the user asked for
-8. If user didn't specify content, use placeholder/example content
-9. Use 0-based array indices for demos
+1. The root JSON must have a "name" field with a short descriptive title (3-5 words)
+2. Every scene must have id (kebab-case), name (human-friendly), and content array
+3. Every content item must have a "type" field
+4. heading data is an array with one string
+5. list data is an array of strings (2-5 items) - NO title field for lists
+6. codeblock data is an array with one string (use \\n for line breaks)
+7. All data fields must be arrays
+8. Keep it simple - create exactly what the user asked for
+9. If user didn't specify content, use placeholder/example content
+10. Use 0-based array indices for demos
 
 EXAMPLES:
 Request: "Create a scene with a list"
 Response:
 {
+  "name": "Example List Scene",
   "scenes": [{
     "id": "simple-list-scene",
     "name": "Example List",
@@ -146,6 +149,7 @@ Response:
 Request: "Show a heading and a list"
 Response:
 {
+  "name": "Heading and List Example",
   "scenes": [{
     "id": "heading-and-list",
     "name": "Example Scene",
@@ -199,6 +203,7 @@ Response:
   
   JSON STRUCTURE:
   {
+    "name": "Short Descriptive Title (3-5 words)",
     "scenes": [
       {
         "id": "intro",
@@ -270,6 +275,12 @@ Response:
       }
     ]
   }
+  
+  NAME REQUIREMENTS:
+  - The "name" field should be a short, descriptive title (3-5 words)
+  - It should capture the core topic being taught
+  - Examples: "Binary Search Algorithm", "Two Pointer Technique", "Quicksort Explained"
+  - Should be educational/descriptive, not generic
   
   CONTENT GUIDELINES:
   

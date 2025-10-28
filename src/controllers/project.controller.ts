@@ -94,7 +94,7 @@ export class ProjectController {
       // New pipeline: generate mainState via orchestrator, then create project
       const generated = await Orchestrator.generateFromPrompt(data.prompt);
       const project = await ProjectService.createProject(req.user.userId, {
-        name: data.name || 'Generated Project',
+        name: data.name || generated.name || 'Generated Project',
         title: data.title,
         source: 'GENERATED',
         mainState: generated.mainState,
