@@ -196,10 +196,18 @@ export interface SceneCanvas {
   playback: PlaybackConfig;
 }
 
+export interface SceneNarration {
+  text: string;
+  audioUrl?: string;
+  audioData?: string;
+  duration?: number;
+}
+
 export interface Scene {
   sceneId: string;
   sceneName: string;
   sceneCanvas: SceneCanvas;
+  narration?: SceneNarration;
 }
 
 export interface ProjectDimensions {
