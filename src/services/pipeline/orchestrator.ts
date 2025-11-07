@@ -3,6 +3,7 @@ import { LlmPipeline } from './llm';
 import type { Scene } from '../../types';
 import { validateElementsArray } from '../../schema/elements';
 import { logger } from '../../utils/logger';
+import { getCachedDslForPrompt } from './dsl/cache';
 
 export interface PipelineResult {
   success: boolean;
@@ -26,6 +27,16 @@ export interface PipelineResult {
 
 export class Orchestrator {
   static async generateFromPrompt(prompt: string): Promise<PipelineResult> {
+    const cachedDsl = getCachedDslForPrompt(prompt);
+    if (cachedDsl) {
+      logger.info('Using cached DSL for prompt', { prompt });
+      const cachedResult = this.generateFromDsl(cachedDsl);
+      if (!cachedResult.success) {
+        throw new Error(`Cached DSL execution failed: ${cachedResult.error}`);
+      }
+      return cachedResult;
+    }
+
     const llm = new LlmPipeline();
     const result = await llm.execute(prompt);
 
