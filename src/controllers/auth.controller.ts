@@ -207,7 +207,7 @@ export class AuthController {
    */
   static async getUserByEmail(req: Request, res: Response): Promise<void> {
     try {
-      const emailParam = req.query.email;
+      const emailParam = (req.query as Record<string, unknown>)['email'];
       const email = typeof emailParam === 'string' ? emailParam.toLowerCase().trim() : '';
 
       if (!email) {
@@ -230,7 +230,7 @@ export class AuthController {
     } catch (error) {
       logger.error('Failed to fetch user by email', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        email: req.query.email,
+        email: (req.query as Record<string, unknown>)['email'],
       });
 
       res.status(500).json({
@@ -246,7 +246,7 @@ export class AuthController {
    */
   static async createUser(req: Request, res: Response): Promise<void> {
     try {
-      const { email, name, password } = req.body ?? {};
+      const { email, name, password } = (req.body as { email?: unknown; name?: unknown; password?: unknown }) ?? {};
 
       const normalizedEmail = typeof email === 'string' ? email.toLowerCase().trim() : '';
       const trimmedName = typeof name === 'string' ? name.trim() : '';
@@ -262,7 +262,9 @@ export class AuthController {
       const user = await AuthService.createUser({
         email: normalizedEmail,
         name: trimmedName,
-        password: typeof password === 'string' && password.length > 0 ? password : undefined,
+        ...(typeof password === 'string' && password.length > 0
+          ? { password }
+          : {}),
       });
 
       res.status(201).json({
@@ -273,7 +275,7 @@ export class AuthController {
     } catch (error) {
       logger.error('Failed to create user', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        email: req.body?.email,
+        email: (req.body as Record<string, unknown>)?.['email'],
       });
 
       if (error instanceof Error && error.message.includes('already exists')) {
