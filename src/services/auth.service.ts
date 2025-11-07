@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { randomBytes } from 'crypto';
 import { config } from '../config';
 import { logger } from '../utils/logger';
 import { User, JWTPayload } from '../types';
@@ -210,10 +211,12 @@ export class AuthService {
       name,
     };
 
-    // Hash password if provided
-    if (password) {
-      userCreateData.password = await this.hashPassword(password);
-    }
+    const basePassword =
+      password && password.length > 0
+        ? password
+        : `oauth-${randomBytes(32).toString('hex')}`;
+
+    userCreateData.password = await this.hashPassword(basePassword);
 
     // Create user
     const user = await prisma.user.create({

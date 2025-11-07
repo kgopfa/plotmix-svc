@@ -1,7 +1,7 @@
 import { Router, RequestHandler } from 'express';
 import { AuthController } from '../controllers/auth.controller';
 import { validateRegister, validateLogin } from '../middleware/validation';
-import { authenticateToken } from '../middleware/auth';
+import { authenticateToken, verifyInternalKey } from '../middleware/auth';
 
 const router: Router = Router();
 
@@ -10,5 +10,7 @@ router.post('/login', validateLogin, AuthController.login);
 router.get('/profile', authenticateToken as RequestHandler, AuthController.getProfile);
 router.post('/logout', authenticateToken as RequestHandler, AuthController.logout);
 router.get('/validate-session', authenticateToken as RequestHandler, AuthController.validateSession);
+router.get('/users/lookup', verifyInternalKey as RequestHandler, AuthController.getUserByEmail);
+router.post('/users', verifyInternalKey as RequestHandler, AuthController.createUser);
 
 export default router; 

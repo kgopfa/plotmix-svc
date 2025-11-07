@@ -200,4 +200,94 @@ export class AuthController {
       });
     }
   }
+
+  /**
+   * Look up a user account by email address for OAuth validation flows
+   * Requires an internal API key passed via middleware
+   */
+  static async getUserByEmail(req: Request, res: Response): Promise<void> {
+    try {
+      const emailParam = req.query.email;
+      const email = typeof emailParam === 'string' ? emailParam.toLowerCase().trim() : '';
+
+      if (!email) {
+        res.status(400).json({
+          success: false,
+          message: 'Email query parameter is required',
+        });
+        return;
+      }
+
+      const user = await AuthService.getUserByEmail(email);
+
+      res.json({
+        success: true,
+        data: {
+          exists: !!user,
+          user: user ?? null,
+        },
+      });
+    } catch (error) {
+      logger.error('Failed to fetch user by email', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        email: req.query.email,
+      });
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to look up user',
+      });
+    }
+  }
+
+  /**
+   * Create a user account (used for OAuth provisioning from trusted callers)
+   * Requires internal API key middleware
+   */
+  static async createUser(req: Request, res: Response): Promise<void> {
+    try {
+      const { email, name, password } = req.body ?? {};
+
+      const normalizedEmail = typeof email === 'string' ? email.toLowerCase().trim() : '';
+      const trimmedName = typeof name === 'string' ? name.trim() : '';
+
+      if (!normalizedEmail || !trimmedName) {
+        res.status(400).json({
+          success: false,
+          message: 'Both email and name are required to create a user',
+        });
+        return;
+      }
+
+      const user = await AuthService.createUser({
+        email: normalizedEmail,
+        name: trimmedName,
+        password: typeof password === 'string' && password.length > 0 ? password : undefined,
+      });
+
+      res.status(201).json({
+        success: true,
+        message: 'User created successfully',
+        data: { user },
+      });
+    } catch (error) {
+      logger.error('Failed to create user', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        email: req.body?.email,
+      });
+
+      if (error instanceof Error && error.message.includes('already exists')) {
+        res.status(409).json({
+          success: false,
+          message: 'User with this email already exists',
+        });
+        return;
+      }
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to create user',
+      });
+    }
+  }
 } 
