@@ -1,58 +1,70 @@
-// Lazy-load canvas to avoid native module issues if dependencies aren't available
-let canvasModule: any = null;
-
-function getCanvas(): any {
-  if (canvasModule === null) {
-    try {
-      canvasModule = require('canvas');
-    } catch (error) {
-      // Canvas not available, will use fallback estimation
-      canvasModule = false;
-    }
-  }
-  return canvasModule;
-}
-
 /**
- * Fallback text width estimation when canvas is not available
+ * Character width multipliers for more accurate text width estimation
+ * Based on typical proportional font character widths
  */
-function estimateTextWidth(text: string, fontSize: number): number {
-  // Simple estimation: average character width * character count
-  // This is a rough approximation but works when canvas isn't available
-  const avgCharWidth = fontSize * 0.6; // Rough average for most fonts
-  return text.length * avgCharWidth;
+const CHAR_WIDTH_MULTIPLIERS: Record<string, number> = {
+  // Narrow characters
+  'i': 0.25, 'l': 0.25, 't': 0.3, 'f': 0.35, 'j': 0.3, 'r': 0.35,
+  'I': 0.35, 'J': 0.4, 'L': 0.4, 'T': 0.5, 'F': 0.45,
+  // Normal width
+  ' ': 0.3, // Space
+  // Wide characters
+  'W': 1.0, 'M': 1.0, 'Q': 0.95, 'O': 0.9, 'D': 0.85, 'G': 0.85,
+  'w': 0.9, 'm': 0.95,
+  // Very wide
+  '@': 1.1, '#': 0.85,
+};
+
+/**
+ * Calculate text width estimation based on font properties
+ * This is a pure JavaScript solution that doesn't require native dependencies
+ */
+function estimateTextWidth(
+  text: string, 
+  fontSize: number, 
+  fontFamily: string,
+  fontWeight: string = 'normal'
+): number {
+  // Check if monospace font
+  const isMonospace = /mono|courier|consolas|menlo|inconsolata/i.test(fontFamily);
+  
+  // Base character width multiplier
+  let baseMultiplier = 0.6; // Average for proportional fonts
+  if (isMonospace) {
+    baseMultiplier = 0.6; // Monospace is more consistent
+  }
+  
+  // Adjust for font weight
+  const weightMultiplier = fontWeight === 'bold' || fontWeight === '700' || parseInt(fontWeight) >= 700 
+    ? 1.1 
+    : 1.0;
+  
+  // Calculate width character by character for better accuracy
+  let totalWidth = 0;
+  for (const char of text) {
+    const charMultiplier = CHAR_WIDTH_MULTIPLIERS[char] || baseMultiplier;
+    totalWidth += fontSize * charMultiplier * weightMultiplier;
+  }
+  
+  // Add spacing for proportional fonts (kerning approximation)
+  if (!isMonospace && text.length > 1) {
+    totalWidth += (text.length - 1) * fontSize * 0.05;
+  }
+  
+  return totalWidth;
 }
 
 /**
- * Accurately measure text width using Canvas API
- * Falls back to estimation if canvas is not available
+ * Measure text width using estimation algorithm
+ * Pure JavaScript solution - no native dependencies required
  */
 export function measureTextWidth(text: string, fontSize: number, fontFamily: string): number {
-  const canvas = getCanvas();
-  if (!canvas) {
-    return estimateTextWidth(text, fontSize);
-  }
-
-  try {
-    // Create a canvas for measuring text
-    const canvasInstance = canvas.createCanvas(1, 1);
-    const context = canvasInstance.getContext('2d');
-    
-    // Set the font to match the desired text style
-    context.font = `${fontSize}px ${fontFamily}`;
-    
-    // Measure the text width
-    const metrics = context.measureText(text);
-    return metrics.width;
-  } catch (error) {
-    // If canvas fails, fall back to estimation
-    return estimateTextWidth(text, fontSize);
-  }
+  return estimateTextWidth(text, fontSize, fontFamily, 'normal');
 }
 
 /**
  * Measure text width with additional font properties (weight, style)
- * Falls back to estimation if canvas is not available
+ * Pure JavaScript solution - no native dependencies required
  */
 export function measureTextWidthAdvanced(
   text: string, 
@@ -61,33 +73,19 @@ export function measureTextWidthAdvanced(
   fontWeight: string = 'normal',
   fontStyle: string = 'normal'
 ): number {
-  const canvas = getCanvas();
-  if (!canvas) {
-    return estimateTextWidth(text, fontSize);
-  }
-
-  try {
-    const canvasInstance = canvas.createCanvas(1, 1);
-    const context = canvasInstance.getContext('2d');
-    
-    // Extract the first font from the font family stack for better compatibility
-    const primaryFont = fontFamily.split(',')[0]?.trim().replace(/['"]/g, '') || 'sans-serif';
-    
-    // Build complete font string
-    const fontString = `${fontStyle} ${fontWeight} ${fontSize}px ${primaryFont}`;
-    context.font = fontString;
-    
-    const metrics = context.measureText(text);
-    return metrics.width;
-  } catch (error) {
-    // If canvas fails, fall back to estimation
-    return estimateTextWidth(text, fontSize);
-  }
+  // Extract the first font from the font family stack
+  const primaryFont = fontFamily.split(',')[0]?.trim().replace(/['"]/g, '') || 'sans-serif';
+  
+  // Adjust for italic (slightly wider due to character slant)
+  const styleMultiplier = fontStyle === 'italic' ? 1.05 : 1.0;
+  const baseWidth = estimateTextWidth(text, fontSize, primaryFont, fontWeight);
+  
+  return baseWidth * styleMultiplier;
 }
 
 /**
  * Get text metrics including width, height, and other properties
- * Falls back to basic metrics if canvas is not available
+ * Pure JavaScript solution - no native dependencies required
  */
 export function getTextMetrics(
   text: string, 
@@ -96,36 +94,19 @@ export function getTextMetrics(
   fontWeight: string = 'normal',
   fontStyle: string = 'normal'
 ) {
-  const canvas = getCanvas();
-  if (!canvas) {
-    // Return basic metrics when canvas is not available
-    const width = estimateTextWidth(text, fontSize);
-    return {
-      width,
-      actualBoundingBoxAscent: fontSize * 0.8,
-      actualBoundingBoxDescent: fontSize * 0.2,
-      fontBoundingBoxAscent: fontSize,
-      fontBoundingBoxDescent: 0,
-    };
-  }
-
-  try {
-    const canvasInstance = canvas.createCanvas(1, 1);
-    const context = canvasInstance.getContext('2d');
-    
-    const fontString = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
-    context.font = fontString;
-    
-    return context.measureText(text);
-  } catch (error) {
-    // If canvas fails, return basic metrics
-    const width = estimateTextWidth(text, fontSize);
-    return {
-      width,
-      actualBoundingBoxAscent: fontSize * 0.8,
-      actualBoundingBoxDescent: fontSize * 0.2,
-      fontBoundingBoxAscent: fontSize,
-      fontBoundingBoxDescent: 0,
-    };
-  }
+  const width = measureTextWidthAdvanced(text, fontSize, fontFamily, fontWeight, fontStyle);
+  
+  // Return estimated metrics
+  return {
+    width,
+    actualBoundingBoxAscent: fontSize * 0.8,
+    actualBoundingBoxDescent: fontSize * 0.2,
+    fontBoundingBoxAscent: fontSize,
+    fontBoundingBoxDescent: 0,
+    alphabeticBaseline: fontSize * 0.8,
+    emHeightAscent: fontSize * 0.8,
+    emHeightDescent: fontSize * 0.2,
+    hangingBaseline: fontSize * 0.7,
+    ideographicBaseline: fontSize * 0.8,
+  };
 }
