@@ -34,6 +34,7 @@ export class Orchestrator {
       if (!cachedResult.success) {
         throw new Error(`Cached DSL execution failed: ${cachedResult.error}`);
       }
+      await new Promise((resolve) => setTimeout(resolve, 1500));
       return cachedResult;
     }
 
