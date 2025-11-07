@@ -15,7 +15,9 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
+    "start:prod": "prisma migrate deploy && node dist/index.js",
     "pipeline:test": "ts-node src/scripts/test-pipeline.ts"
   },
   "keywords": [
