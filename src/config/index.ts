@@ -16,20 +16,29 @@ function getOptionalEnv(key: string, fallback: string): string {
   return process.env[key] || fallback;
 }
 
-function parseCsvEnv(value: string): string[] {
-  return value
-    .split(',')
+function parseOrigins(value: string): string[] {
+  const tokens = value
+    .split(/[,;\s]+/)
     .map((entry) => entry.trim())
     .filter((entry) => entry.length > 0);
+
+  const normalized = tokens.map((entry) =>
+    entry.endsWith('/') ? entry.slice(0, -1) : entry,
+  );
+
+  return Array.from(new Set(normalized));
 }
 
-const nodeEnv = getOptionalEnv('NODE_ENV', 'development');
+const nodeEnvRaw = getOptionalEnv('NODE_ENV', 'development');
+const normalizedNodeEnv = nodeEnvRaw.toLowerCase();
+const isProduction = normalizedNodeEnv === 'production';
+const nodeEnv = nodeEnvRaw;
 const defaultCorsOrigin =
-  nodeEnv === 'production'
+  isProduction
     ? 'https://www.getplotmix.com'
     : 'http://localhost:3000';
 
-const corsOrigins = parseCsvEnv(
+const corsOrigins = parseOrigins(
   getOptionalEnv('CORS_ORIGIN', defaultCorsOrigin),
 );
 

@@ -43,12 +43,14 @@ export const securityMiddleware: RequestHandler[] = [
         return callback(null, true);
       }
 
-      if (config.cors.origin.includes('*')) {
-        return callback(null, true);
+      const allowedOrigins = config.cors.origin;
+
+      if (allowedOrigins.includes('*')) {
+        return callback(null, origin);
       }
 
-      if (config.cors.origin.includes(origin)) {
-        return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, origin);
       }
 
       return callback(new Error(`Origin ${origin} not allowed by CORS policy`));
