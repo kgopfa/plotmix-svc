@@ -16,8 +16,25 @@ function getOptionalEnv(key: string, fallback: string): string {
   return process.env[key] || fallback;
 }
 
+function parseCsvEnv(value: string): string[] {
+  return value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+const nodeEnv = getOptionalEnv('NODE_ENV', 'development');
+const defaultCorsOrigin =
+  nodeEnv === 'production'
+    ? 'https://www.getplotmix.com'
+    : 'http://localhost:3000';
+
+const corsOrigins = parseCsvEnv(
+  getOptionalEnv('CORS_ORIGIN', defaultCorsOrigin),
+);
+
 export const config = {
-  nodeEnv: getOptionalEnv('NODE_ENV', 'development'),
+  nodeEnv,
   port: parseInt(getOptionalEnv('PORT', '3000'), 10),
   jwt: {
     // Internal JWT secret for backend operations (should be different from NextAuth)
@@ -37,11 +54,11 @@ export const config = {
     maxRequests: parseInt(getOptionalEnv('RATE_LIMIT_MAX_REQUESTS', '100'), 10),
   },
   cors: {
-    origin: getOptionalEnv('CORS_ORIGIN', 'http://localhost:3000'),
+    origin: corsOrigins.length > 0 ? corsOrigins : [defaultCorsOrigin],
   },
   logging: {
     level: getOptionalEnv('LOG_LEVEL', 'info'),
   },
 } as const;
 
-export type Config = typeof config; 
+export type Config = typeof config;

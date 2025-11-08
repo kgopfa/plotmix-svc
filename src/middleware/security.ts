@@ -38,7 +38,21 @@ export const securityMiddleware: RequestHandler[] = [
 
   // CORS configuration
   cors({
-    origin: config.cors.origin,
+    origin: (origin, callback) => {
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (config.cors.origin.includes('*')) {
+        return callback(null, true);
+      }
+
+      if (config.cors.origin.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`Origin ${origin} not allowed by CORS policy`));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-render-auth', 'X-Render-Auth'],
