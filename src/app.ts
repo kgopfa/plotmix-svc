@@ -8,6 +8,7 @@ import { projectRoutes } from './routes/project.routes';
 import { collaborationRoutes } from './routes/collaboration.routes';
 import { conversationRoutes } from './routes/conversation.routes';
 import { renderRoutes } from './routes/render.routes';
+import feedbackRoutes from './routes/feedback.routes';
 
 const app: Application = express();
 
@@ -23,6 +24,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/collaboration', collaborationRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api/render', renderRoutes);
+app.use('/api/feedback', feedbackRoutes);
 app.use('/api', healthRoutes);
 
 // Root endpoint
