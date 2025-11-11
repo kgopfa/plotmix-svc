@@ -4,6 +4,7 @@ import { config } from '../config';
 import { logger } from '../utils/logger';
 import { JWTPayload, AuthenticatedRequest } from '../types';
 import { AuthService } from '../services/auth.service';
+import { getMvpDummyUserId } from '../utils/mvp-dummy-user';
 
 /**
  * Middleware to verify internal API key
@@ -33,17 +34,39 @@ export const verifyInternalKey = (req: Request, res: Response, next: NextFunctio
 /**
  * Middleware to validate NextAuth JWT tokens
  * Uses the NextAuth secret to validate tokens from the frontend
+ * MVP: If no token provided, uses dummy user data
  */
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
+  // MVP: If no token, use dummy user data
   if (!token) {
-    res.status(401).json({ 
-      success: false,
-      message: 'Access token required' 
-    });
-    return;
+    try {
+      const dummyUserId = await getMvpDummyUserId();
+      const authenticatedReq = req as AuthenticatedRequest;
+      authenticatedReq.user = {
+        sub: dummyUserId,
+        id: dummyUserId,
+        userId: dummyUserId,
+        email: 'demo@plotmix.com',
+        name: 'Demo User',
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60), // 30 days
+      } as JWTPayload;
+      next();
+      return;
+    } catch (error) {
+      logger.error('Failed to get MVP dummy user', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        path: req.path,
+      });
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+      return;
+    }
   }
 
   try {
@@ -74,16 +97,37 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
 
     next();
   } catch (error) {
-    logger.error('Token validation failed', {
+    // MVP: If token validation fails, use dummy user instead of rejecting
+    logger.warn('Token validation failed, using dummy user for MVP', {
       error: error instanceof Error ? error.message : 'Unknown error',
       path: req.path,
       ip: req.ip,
     });
-    res.status(403).json({ 
-      success: false,
-      message: 'Invalid or expired token' 
-    });
-    return;
+    
+    try {
+      const dummyUserId = await getMvpDummyUserId();
+      const authenticatedReq = req as AuthenticatedRequest;
+      authenticatedReq.user = {
+        sub: dummyUserId,
+        id: dummyUserId,
+        userId: dummyUserId,
+        email: 'demo@plotmix.com',
+        name: 'Demo User',
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60), // 30 days
+      } as JWTPayload;
+      next();
+    } catch (dummyUserError) {
+      logger.error('Failed to get MVP dummy user after token validation failure', {
+        error: dummyUserError instanceof Error ? dummyUserError.message : 'Unknown error',
+        path: req.path,
+      });
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+      return;
+    }
   }
 };
 
