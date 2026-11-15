@@ -16,15 +16,6 @@ function getOptionalEnv(key: string, fallback: string): string {
   return process.env[key] || fallback;
 }
 
-function getRequiredIntEnv(key: string): number {
-  const rawValue = getRequiredEnv(key);
-  const parsed = Number.parseInt(rawValue, 10);
-  if (Number.isNaN(parsed)) {
-    throw new Error(`Environment variable ${key} must be a valid integer`);
-  }
-  return parsed;
-}
-
 function parseOrigins(value: string): string[] {
   const tokens = value
     .split(/[,;\s]+/)
@@ -77,13 +68,14 @@ export const config = {
   logging: {
     level: getOptionalEnv('LOG_LEVEL', 'info'),
   },
+  // SMTP is optional: feedback emails are skipped/fail gracefully when unset
   mail: {
-    host: getRequiredEnv('SMTP_HOST'),
-    port: getRequiredIntEnv('SMTP_PORT'),
-    user: getRequiredEnv('SMTP_USER'),
-    password: getRequiredEnv('SMTP_PASSWORD'),
-    fromEmail: getRequiredEnv('FEEDBACK_FROM_EMAIL'),
-    toEmail: getRequiredEnv('FEEDBACK_TO_EMAIL'),
+    host: getOptionalEnv('SMTP_HOST', ''),
+    port: parseInt(getOptionalEnv('SMTP_PORT', '465'), 10),
+    user: getOptionalEnv('SMTP_USER', ''),
+    password: getOptionalEnv('SMTP_PASSWORD', ''),
+    fromEmail: getOptionalEnv('FEEDBACK_FROM_EMAIL', 'feedback@getplotmix.com'),
+    toEmail: getOptionalEnv('FEEDBACK_TO_EMAIL', 'team.developers@getplotmix.com'),
   },
 } as const;
 

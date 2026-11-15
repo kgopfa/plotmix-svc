@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: plotmix-svc
+    runtime: node
+    plan: free
+    buildCommand: npm i -g pnpm@9 && pnpm install --frozen-lockfile && pnpm db:generate && pnpm build
+    startCommand: pnpm start:prod
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      - key: PUPPETEER_SKIP_DOWNLOAD
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: NEXTAUTH_SECRET
+        sync: false
+      - key: INTERNAL_API_KEY
+        sync: false
+      - key: RENDER_TOKEN_SECRET
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: UI_BASE_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: LLM_ROUTER_PROVIDER
+        value: openai
+      - key: LLM_MODEL_PLANNER
+        value: gpt-4o-mini
+      - key: LLM_MODEL_ANIMATION
+        value: gpt-4o-mini
+      - key: LLM_MODEL_ACTIONS
+        value: gpt-4o-mini
